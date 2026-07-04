@@ -1,0 +1,80 @@
+# Render Blueprint — provisions the backend API and the web frontend.
+# The database is TiDB Cloud (external), so no DB service is defined here.
+#
+# Deploy: Render Dashboard → New → Blueprint → pick this repo.
+# Then fill in the env vars marked "sync: false" (see docs/android-apk-setup.md
+# and the notes below).
+
+services:
+  # ─────────────────────────────────────────────────────────────
+  # Backend API (Node / Express)
+  # ─────────────────────────────────────────────────────────────
+  - type: web
+    name: student-portal-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Strong JWT secret generated & stored by Render (never in the repo).
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      # TiDB Cloud connection string — paste in the dashboard.
+      - key: TIDB_URL
+        sync: false
+      - key: ADMIN_USERNAME
+        value: admin
+      # bcrypt hash of the admin password (required in production).
+      #   node -e "console.log(require('bcrypt').hashSync('YourPassword',12))"
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+      # Allowed web origin(s). Auto-wired to the frontend service below;
+      # https://localhost (the Android app) is always allowed in code.
+      - key: CORS_ORIGIN
+        fromService:
+          type: web
+          name: student-portal-web
+          property: host
+      # Cloudinary (optional — photo uploads). Paste in the dashboard.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # Google Drive photo import (optional).
+      - key: GOOGLE_API_KEY
+        sync: false
+
+  # ─────────────────────────────────────────────────────────────
+  # Frontend (React / Vite static site)
+  # ─────────────────────────────────────────────────────────────
+  - type: web
+    name: student-portal-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install --include=dev && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      # Auto-wired to the backend service's URL (code upgrades the bare host to https://).
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: student-portal-api
+          property: host
+      # Public APK download URL (set after the GitHub Actions build publishes it).
+      - key: VITE_APK_URL
+        sync: false
+    # SPA fallback — every route serves index.html so client-side routing works.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

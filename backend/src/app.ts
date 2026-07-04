@@ -17,7 +17,15 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // Explicit allow-list only — never fall back to a wildcard while sending credentials.
-const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
+// Bare hostnames (e.g. from a Render fromService reference) are upgraded to https://,
+// and the native-app (Capacitor) WebView origins are always allowed so the APK works.
+const configuredOrigins = env.CORS_ORIGIN.split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+  .map((o) => (/^[a-z]+:\/\//i.test(o) ? o : `https://${o}`));
+const nativeAppOrigins = ['https://localhost', 'capacitor://localhost'];
+const allowedOrigins = [...new Set([...configuredOrigins, ...nativeAppOrigins])];
+
 app.use(
   cors({
     origin: allowedOrigins,
