@@ -1,3 +1,6 @@
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -61,6 +64,19 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/system', systemRoutes);
+
+// ── Single-service deployment: serve the built frontend ──
+// In production the web app is built into backend/dist/public. When that folder
+// exists, serve it and fall back to index.html for client-side routes (anything
+// that isn't /api/*). In development the folder is absent, so the web dev server
+// and API run independently and this block is skipped.
+const clientDir = fileURLToPath(new URL('./public', import.meta.url));
+if (existsSync(clientDir)) {
+  app.use(express.static(clientDir));
+  app.get(/^(?!\/api\/).*/, (_req, res) => {
+    res.sendFile(join(clientDir, 'index.html'));
+  });
+}
 
 app.use(notFoundHandler);
 app.use(errorHandler);

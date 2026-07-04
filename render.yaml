@@ -1,21 +1,23 @@
-# Render Blueprint — provisions the backend API and the web frontend.
+# Render Blueprint — single Web Service.
+# The Express backend serves BOTH the API (/api/*) and the built React frontend
+# (everything else), so there's one URL, one service, and no CORS between them.
 # The database is TiDB Cloud (external), so no DB service is defined here.
 #
-# Deploy: Render Dashboard → New → Blueprint → pick this repo.
-# Then fill in the env vars marked "sync: false" (see docs/android-apk-setup.md
-# and the notes below).
+# Deploy: Render Dashboard → New → Blueprint → pick this repo, then fill in the
+# env vars marked "sync: false".
 
 services:
-  # ─────────────────────────────────────────────────────────────
-  # Backend API (Node / Express)
-  # ─────────────────────────────────────────────────────────────
   - type: web
-    name: student-portal-api
+    name: student-portal
     runtime: node
-    rootDir: backend
     plan: free
-    buildCommand: npm install --include=dev && npm run build
-    startCommand: npm start
+    # Build the frontend, build the backend, then drop the web build into
+    # backend/dist/public so the server can serve it.
+    buildCommand: >-
+      cd frontend && npm install --include=dev && npm run build &&
+      cd ../backend && npm install --include=dev && npm run build &&
+      rm -rf dist/public && cp -r ../frontend/dist dist/public
+    startCommand: cd backend && npm start
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -35,14 +37,9 @@ services:
       #   node -e "console.log(require('bcrypt').hashSync('YourPassword',12))"
       - key: ADMIN_PASSWORD_HASH
         sync: false
-      # Allowed web origin(s). Auto-wired to the frontend service below;
-      # https://localhost (the Android app) is always allowed in code.
-      - key: CORS_ORIGIN
-        fromService:
-          type: web
-          name: student-portal-web
-          property: host
-      # Cloudinary (optional — photo uploads). Paste in the dashboard.
+      # Web is same-origin so no CORS is needed for it; the Android app's
+      # https://localhost origin is always allowed in code.
+      # Cloudinary (optional — photo uploads).
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
@@ -52,29 +49,10 @@ services:
       # Google Drive photo import (optional).
       - key: GOOGLE_API_KEY
         sync: false
-
-  # ─────────────────────────────────────────────────────────────
-  # Frontend (React / Vite static site)
-  # ─────────────────────────────────────────────────────────────
-  - type: web
-    name: student-portal-web
-    runtime: static
-    rootDir: frontend
-    buildCommand: npm install --include=dev && npm run build
-    staticPublishPath: dist
-    autoDeploy: true
-    envVars:
-      # Auto-wired to the backend service's URL (code upgrades the bare host to https://).
-      - key: VITE_API_BASE_URL
-        fromService:
-          type: web
-          name: student-portal-api
-          property: host
-      # Public APK download URL (set after the GitHub Actions build publishes it).
+      # Public APK download URL (frontend build-time var; set after the APK build).
+      # Left blank → the "Download App" option stays hidden.
       - key: VITE_APK_URL
         sync: false
-    # SPA fallback — every route serves index.html so client-side routing works.
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+      # NOTE: VITE_API_BASE_URL is intentionally NOT set — the web app calls /api
+      # on its own origin. For the Android APK build (GitHub Actions), set the
+      # VITE_API_BASE_URL secret there to this service's URL.
