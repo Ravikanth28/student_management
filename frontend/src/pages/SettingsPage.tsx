@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { InstallAppCard } from '../components/InstallApp';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { useToast } from '../components/Toast';
+import { clearAppCache } from '../lib/cache';
 import { useAuth } from '../state/auth';
 import type { SystemStatus } from '../types';
 
@@ -56,6 +59,14 @@ function IconChevRight() {
     </svg>
   );
 }
+function IconRefresh() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </svg>
+  );
+}
 
 type Props = { onLogout: () => void };
 
@@ -99,9 +110,19 @@ const gridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: '
 export function SettingsPage({ onLogout }: Props) {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { success } = useToast();
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [showClear, setShowClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const handleClearCache = async () => {
+    setClearing(true);
+    await clearAppCache();
+    success('Cache cleared', 'Reloading the latest version…');
+    setTimeout(() => window.location.reload(), 600);
+  };
 
   useEffect(() => {
     let active = true;
@@ -238,7 +259,36 @@ export function SettingsPage({ onLogout }: Props) {
               </button>
             </div>
           </div>
+
+          {/* ── Storage & cache ── */}
+          <div className="card card-padded">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--amber-light)', color: 'var(--amber)', display: 'grid', placeItems: 'center' }}>
+                  <IconRefresh />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)' }}>Storage &amp; Cache</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-2)' }}>Clear locally cached files and reload the latest version. You stay signed in.</div>
+                </div>
+              </div>
+              <button className="btn btn-outline btn-sm" type="button" onClick={() => setShowClear(true)}>
+                <IconRefresh /> Clear cache
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {showClear && (
+        <ConfirmModal
+          title="Clear cached data?"
+          description="This clears cached files and reloads the app with the latest version. You'll stay signed in."
+          confirmLabel="Clear & reload"
+          onConfirm={handleClearCache}
+          onCancel={() => setShowClear(false)}
+          loading={clearing}
+        />
       )}
     </Shell>
   );
