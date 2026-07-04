@@ -4,6 +4,7 @@ import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../state/auth';
+import { proxiedImage } from '../lib/img';
 
 // ─── Icons ────────────────────────────────────────────────────
 function IconUpload() {
@@ -582,7 +583,7 @@ export function ImportPage({ onLogout }: Props) {
                     {result.successes.map((s, i) => (
                       <tr key={i}>
                         <td>
-                          <img src={s.photo_url} alt="" loading="lazy" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                          <img src={proxiedImage(s.photo_url) ?? undefined} alt="" loading="lazy" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
                         </td>
                         <td style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{s.enrollment_number || s.register_number}</td>
                         <td style={{ fontSize: '0.82rem', fontWeight: 600 }}>{s.name}</td>
@@ -764,7 +765,7 @@ export function ImportPage({ onLogout }: Props) {
                         {(activeModalTab === 'all' || activeModalTab === 'success') && detailsModal.successes.map((s, i) => (
                           <tr key={`succ-${i}`}>
                             <td>
-                              <img src={s.photo_url} alt="" loading="lazy" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                              <img src={proxiedImage(s.photo_url) ?? undefined} alt="" loading="lazy" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
                             </td>
                             <td style={{ fontFamily: 'monospace', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.enrollment_number || s.register_number}</td>
                             <td style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</td>

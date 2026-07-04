@@ -4,6 +4,7 @@ import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
+import { proxiedImage } from '../lib/img';
 import type { Student } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
@@ -135,10 +136,13 @@ function PhotoPanel({ student, onPhotoUpdate }: { student: Student; onPhotoUpdat
   useEffect(() => () => { if (retryTimer.current) window.clearTimeout(retryTimer.current); }, []);
 
   const isBlob = previewUrl?.startsWith('blob:') ?? false;
+  // Load remote photos through the backend proxy (reliable even when the
+  // browser can't reach Cloudinary directly); local previews pass through.
+  const base = proxiedImage(previewUrl);
   // Cache-bust on retry so the browser re-requests instead of reusing a failed response.
-  const displaySrc = previewUrl && attempt > 0 && !isBlob
-    ? `${previewUrl}${previewUrl.includes('?') ? '&' : '?'}_r=${attempt}`
-    : previewUrl;
+  const displaySrc = base && attempt > 0 && !isBlob
+    ? `${base}${base.includes('?') ? '&' : '?'}_r=${attempt}`
+    : base;
 
   const handleImgError = () => {
     if (attempt < MAX_RETRIES) {

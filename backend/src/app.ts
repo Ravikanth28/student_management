@@ -9,6 +9,7 @@ import { env } from './config/env.js';
 import { authRoutes } from './routes/authRoutes.js';
 import { studentRoutes } from './routes/studentRoutes.js';
 import { systemRoutes } from './routes/systemRoutes.js';
+import { mediaRoutes } from './routes/mediaRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 
 export const app = express();
@@ -64,6 +65,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/media', mediaRoutes);
 
 // ── Single-service deployment: serve the built frontend ──
 // In production the web app is built into backend/dist/public. When that folder
