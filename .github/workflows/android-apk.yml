@@ -1,0 +1,86 @@
+name: Build Android APK
+
+# Builds the Capacitor Android APK in the cloud (no local Android Studio needed)
+# and publishes it to a fixed "apk-latest" release so the web app can link to it:
+#   https://github.com/<OWNER>/<REPO>/releases/download/apk-latest/student-portal.apk
+#
+# Setup (one time):
+#   1. Push this repo to GitHub.
+#   2. Deploy the backend to a public HTTPS URL.
+#   3. Repo → Settings → Secrets and variables → Actions → New repository secret:
+#        Name:  VITE_API_BASE_URL
+#        Value: https://your-deployed-backend.example.com
+#   4. Run this workflow (Actions tab → Build Android APK → Run workflow),
+#      or push a tag like v1.0.0.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app (pointed at the deployed backend)
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: npm run build
+
+      - name: Add Android platform
+        run: npx --no-install cap add android
+
+      - name: Sync web assets into Android project
+        run: npx --no-install cap sync android
+
+      - name: Build debug APK
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk student-portal.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-portal-apk
+          path: frontend/student-portal.apk
+
+      - name: Publish APK to release (apk-latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Student Portal — Android APK (latest)
+          body: |
+            Latest Android build of the Student Management Portal.
+            Download `student-portal.apk` below and install it on your phone.
+          files: frontend/student-portal.apk

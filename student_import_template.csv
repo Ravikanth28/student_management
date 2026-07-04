@@ -1,0 +1,4 @@
+name,register_number,enrollment_number,department,batch,phone,parent_phone,address,college_email,personal_email,photo_url
+Arun Kumar,21CS001,EN21CS001,Computer Science,2021-2025,9876543210,9876543211,"12 Main St, Chennai 600001",arun@college.edu,arun@gmail.com,https://drive.google.com/file/d/YOUR_FILE_ID_HERE/view
+Priya Sharma,21CS002,EN21CS002,Computer Science,2021-2025,9876543220,9876543221,"45 Park Ave, Chennai 600002",priya@college.edu,priya@gmail.com,https://drive.google.com/file/d/YOUR_FILE_ID_HERE/view
+Rahul Singh,21EC001,,Electronics,2021-2025,9876543230,9876543231,"7 Lake Rd, Coimbatore 641001",rahul@college.edu,rahul@gmail.com,
