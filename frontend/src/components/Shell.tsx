@@ -219,11 +219,11 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
 
       <div className="sidebar-footer">
         {displayName && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', marginBottom: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', marginBottom: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #4f7cc7, #2a4f7c)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '1rem', textTransform: 'uppercase', flexShrink: 0 }}>
               {displayName.charAt(0)}
             </div>
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
               <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>{displayName}</div>
               {role && (
                 <span style={rolePill(role)}>
@@ -232,12 +232,17 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
                 </span>
               )}
             </div>
+            <button
+              className="theme-icon-btn"
+              type="button"
+              onClick={toggle}
+              aria-label="Toggle light/dark theme"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <IconSun /> : <IconMoon />}
+            </button>
           </div>
         )}
-        <button className="theme-btn" type="button" onClick={toggle}>
-          {theme === 'dark' ? <IconSun /> : <IconMoon />}
-          {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-        </button>
         <button className="logout-btn" type="button" onClick={onLogout} id="logout-button">
           <IconLogout />
           Sign Out
