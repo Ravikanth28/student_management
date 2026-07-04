@@ -121,7 +121,7 @@ export function LoginPage() {
               <IconShield />
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--navy)' }}>Student Portal</div>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text)' }}>Student Portal</div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>College Administration</div>
             </div>
           </div>
