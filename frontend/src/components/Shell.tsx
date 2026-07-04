@@ -1,5 +1,25 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useAuth } from '../state/auth';
+import { useTheme } from '../state/theme';
+import type { Role } from '../types';
+
+function roleLabel(r: Role): string {
+  return r === 'superadmin' ? 'Super Admin' : r === 'admin' ? 'Admin' : 'User';
+}
+const ROLE_COLORS: Record<Role, { bg: string; fg: string; dot: string }> = {
+  superadmin: { bg: 'rgba(129,140,248,0.16)', fg: '#c7d2fe', dot: '#818cf8' },
+  admin:      { bg: 'rgba(96,165,250,0.16)',  fg: '#bfdbfe', dot: '#60a5fa' },
+  user:       { bg: 'rgba(255,255,255,0.10)', fg: 'rgba(255,255,255,0.78)', dot: 'rgba(255,255,255,0.6)' },
+};
+function rolePill(r: Role): CSSProperties {
+  const c = ROLE_COLORS[r];
+  return {
+    display: 'inline-flex', alignItems: 'center', gap: 6, width: 'fit-content',
+    fontSize: '0.66rem', fontWeight: 600, letterSpacing: '0.01em',
+    padding: '3px 9px', borderRadius: 100, background: c.bg, color: c.fg,
+  };
+}
 
 // ─── SVG Icons ──────────────────────────────────────────────
 function IconGrid() {
@@ -95,19 +115,78 @@ function IconActivity() {
   );
 }
 
+function IconScan() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+    </svg>
+  );
+}
+
+function IconClock() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function IconTrophy() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" />
+      <path d="M7 4H4v2a3 3 0 0 0 3 3M17 4h3v2a3 3 0 0 1-3 3" />
+    </svg>
+  );
+}
+
+function IconUsersCog() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+      <path d="M19 8v6M16 11h6" />
+    </svg>
+  );
+}
+
+function IconSun() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  );
+}
+function IconMoon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
 // ─── Nav Items ───────────────────────────────────────────────
-const NAV_ITEMS = [
-  { to: '/dashboard',    label: 'Dashboard',        Icon: IconGrid },
-  { to: '/students',     label: 'Student Records',  Icon: IconUsers },
-  { to: '/students/new', label: 'Add Student',      Icon: IconPlus },
-  { to: '/import',       label: 'Bulk Import',      Icon: IconUploadNav },
-  { to: '/audit',        label: 'Audit Log',        Icon: IconActivity },
-  { to: '/settings',     label: 'Settings',         Icon: IconSettings },
+const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; roles: Role[] }> = [
+  { to: '/dashboard',    label: 'Dashboard',        Icon: IconGrid,      roles: ['superadmin', 'admin', 'user'] },
+  { to: '/students',     label: 'Student Records',  Icon: IconUsers,     roles: ['superadmin', 'admin', 'user'] },
+  { to: '/students/new', label: 'Add Student',      Icon: IconPlus,      roles: ['superadmin', 'admin'] },
+  { to: '/scanner',      label: 'Scanner',          Icon: IconScan,      roles: ['superadmin', 'admin'] },
+  { to: '/late-comers',  label: 'Late Comers',      Icon: IconClock,     roles: ['superadmin', 'admin'] },
+  { to: '/achievements', label: 'Achievements',     Icon: IconTrophy,    roles: ['superadmin', 'admin'] },
+  { to: '/import',       label: 'Bulk Import',      Icon: IconUploadNav, roles: ['superadmin', 'admin'] },
+  { to: '/users',        label: 'Users',            Icon: IconUsersCog,  roles: ['superadmin'] },
+  { to: '/audit',        label: 'Audit Log',        Icon: IconActivity,  roles: ['superadmin'] },
+  { to: '/settings',     label: 'Settings',         Icon: IconSettings,  roles: ['superadmin'] },
 ];
 
 
 // ─── Sidebar Content ─────────────────────────────────────────
 function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?: () => void }) {
+  const { role, displayName } = useAuth();
+  const { theme, toggle } = useTheme();
+  const items = NAV_ITEMS.filter((i) => role && i.roles.includes(role));
+
   return (
     <>
       <div className="sidebar-header">
@@ -124,7 +203,7 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
 
       <nav className="sidebar-nav" aria-label="Primary navigation">
         <span className="sidebar-section-label">Main Menu</span>
-        {NAV_ITEMS.map(({ to, label, Icon }) => (
+        {items.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -139,6 +218,26 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
       </nav>
 
       <div className="sidebar-footer">
+        {displayName && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', marginBottom: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #4f7cc7, #2a4f7c)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '1rem', textTransform: 'uppercase', flexShrink: 0 }}>
+              {displayName.charAt(0)}
+            </div>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>{displayName}</div>
+              {role && (
+                <span style={rolePill(role)}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: ROLE_COLORS[role].dot }} />
+                  {roleLabel(role)}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        <button className="theme-btn" type="button" onClick={toggle}>
+          {theme === 'dark' ? <IconSun /> : <IconMoon />}
+          {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        </button>
         <button className="logout-btn" type="button" onClick={onLogout} id="logout-button">
           <IconLogout />
           Sign Out
@@ -159,6 +258,7 @@ type ShellProps = {
 
 export function Shell({ title, subtitle, onLogout, actions, children }: ShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { theme, toggle } = useTheme();
   const location = useLocation();
 
   // Close mobile menu on route change
@@ -192,8 +292,10 @@ export function Shell({ title, subtitle, onLogout, actions, children }: ShellPro
           >
             {mobileOpen ? <IconClose /> : <IconMenu />}
           </button>
-          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>Student Portal</span>
-          <div style={{ width: 40 }} />
+          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)' }}>Student Portal</span>
+          <button className="hamburger" type="button" aria-label="Toggle light/dark theme" onClick={toggle}>
+            {theme === 'dark' ? <IconSun /> : <IconMoon />}
+          </button>
         </header>
 
         {/* Page Header */}

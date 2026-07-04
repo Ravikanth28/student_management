@@ -10,6 +10,9 @@ import { authRoutes } from './routes/authRoutes.js';
 import { studentRoutes } from './routes/studentRoutes.js';
 import { systemRoutes } from './routes/systemRoutes.js';
 import { mediaRoutes } from './routes/mediaRoutes.js';
+import { lateRoutes } from './routes/lateRoutes.js';
+import { achievementRoutes } from './routes/achievementRoutes.js';
+import { userRoutes } from './routes/userRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 
 export const app = express();
@@ -66,6 +69,9 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/late-records', lateRoutes);
+app.use('/api/achievements', achievementRoutes);
+app.use('/api/users', userRoutes);
 
 // ── Single-service deployment: serve the built frontend ──
 // In production the web app is built into backend/dist/public. When that folder

@@ -1,0 +1,84 @@
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import { HttpError } from '../middleware/error.js';
+import { lateCreateSchema } from '../validators/activityValidator.js';
+import * as lateRepo from '../repositories/lateRepository.js';
+import * as studentRepo from '../repositories/studentRepository.js';
+import * as audit from '../services/auditService.js';
+
+function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
+  return (req, res, next) => { fn(req, res, next).catch(next); };
+}
+
+function parseId(raw: string | string[]) {
+  const id = Number(Array.isArray(raw) ? raw[0] : raw);
+  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Invalid id');
+  return id;
+}
+
+/** YYYY-MM-DD in the server's local time. */
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+const PERIOD_LABEL: Record<string, string> = {
+  morning: 'Morning',
+  morning_break: 'Morning break',
+  lunch: 'Lunch',
+  evening_break: 'Evening break',
+};
+
+// POST /api/late-records
+export const createLateRecord = asyncWrap(async (req, res) => {
+  const parsed = lateCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid late record', issues: parsed.error.flatten() });
+  }
+  const { student_id, period } = parsed.data;
+
+  const student = await studentRepo.getStudentById(student_id);
+  if (!student) throw new HttpError(404, 'Student not found');
+
+  const date = today();
+  try {
+    await lateRepo.createLate(student_id, period, date, req.user?.username ?? null);
+  } catch (err) {
+    if ((err as { code?: string }).code === 'ER_DUP_ENTRY') {
+      throw new HttpError(409, `${student.name} is already marked late for ${PERIOD_LABEL[period]} today.`);
+    }
+    throw err;
+  }
+
+  audit.record(req, {
+    action: 'late.mark',
+    entity: 'student',
+    entity_id: String(student_id),
+    details: `${student.name} (${student.register_number}) — ${PERIOD_LABEL[period]}`,
+  });
+
+  return res.status(201).json({ message: 'Marked late', student, period, date });
+});
+
+// GET /api/late-records  (report, filterable)
+export const listLateRecords = asyncWrap(async (req, res) => {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+  const result = await lateRepo.listLate({
+    date: req.query.date ? String(req.query.date) : undefined,
+    period: req.query.period ? String(req.query.period) : undefined,
+    section: req.query.section ? String(req.query.section) : undefined,
+    batch: req.query.batch ? String(req.query.batch) : undefined,
+    q: req.query.q ? String(req.query.q) : undefined,
+    page,
+    limit,
+  });
+  return res.json(result);
+});
+
+// DELETE /api/late-records/:id
+export const deleteLateRecord = asyncWrap(async (req, res) => {
+  const id = parseId(req.params.id);
+  const ok = await lateRepo.deleteLate(id);
+  if (!ok) throw new HttpError(404, 'Late record not found');
+  audit.record(req, { action: 'late.delete', entity: 'late_record', entity_id: String(id) });
+  return res.status(204).send();
+});

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
+import { InstallAppCard } from '../components/InstallApp';
+import { useAuth } from '../state/auth';
+import { isStaff } from '../lib/roles';
 import type { Student } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
@@ -77,6 +80,8 @@ type Props = { onLogout: () => void };
 
 export function DashboardPage({ onLogout }: Props) {
   const navigate = useNavigate();
+  const { role, displayName } = useAuth();
+  const staff = isStaff(role);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -106,18 +111,31 @@ export function DashboardPage({ onLogout }: Props) {
 
   return (
     <Shell
-      title="Dashboard"
-      subtitle="Welcome back, Administrator"
+      title={`Welcome back, ${displayName ?? 'there'}`}
+      subtitle={`You're signed in as ${role ?? 'user'} · here's your overview`}
       onLogout={onLogout}
       actions={
-        <button className="btn btn-primary" type="button" onClick={() => navigate('/students/new')} id="dashboard-add-student">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Add Student
-        </button>
+        !staff ? undefined : (
+        <>
+          <button className="btn btn-outline" type="button" onClick={() => navigate('/scanner')} id="dashboard-scan">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><line x1="3" y1="12" x2="21" y2="12" />
+            </svg>
+            Scan ID
+          </button>
+          <button className="btn btn-primary" type="button" onClick={() => navigate('/students/new')} id="dashboard-add-student">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add Student
+          </button>
+        </>
+        )
       }
     >
+      {/* Get the mobile app (hidden inside the installed app / when no APK URL is set) */}
+      <InstallAppCard style={{ marginBottom: 16 }} />
+
       {/* Stat Cards */}
       <div className="stat-grid">
         {loading
@@ -168,9 +186,11 @@ export function DashboardPage({ onLogout }: Props) {
             </div>
             <p className="empty-title">No students yet</p>
             <p className="empty-sub">Add your first student record to get started.</p>
-            <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} type="button" onClick={() => navigate('/students/new')}>
-              Add First Student
-            </button>
+            {staff && (
+              <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} type="button" onClick={() => navigate('/students/new')}>
+                Add First Student
+              </button>
+            )}
           </div>
         ) : (
           <div className="table-container">

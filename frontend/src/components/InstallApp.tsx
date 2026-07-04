@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { APK_DOWNLOAD_URL } from '../config';
 import { isNativeApp } from '../lib/platform';
 
@@ -21,11 +22,11 @@ function available(): boolean {
   return !isNativeApp() && Boolean(APK_DOWNLOAD_URL);
 }
 
-/** Prominent card for the Settings page. */
-export function InstallAppCard() {
+/** Prominent card for the Settings page (and the Dashboard). */
+export function InstallAppCard({ style }: { style?: CSSProperties } = {}) {
   if (!available()) return null;
   return (
-    <div className="card card-padded">
+    <div className="card card-padded" style={style}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--blue-light)', color: 'var(--blue)', display: 'grid', placeItems: 'center' }}>

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import type { Request, Response, NextFunction } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 import { uploadMiddleware } from '../middleware/upload.js';
 import {
   createStudent,
@@ -11,6 +11,9 @@ import {
   listStudents,
   searchStudents,
   updateStudent,
+  lookupStudent,
+  getStudentLateRecords,
+  getStudentAchievements,
 } from '../controllers/studentController.js';
 import { importStudents, importPhotosFromDrive, getImportProgress, getImportHistory, deleteImportHistory } from '../controllers/importController.js';
 import { uploadStudentPhoto, deleteStudentPhoto } from '../controllers/photoController.js';
@@ -51,25 +54,31 @@ function importUpload(req: Request, res: Response, next: NextFunction) {
 export const studentRoutes = Router();
 studentRoutes.use(requireAuth);
 
+// Staff = superadmin + admin. View-only "user" role can read but not mutate.
+const staff = requireRole('superadmin', 'admin');
+
 // ── Aggregate / special routes (MUST be before /:id) ──────────
 studentRoutes.get('/stats',   getStats);
+studentRoutes.get('/lookup',  staff, lookupStudent);           // scanner
 studentRoutes.get('/search',  searchStudents);
 studentRoutes.get('/filter',  filterStudents);
 studentRoutes.get('/export',  exportStudents);
 studentRoutes.get('/meta',    getFilterMeta);
-studentRoutes.post('/import', importUpload, importStudents);
-studentRoutes.post('/import-photos-drive', importPhotosFromDrive);
-studentRoutes.get('/import-history', getImportHistory);
-studentRoutes.delete('/import-history/:id', deleteImportHistory);
-studentRoutes.get('/import-progress/:id', getImportProgress);
+studentRoutes.post('/import', staff, importUpload, importStudents);
+studentRoutes.post('/import-photos-drive', staff, importPhotosFromDrive);
+studentRoutes.get('/import-history', staff, getImportHistory);
+studentRoutes.delete('/import-history/:id', staff, deleteImportHistory);
+studentRoutes.get('/import-progress/:id', staff, getImportProgress);
 
 // ── CRUD ──────────────────────────────────────────────────────
 studentRoutes.get('/',         listStudents);
-studentRoutes.post('/',        createStudent);
+studentRoutes.post('/',        staff, createStudent);
 studentRoutes.get('/:id',      getStudentById);
-studentRoutes.put('/:id',      updateStudent);
-studentRoutes.delete('/:id',   deleteStudent);
+studentRoutes.put('/:id',      staff, updateStudent);
+studentRoutes.delete('/:id',   staff, deleteStudent);
+studentRoutes.get('/:id/late-records',  getStudentLateRecords);
+studentRoutes.get('/:id/achievements',  getStudentAchievements);
 
 // ── Photo (Cloudinary) ────────────────────────────────────────
-studentRoutes.post('/:id/photo',   uploadMiddleware, uploadStudentPhoto);
-studentRoutes.delete('/:id/photo', deleteStudentPhoto);
+studentRoutes.post('/:id/photo',   staff, uploadMiddleware, uploadStudentPhoto);
+studentRoutes.delete('/:id/photo', staff, deleteStudentPhoto);

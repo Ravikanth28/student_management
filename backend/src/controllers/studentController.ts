@@ -3,6 +3,9 @@ import { HttpError } from '../middleware/error.js';
 import { studentCreateSchema, studentListQuerySchema, studentSearchSchema, studentUpdateSchema } from '../validators/studentValidator.js';
 import * as service from '../services/studentService.js';
 import * as audit from '../services/auditService.js';
+import * as studentRepo from '../repositories/studentRepository.js';
+import * as lateRepo from '../repositories/lateRepository.js';
+import * as achievementRepo from '../repositories/achievementRepository.js';
 
 /** Wraps an async route handler so unhandled rejections go to Express error middleware */
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
@@ -93,5 +96,28 @@ export const searchStudents = asyncWrap(async (req, res) => {
 export const getStats = asyncWrap(async (_req, res) => {
   const stats = await service.getDashboardStats();
   return res.json(stats);
+});
+
+// GET /api/students/lookup?code=<scanned enrollment/register number>
+export const lookupStudent = asyncWrap(async (req, res) => {
+  const code = String(req.query.code ?? '').trim();
+  if (!code) return res.status(400).json({ message: 'A scan code is required' });
+  const student = await studentRepo.getStudentByCode(code);
+  if (!student) {
+    return res.status(404).json({ message: `No student found for code "${code}"` });
+  }
+  return res.json({ student });
+});
+
+// GET /api/students/:id/late-records
+export const getStudentLateRecords = asyncWrap(async (req, res) => {
+  const records = await lateRepo.listLateByStudent(parseId(req.params.id));
+  return res.json({ data: records });
+});
+
+// GET /api/students/:id/achievements
+export const getStudentAchievements = asyncWrap(async (req, res) => {
+  const achievements = await achievementRepo.listAchievementsByStudent(parseId(req.params.id));
+  return res.json({ data: achievements });
 });
 

@@ -3,12 +3,13 @@ import { app } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { pool } from './config/db.js';
-import { ensureSchema } from './config/initDb.js';
+import { ensureSchema, seedSuperadmin } from './config/initDb.js';
 
 const server = createServer(app);
 
-// Verify/create auxiliary tables before accepting traffic.
+// Verify/create auxiliary tables and seed the superadmin before accepting traffic.
 ensureSchema()
+  .then(() => seedSuperadmin())
   .catch((err) => logger.error('Schema init failed (continuing):', err))
   .finally(() => {
     server.listen(env.PORT, () => {

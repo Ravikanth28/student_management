@@ -5,6 +5,8 @@ import { Shell } from '../components/Shell';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Pagination } from '../components/Pagination';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../state/auth';
+import { isStaff } from '../lib/roles';
 import type { Student, StudentListResponse } from '../types';
 
 // --- SVG Icons ----------------------------------------------
@@ -79,6 +81,8 @@ type Props = { onLogout: () => void };
 export function StudentsPage({ onLogout }: Props) {
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
+  const { role } = useAuth();
+  const staff = isStaff(role);
 
   const [data, setData]         = useState<StudentListResponse | null>(null);
   const [query, setQuery]       = useState('');
@@ -170,9 +174,11 @@ export function StudentsPage({ onLogout }: Props) {
       subtitle={data ? `${data.meta.total} total students` : 'Loading...'}
       onLogout={onLogout}
       actions={
-        <button className="btn btn-primary" type="button" id="add-student-btn" onClick={() => navigate('/students/new')}>
-          <IconPlus /> Add Student
-        </button>
+        staff ? (
+          <button className="btn btn-primary" type="button" id="add-student-btn" onClick={() => navigate('/students/new')}>
+            <IconPlus /> Add Student
+          </button>
+        ) : undefined
       }
     >
       {/* KPI Cards */}
@@ -219,13 +225,13 @@ export function StudentsPage({ onLogout }: Props) {
             />
           </div>
           
-          <div className="filters-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', background: '#f8f9fa', padding: '12px 16px', borderRadius: 12 }}>
+          <div className="filters-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', background: 'var(--surface-2)', padding: '12px 16px', borderRadius: 12 }}>
             <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-2)' }}>
                 <IconFilter /> <span style={{fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em'}}>Filters</span>
             </div>
             <select
               className="form-control"
-              style={{ width: 'auto', minWidth: 160, background: '#fff', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+              style={{ width: 'auto', minWidth: 160, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
               value={department}
               onChange={e => { setDepartment(e.target.value); setPage(1); }}
             >
@@ -237,7 +243,7 @@ export function StudentsPage({ onLogout }: Props) {
 
             <select
               className="form-control"
-              style={{ width: 'auto', minWidth: 160, background: '#fff', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+              style={{ width: 'auto', minWidth: 160, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
               value={batch}
               onChange={e => { setBatch(e.target.value); setPage(1); }}
             >
@@ -249,7 +255,7 @@ export function StudentsPage({ onLogout }: Props) {
             
             <select
               className="form-control"
-              style={{ width: 'auto', minWidth: 140, background: '#fff', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+              style={{ width: 'auto', minWidth: 140, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
               value={section}
               onChange={e => { setSection(e.target.value); setPage(1); }}
             >
@@ -294,7 +300,7 @@ export function StudentsPage({ onLogout }: Props) {
                 ? `No students match your criteria. Try adjusting the search or filters.`
                 : 'Add your first student record to get started.'}
             </p>
-            {(!query && !department && !batch && !section) && (
+            {staff && (!query && !department && !batch && !section) && (
               <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} type="button" onClick={() => navigate('/students/new')}>
                 <IconPlus /> Add First Student
               </button>
@@ -342,6 +348,7 @@ export function StudentsPage({ onLogout }: Props) {
                             <IconEye /> View
                           </button>
 
+                          {staff && (
                           <div className="actions-dropdown-container">
                             <button
                               className="btn btn-outline btn-sm"
@@ -370,6 +377,7 @@ export function StudentsPage({ onLogout }: Props) {
                               </div>
                             )}
                           </div>
+                          )}
                         </div>
                       </td>
                     </tr>

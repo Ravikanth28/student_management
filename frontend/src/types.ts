@@ -25,12 +25,24 @@ export type StudentListResponse = {
   };
 };
 
+export type Role = 'superadmin' | 'admin' | 'user';
+
 export type LoginResponse = {
   token: string;
   user: {
     username: string;
-    role: 'admin';
+    name: string | null;
+    role: Role;
   };
+};
+
+export type AppUser = {
+  id: number;
+  username: string;
+  name: string | null;
+  role: Role;
+  created_by: string | null;
+  created_at: string;
 };
 
 export type SystemStatus = {
@@ -67,4 +79,60 @@ export type AuditLog = {
 export type AuditListResponse = {
   data: AuditLog[];
   meta: { page: number; limit: number; total: number };
+};
+
+export type LatePeriod = 'morning' | 'morning_break' | 'lunch' | 'evening_break';
+
+export type LateRecord = {
+  id: number;
+  student_id: number;
+  period: string;
+  late_date: string;
+  marked_by: string | null;
+  created_at: string;
+  name?: string;
+  register_number?: string;
+  enrollment_number?: string;
+  section?: string;
+  department?: string;
+  batch?: string;
+};
+
+export type LateListResponse = {
+  data: LateRecord[];
+  meta: { page: number; limit: number; total: number };
+};
+
+export type AchievementMember = {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  batch: string;
+};
+
+export type Achievement = {
+  id: number;
+  title: string;
+  venue: string | null;
+  duration: string | null;
+  result: string;
+  position: string | null;
+  prize: string | null;
+  event_date: string | null;
+  created_by: string | null;
+  created_at: string;
+  members: AchievementMember[];
+};
+
+export type AchievementListResponse = {
+  data: Achievement[];
+  meta: { page: number; limit: number; total: number };
+};
+
+export const LATE_PERIOD_LABELS: Record<string, string> = {
+  morning: 'Morning',
+  morning_break: 'Morning break',
+  lunch: 'Lunch',
+  evening_break: 'Evening break',
 };

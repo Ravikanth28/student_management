@@ -57,6 +57,12 @@ jobs:
       - name: Add Android platform
         run: npx --no-install cap add android
 
+      - name: Enable camera + internet permissions (for the scanner & live site)
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -q "android.permission.CAMERA" "$MANIFEST" || \
+            sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n</manifest>#' "$MANIFEST"
+
       - name: Sync web assets into Android project
         run: npx --no-install cap sync android
 

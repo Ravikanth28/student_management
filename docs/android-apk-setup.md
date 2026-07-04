@@ -63,10 +63,23 @@ The **Download APK** button now appears in the web UI and serves that file.
 
 ---
 
+## Live updates (important)
+The app is configured to **load the live deployed site** (`server.url` in
+`capacitor.config.ts`), not a copy bundled inside the APK. This means:
+
+- **UI and backend updates reflect automatically** in every installed app the next
+  time it's opened — no rebuild, no reinstall. You only rebuild the APK if you change
+  the app icon, name, permissions, or native plugins.
+- The app needs internet to open (it's loading the website), and the free Render
+  instance's cold start (~50s) applies on the first open after idle.
+- If the deployment URL changes, set `CAP_SERVER_URL` at build time (or edit
+  `capacitor.config.ts`) and rebuild once.
+
 ## Notes
 - The APK is a **debug** build (auto-signed with the debug key) — installable by sideloading,
   fine for internal/college distribution. For Play Store distribution you'd add a release
   keystore and `assembleRelease`.
+- The CI workflow injects the **CAMERA** permission so the barcode scanner works in the app.
 - The phone **cannot** reach `localhost` — that's why the app is built against the deployed
   HTTPS backend, not a dev server.
 - Building locally instead of in CI requires JDK 17 + Android Studio/SDK, then:

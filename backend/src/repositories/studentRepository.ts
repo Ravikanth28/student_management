@@ -134,6 +134,15 @@ export async function getStudentByRegNumber(regNumber: string): Promise<StudentR
   return rows[0] ? rowToStudent(rows[0]) : null;
 }
 
+/** Lookup for the scanner: match a scanned code against enrollment OR register number. */
+export async function getStudentByCode(code: string): Promise<StudentRecord | null> {
+  const [rows] = await pool.query<StudentRow[]>(
+    'SELECT * FROM students WHERE enrollment_number = ? OR register_number = ? ORDER BY (enrollment_number = ?) DESC LIMIT 1',
+    [code, code, code]
+  );
+  return rows[0] ? rowToStudent(rows[0]) : null;
+}
+
 export interface FilterParams {
   name?:       string;
   department?: string;

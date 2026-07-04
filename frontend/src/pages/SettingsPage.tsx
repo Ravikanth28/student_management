@@ -52,13 +52,6 @@ function IconActivity() {
     </svg>
   );
 }
-function IconChevRight() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
 function IconRefresh() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -144,7 +137,21 @@ export function SettingsPage({ onLogout }: Props) {
   ];
 
   return (
-    <Shell title="Settings" subtitle="Portal configuration, system health, and feature status" onLogout={onLogout}>
+    <Shell
+      title="Settings"
+      subtitle="Portal configuration, system health, and feature status"
+      onLogout={onLogout}
+      actions={
+        <>
+          <button className="btn btn-outline" type="button" onClick={() => setShowClear(true)}>
+            <IconRefresh /> Clear Cache
+          </button>
+          <button className="btn btn-primary" type="button" onClick={() => navigate('/audit')}>
+            <IconActivity /> Audit Log
+          </button>
+        </>
+      }
+    >
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {Array.from({ length: 3 }).map((_, i) => (
@@ -240,43 +247,6 @@ export function SettingsPage({ onLogout }: Props) {
             </div>
           </div>
 
-          {/* ── Security & activity ── */}
-          <div className="card card-padded">
-            <h3 style={cardTitle}>Security &amp; Activity</h3>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--blue-light)', color: 'var(--blue)', display: 'grid', placeItems: 'center' }}>
-                  <IconActivity />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>Audit Log</div>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-2)' }}>Full trail of logins, edits, deletes, and imports.</div>
-                </div>
-              </div>
-              <button className="btn btn-primary btn-sm" type="button" onClick={() => navigate('/audit')}>
-                View Audit Log
-                <IconChevRight />
-              </button>
-            </div>
-          </div>
-
-          {/* ── Storage & cache ── */}
-          <div className="card card-padded">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--amber-light)', color: 'var(--amber)', display: 'grid', placeItems: 'center' }}>
-                  <IconRefresh />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)' }}>Storage &amp; Cache</div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-2)' }}>Clear locally cached files and reload the latest version. You stay signed in.</div>
-                </div>
-              </div>
-              <button className="btn btn-outline btn-sm" type="button" onClick={() => setShowClear(true)}>
-                <IconRefresh /> Clear cache
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

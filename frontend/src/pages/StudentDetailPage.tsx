@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
 import { proxiedImage } from '../lib/img';
-import type { Student } from '../types';
+import { useAuth } from '../state/auth';
+import { isStaff } from '../lib/roles';
+import { LATE_PERIOD_LABELS, type Student, type LateRecord, type Achievement } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
 function IconCamera() {
@@ -114,6 +116,8 @@ const FIELDS: { key: keyof Student; label: string; icon?: React.ReactNode; span?
 // ─── Photo Panel Component ────────────────────────────────────
 function PhotoPanel({ student, onPhotoUpdate }: { student: Student; onPhotoUpdate: (url: string | null) => void }) {
   const { success, error: toastError } = useToast();
+  const { role } = useAuth();
+  const staff = isStaff(role);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [deletingPhoto, setDeletingPhoto] = useState(false);
@@ -268,34 +272,38 @@ function PhotoPanel({ student, onPhotoUpdate }: { student: Student; onPhotoUpdat
         onChange={handleFileChange}
       />
 
-      {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-        <button
-          className="btn btn-primary btn-sm"
-          type="button"
-          style={{ flex: 1 }}
-          disabled={uploading || deletingPhoto}
-          onClick={() => fileInputRef.current?.click()}
-          title="Upload or change photo"
-        >
-          {uploading ? <Spinner /> : <IconUpload />}
-          {previewUrl ? 'Change' : 'Upload'}
-        </button>
-        {previewUrl && (
-          <button
-            className="btn btn-danger btn-sm"
-            type="button"
-            disabled={uploading || deletingPhoto}
-            onClick={handleDeletePhoto}
-            title="Remove photo"
-          >
-            {deletingPhoto ? <Spinner /> : <IconTrashPhoto />}
-          </button>
-        )}
-      </div>
-      <p style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: 6, textAlign: 'center' }}>
-        JPEG · PNG · WebP · max 5 MB
-      </p>
+      {/* Action buttons (staff only) */}
+      {staff && (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button
+              className="btn btn-primary btn-sm"
+              type="button"
+              style={{ flex: 1 }}
+              disabled={uploading || deletingPhoto}
+              onClick={() => fileInputRef.current?.click()}
+              title="Upload or change photo"
+            >
+              {uploading ? <Spinner /> : <IconUpload />}
+              {previewUrl ? 'Change' : 'Upload'}
+            </button>
+            {previewUrl && (
+              <button
+                className="btn btn-danger btn-sm"
+                type="button"
+                disabled={uploading || deletingPhoto}
+                onClick={handleDeletePhoto}
+                title="Remove photo"
+              >
+                {deletingPhoto ? <Spinner /> : <IconTrashPhoto />}
+              </button>
+            )}
+          </div>
+          <p style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: 6, textAlign: 'center' }}>
+            JPEG · PNG · WebP · max 5 MB
+          </p>
+        </>
+      )}
 
       {/* Register Number card below photo */}
       <div style={{ marginTop: 12, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
@@ -313,11 +321,17 @@ export function StudentDetailPage({ onLogout }: Props) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
+  const { role } = useAuth();
+  const staff = isStaff(role);
 
   const [student, setStudent]   = useState<Student | null>(null);
   const [loading, setLoading]   = useState(true);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting]     = useState(false);
+  const [lateRecords, setLateRecords] = useState<LateRecord[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'late' | 'achievement'; id: number; label: string } | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -335,6 +349,34 @@ export function StudentDetailPage({ onLogout }: Props) {
     void load();
     return () => { active = false; };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadActivity = useCallback(() => {
+    if (!id) return;
+    api.get<{ data: LateRecord[] }>(`/students/${id}/late-records`).then((r) => setLateRecords(r.data.data)).catch(() => {});
+    api.get<{ data: Achievement[] }>(`/students/${id}/achievements`).then((r) => setAchievements(r.data.data)).catch(() => {});
+  }, [id]);
+
+  useEffect(() => { loadActivity(); }, [loadActivity]);
+
+  const handleActivityDelete = async () => {
+    if (!pendingDelete || !student) return;
+    setRemoving(true);
+    try {
+      if (pendingDelete.kind === 'late') {
+        await api.delete(`/late-records/${pendingDelete.id}`);
+        success('Removed', 'Late record deleted.');
+      } else {
+        await api.delete(`/achievements/${pendingDelete.id}/members/${student.id}`);
+        success('Removed', 'Achievement removed from this student.');
+      }
+      setPendingDelete(null);
+      loadActivity();
+    } catch {
+      toastError('Delete failed', 'Please try again.');
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!student) return;
@@ -364,12 +406,16 @@ export function StudentDetailPage({ onLogout }: Props) {
             <button className="btn btn-outline" type="button" onClick={() => navigate(-1)}>
               <IconArrowLeft /> Back
             </button>
-            <button className="btn btn-primary" type="button" id="edit-student-btn" onClick={() => navigate(`/students/${student.id}/edit`)}>
-              <IconEdit /> Edit
-            </button>
-            <button className="btn btn-danger" type="button" id="delete-student-btn" onClick={() => setShowDelete(true)}>
-              <IconTrash /> Delete
-            </button>
+            {staff && (
+              <>
+                <button className="btn btn-primary" type="button" id="edit-student-btn" onClick={() => navigate(`/students/${student.id}/edit`)}>
+                  <IconEdit /> Edit
+                </button>
+                <button className="btn btn-danger" type="button" id="delete-student-btn" onClick={() => setShowDelete(true)}>
+                  <IconTrash /> Delete
+                </button>
+              </>
+            )}
           </>
         ) : null
       }
@@ -389,6 +435,7 @@ export function StudentDetailPage({ onLogout }: Props) {
           </div>
         </div>
       ) : student ? (
+        <>
         <div className="card card-padded">
           {/* Badges */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -432,6 +479,82 @@ export function StudentDetailPage({ onLogout }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Late Records */}
+        <div className="card card-padded" style={{ marginTop: 16 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12 }}>
+            Late Records {lateRecords.length > 0 && <span className="badge badge-amber" style={{ marginLeft: 6 }}>{lateRecords.length}</span>}
+          </h3>
+          {lateRecords.length === 0 ? (
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No late records.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {lateRecords.map((r) => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span className="badge badge-amber">{LATE_PERIOD_LABELS[r.period] ?? r.period}</span>
+                    <span className="td-muted">{r.late_date}</span>
+                  </div>
+                  {staff && (
+                    <button
+                      className="btn btn-danger btn-sm"
+                      type="button"
+                      title="Delete late record"
+                      onClick={() => setPendingDelete({ kind: 'late', id: r.id, label: `${LATE_PERIOD_LABELS[r.period] ?? r.period} · ${r.late_date}` })}
+                    >
+                      <IconTrashPhoto />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Achievements */}
+        <div className="card card-padded" style={{ marginTop: 16 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12 }}>
+            Achievements {achievements.length > 0 && <span className="badge badge-green" style={{ marginLeft: 6 }}>{achievements.length}</span>}
+          </h3>
+          {achievements.length === 0 ? (
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No achievements yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {achievements.map((a) => (
+                <div key={a.id} style={{ paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{a.title}</span>
+                      <span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>
+                        {a.result === 'winner' ? `Winner${a.position ? ` · ${a.position}` : ''}` : 'Participated'}
+                      </span>
+                    </div>
+                    {staff && (
+                      <button
+                        className="btn btn-danger btn-sm"
+                        type="button"
+                        title="Remove this achievement from the student"
+                        style={{ alignSelf: 'flex-start' }}
+                        onClick={() => setPendingDelete({ kind: 'achievement', id: a.id, label: a.title })}
+                      >
+                        <IconTrashPhoto />
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-2)', marginTop: 3 }}>
+                    {[a.venue, a.duration, a.event_date, a.prize && `Prize: ${a.prize}`].filter(Boolean).join('  ·  ')}
+                  </div>
+                  {a.members.length > 1 && (
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-3)', marginTop: 4 }}>
+                      Team: {a.members.map((m) => m.name).join(', ')}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        </>
       ) : (
         <div className="card card-padded">
           <p style={{ color: 'var(--text-2)' }}>Student record not found.</p>
@@ -446,6 +569,21 @@ export function StudentDetailPage({ onLogout }: Props) {
           onConfirm={handleDelete}
           onCancel={() => setShowDelete(false)}
           loading={deleting}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmModal
+          title={pendingDelete.kind === 'late' ? 'Delete late record?' : 'Remove achievement?'}
+          description={
+            pendingDelete.kind === 'late'
+              ? `Delete the late record "${pendingDelete.label}"? This can't be undone.`
+              : `Remove "${pendingDelete.label}" from this student? If they're the only member it's deleted entirely; otherwise it stays for the other team members.`
+          }
+          confirmLabel={pendingDelete.kind === 'late' ? 'Delete' : 'Remove'}
+          onConfirm={handleActivityDelete}
+          onCancel={() => setPendingDelete(null)}
+          loading={removing}
         />
       )}
     </Shell>

@@ -19,3 +19,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ message: 'Session expired or invalid token' });
   }
 }
+
+/** Restrict a route to specific roles. Use after requireAuth. */
+export function requireRole(...allowed: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) return res.status(401).json({ message: 'Authentication required' });
+    if (!allowed.includes(req.user.role)) {
+      return res.status(403).json({ message: 'You do not have permission to perform this action' });
+    }
+    return next();
+  };
+}

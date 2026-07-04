@@ -1,5 +1,8 @@
+import type { RowDataPacket } from 'mysql2/promise';
+import bcrypt from 'bcrypt';
 import { pool } from './db.js';
 import { logger } from './logger.js';
+import { env } from './env.js';
 
 /**
  * Idempotently ensures auxiliary tables exist. Runs at startup so the
@@ -35,5 +38,97 @@ export async function ensureSchema(): Promise<void> {
     )
   `);
 
+  // Late-comer records. One record per student/period/day (uniqueness guard).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS late_records (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      student_id BIGINT UNSIGNED NOT NULL,
+      period VARCHAR(24) NOT NULL,
+      late_date DATE NOT NULL,
+      marked_by VARCHAR(120) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_late_student_period_day (student_id, period, late_date),
+      KEY idx_late_student (student_id),
+      KEY idx_late_date (late_date)
+    )
+  `);
+
+  // Achievements (may belong to a team of students via achievement_members).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS achievements (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      title VARCHAR(200) NOT NULL,
+      venue VARCHAR(200) NULL,
+      duration VARCHAR(120) NULL,
+      result VARCHAR(20) NOT NULL DEFAULT 'participated',
+      position VARCHAR(60) NULL,
+      prize VARCHAR(200) NULL,
+      event_date DATE NULL,
+      created_by VARCHAR(120) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_ach_created_at (created_at)
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS achievement_members (
+      achievement_id BIGINT UNSIGNED NOT NULL,
+      student_id BIGINT UNSIGNED NOT NULL,
+      PRIMARY KEY (achievement_id, student_id),
+      KEY idx_am_student (student_id)
+    )
+  `);
+
+  // Application users with roles (superadmin / admin / user).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      username VARCHAR(120) NOT NULL,
+      name VARCHAR(120) NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'user',
+      created_by VARCHAR(120) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_users_username (username)
+    )
+  `);
+
+  // Add the display-name column when upgrading an already-created users table.
+  try {
+    await pool.query('ALTER TABLE users ADD COLUMN name VARCHAR(120) NULL AFTER username');
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
+  }
+
   logger.info('Database schema verified.');
+}
+
+/**
+ * Seeds the first superadmin from the ADMIN_* env vars if the users table is
+ * empty — so the existing admin credentials become the superadmin and nothing
+ * breaks on upgrade.
+ */
+export async function seedSuperadmin(): Promise<void> {
+  const [rows] = await pool.query<Array<{ c: number } & RowDataPacket>>('SELECT COUNT(*) AS c FROM users');
+  if (Number(rows[0]?.c ?? 0) > 0) return;
+
+  const hash = env.ADMIN_PASSWORD_HASH
+    ? env.ADMIN_PASSWORD_HASH
+    : env.ADMIN_PASSWORD
+      ? bcrypt.hashSync(env.ADMIN_PASSWORD, 12)
+      : null;
+
+  if (!hash) {
+    logger.warn('No ADMIN_PASSWORD or ADMIN_PASSWORD_HASH set — cannot seed the superadmin account.');
+    return;
+  }
+
+  await pool.query(
+    'INSERT INTO users (username, name, password_hash, role, created_by) VALUES (?, ?, ?, ?, ?)',
+    [env.ADMIN_USERNAME, 'Administrator', hash, 'superadmin', 'system']
+  );
+  logger.info(`Seeded superadmin account "${env.ADMIN_USERNAME}".`);
 }
