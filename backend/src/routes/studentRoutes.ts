@@ -18,7 +18,7 @@ import {
 } from '../controllers/studentController.js';
 import { importStudents, importPhotosFromDrive, getImportProgress, getImportHistory, deleteImportHistory } from '../controllers/importController.js';
 import { uploadStudentPhoto, deleteStudentPhoto } from '../controllers/photoController.js';
-import { filterStudents, exportStudents, getFilterMeta } from '../controllers/filterController.js';
+import { filterStudents, exportStudents, getFilterMeta, getBirthdays, getUpcomingBirthdays } from '../controllers/filterController.js';
 import { logger } from '../config/logger.js';
 
 /**
@@ -63,6 +63,8 @@ studentRoutes.get('/stats',   getStats);
 studentRoutes.get('/lookup',  staff, lookupStudent);           // scanner
 studentRoutes.get('/search',  searchStudents);
 studentRoutes.get('/filter',  filterStudents);
+studentRoutes.get('/birthdays/upcoming', getUpcomingBirthdays);
+studentRoutes.get('/birthdays', getBirthdays);
 studentRoutes.get('/export',  exportStudents);
 studentRoutes.get('/meta',    getFilterMeta);
 studentRoutes.post('/import', staff, importUpload, importStudents);

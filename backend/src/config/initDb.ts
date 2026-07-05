@@ -10,6 +10,20 @@ import { env } from './env.js';
  * migration step. The core `students` table is managed via schema.sql.
  */
 export async function ensureSchema(): Promise<void> {
+  // Add newer student columns when upgrading an existing table (ignore "already exists").
+  for (const sql of [
+    "ALTER TABLE students ADD COLUMN blood_group VARCHAR(8) NULL AFTER photo_url",
+    "ALTER TABLE students ADD COLUMN dob DATE NULL AFTER blood_group",
+  ]) {
+    try {
+      await pool.query(sql);
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      // ER_DUP_FIELDNAME = column already exists; ER_NO_SUCH_TABLE = fresh DB (schema.sql makes it).
+      if (code !== 'ER_DUP_FIELDNAME' && code !== 'ER_NO_SUCH_TABLE') throw err;
+    }
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS photo_import_history (
       id VARCHAR(50) NOT NULL,
@@ -122,6 +136,19 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (id),
       KEY idx_placement_student (student_id),
       KEY idx_placement_created (created_at)
+    )
+  `);
+
+  // Registered device push tokens (for FCM push notifications).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS device_tokens (
+      token VARCHAR(255) NOT NULL,
+      username VARCHAR(120) NULL,
+      role VARCHAR(20) NULL,
+      platform VARCHAR(20) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (token)
     )
   `);
 

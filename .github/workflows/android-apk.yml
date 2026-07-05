@@ -59,11 +59,38 @@ jobs:
       - name: Add Android platform
         run: npx --no-install cap add android
 
-      - name: Enable camera + internet permissions (for the scanner & live site)
+      - name: Wire up Firebase (google-services) for push notifications
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          # Source the client config from a GitHub secret (base64) if set,
+          # otherwise fall back to a committed google-services.json.
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" | base64 -d > google-services.json
+            echo "Using google-services.json from GitHub secret."
+          fi
+          if [ -f google-services.json ]; then
+            cp google-services.json android/app/google-services.json
+            # Add the google-services classpath to the project-level build.gradle.
+            PROJ=android/build.gradle
+            grep -q "com.google.gms:google-services" "$PROJ" || \
+              sed -i 's#\(classpath .com.android.tools.build:gradle.*\)#\1\n        classpath "com.google.gms:google-services:4.4.2"#' "$PROJ"
+            # Apply the plugin in the app-level build.gradle.
+            APP=android/app/build.gradle
+            grep -q "com.google.gms.google-services" "$APP" || \
+              echo "apply plugin: 'com.google.gms.google-services'" >> "$APP"
+            echo "Firebase wired up."
+          else
+            echo "No google-services.json found — building without push notifications."
+          fi
+
+      - name: Enable camera + notification permissions (for the scanner & alerts)
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
           grep -q "android.permission.CAMERA" "$MANIFEST" || \
             sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n</manifest>#' "$MANIFEST"
+          grep -q "android.permission.POST_NOTIFICATIONS" "$MANIFEST" || \
+            sed -i 's#</manifest>#    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n</manifest>#' "$MANIFEST"
 
       - name: Stamp APK version from package.json
         run: |

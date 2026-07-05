@@ -3,6 +3,7 @@ import { HttpError } from '../middleware/error.js';
 import { achievementCreateSchema } from '../validators/activityValidator.js';
 import * as achievementRepo from '../repositories/achievementRepository.js';
 import * as audit from '../services/auditService.js';
+import { notifyAllInBackground } from '../services/notificationService.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -30,6 +31,15 @@ export const createAchievement = asyncWrap(async (req, res) => {
     entity_id: String(id),
     details: `${input.title} — ${input.result}${input.position ? ` (${input.position})` : ''}, ${member_ids.length} member(s)`,
   });
+
+  notifyAllInBackground(
+    {
+      title: '🏆 New achievement',
+      body: `${input.title} — ${input.result}${input.position ? ` (${input.position})` : ''}, ${member_ids.length} student(s)`,
+      data: { type: 'achievement', id: String(id) },
+    },
+    req.user?.username ?? null,
+  );
 
   return res.status(201).json({ message: 'Achievement added', id });
 });

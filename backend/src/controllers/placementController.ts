@@ -4,6 +4,7 @@ import { placementCreateSchema, placementUpdateSchema } from '../validators/acti
 import * as placementRepo from '../repositories/placementRepository.js';
 import * as studentRepo from '../repositories/studentRepository.js';
 import * as audit from '../services/auditService.js';
+import { notifyAllInBackground } from '../services/notificationService.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -32,6 +33,16 @@ export const createPlacement = asyncWrap(async (req, res) => {
     entity_id: String(student_id),
     details: `${student.name} → ${input.company}${input.package ? ` (${input.package})` : ''}`,
   });
+
+  notifyAllInBackground(
+    {
+      title: '💼 New placement',
+      body: `${student.name} placed at ${input.company}${input.package ? ` (${input.package})` : ''}`,
+      data: { type: 'placement', studentId: String(student_id) },
+    },
+    req.user?.username ?? null,
+  );
+
   return res.status(201).json({ message: 'Placement added', id });
 });
 

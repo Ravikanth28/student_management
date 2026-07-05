@@ -12,9 +12,13 @@ export type Student = {
   college_email?: string;
   personal_email?: string;
   photo_url?: string;
+  blood_group?: string;
+  dob?: string;
   created_at: string;
   updated_at: string;
 };
+
+export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
 
 export type StudentListResponse = {
   data: Student[];

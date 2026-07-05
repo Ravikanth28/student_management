@@ -85,6 +85,7 @@ export function DashboardPage({ onLogout }: Props) {
   const staff = isStaff(role);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [birthdays, setBirthdays] = useState<Student[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -100,6 +101,9 @@ export function DashboardPage({ onLogout }: Props) {
       }
     };
     void fetchStats();
+    api.get<{ data: Student[] }>('/students/birthdays')
+      .then((res) => { if (active) setBirthdays(res.data.data); })
+      .catch(() => { if (active) setBirthdays([]); });
     return () => { active = false; };
   }, []);
 
@@ -157,6 +161,42 @@ export function DashboardPage({ onLogout }: Props) {
             </article>
           ))}
       </div>
+
+      {/* Today's birthdays — below the KPI cards, visible to everyone */}
+      {birthdays.length > 0 && (
+        <div
+          className="card"
+          style={{ margin: '16px 0', borderColor: 'var(--amber)', overflow: 'hidden' }}
+        >
+          <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--amber-light)', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 22 }}>🎂</span>
+            <div>
+              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text)' }}>
+                {birthdays.length === 1 ? "Today's Birthday" : `Today's Birthdays (${birthdays.length})`}
+              </div>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-2)' }}>Wish them a great day!</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: 16 }}>
+            {birthdays.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => navigate(`/students/${s.id}`)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 10px', border: '1px solid var(--border)', borderRadius: 999, background: 'var(--surface)', cursor: 'pointer' }}
+              >
+                <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '0.9rem' }}>
+                  {s.name.charAt(0).toUpperCase()}
+                </span>
+                <span style={{ textAlign: 'left', lineHeight: 1.2 }}>
+                  <span style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text)' }}>{s.name}</span>
+                  <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-2)' }}>{s.department} · Sec {s.section}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Students */}
       <div className="card">

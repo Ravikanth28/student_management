@@ -1,6 +1,7 @@
 import { HttpError } from '../middleware/error.js';
 import type { StudentInput, StudentListResult, StudentRecord } from '../types/student.js';
 import * as repository from '../repositories/studentRepository.js';
+import { normalizeBloodGroup, parseDob } from '../lib/studentFields.js';
 
 function clean(value?: string) {
   return value?.trim();
@@ -21,6 +22,8 @@ function normalizeInput(input: Partial<StudentInput>): Partial<StudentInput> {
   if (input.college_email !== undefined) normalized.college_email = clean(input.college_email);
   if (input.personal_email !== undefined) normalized.personal_email = clean(input.personal_email);
   if (input.photo_url !== undefined) normalized.photo_url = clean(input.photo_url);
+  if (input.blood_group !== undefined) normalized.blood_group = normalizeBloodGroup(input.blood_group);
+  if (input.dob !== undefined) normalized.dob = parseDob(input.dob);
 
   return normalized;
 }
@@ -95,6 +98,38 @@ export async function filterStudents(
   return repository.filterStudents(params);
 }
 
-export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[] }> {
+export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[]; bloodGroups: string[] }> {
   return repository.getFilterMeta();
+}
+
+/** Students who have a birthday today (in IST). */
+export async function getTodaysBirthdays(): Promise<StudentRecord[]> {
+  const ist = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  return repository.getBirthdaysByDay(ist.getUTCMonth() + 1, ist.getUTCDate());
+}
+
+/** Students whose birthday falls within the next `days` days, each with its next occurrence date. */
+export async function getUpcomingBirthdays(days: number): Promise<Array<StudentRecord & { next: string }>> {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const students = await repository.getStudentsWithDob();
+  const ist = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  const y = ist.getUTCFullYear();
+  const today0 = Date.UTC(y, ist.getUTCMonth(), ist.getUTCDate());
+
+  const out: Array<StudentRecord & { next: string }> = [];
+  for (const s of students) {
+    if (!s.dob) continue;
+    const parts = s.dob.split('-').map(Number);
+    if (parts.length !== 3) continue;
+    const [, bm, bd] = parts;
+    let occ = Date.UTC(y, bm - 1, bd);
+    if (occ < today0) occ = Date.UTC(y + 1, bm - 1, bd);
+    const diffDays = Math.round((occ - today0) / 86_400_000);
+    if (diffDays >= 0 && diffDays <= days) {
+      const nd = new Date(occ);
+      out.push({ ...s, next: `${nd.getUTCFullYear()}-${pad(nd.getUTCMonth() + 1)}-${pad(nd.getUTCDate())}` });
+    }
+  }
+  out.sort((a, b) => (a.next < b.next ? -1 : a.next > b.next ? 1 : 0));
+  return out;
 }

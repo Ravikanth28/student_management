@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS students (
   college_email VARCHAR(120) NULL,
   personal_email VARCHAR(120) NULL,
   photo_url VARCHAR(255) NULL,
+  blood_group VARCHAR(8) NULL,
+  dob DATE NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -98,6 +100,16 @@ CREATE TABLE IF NOT EXISTS placements (
   PRIMARY KEY (id),
   KEY idx_placement_student (student_id),
   KEY idx_placement_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS device_tokens (
+  token VARCHAR(255) NOT NULL,
+  username VARCHAR(120) NULL,
+  role VARCHAR(20) NULL,
+  platform VARCHAR(20) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (token)
 );
 
 CREATE TABLE IF NOT EXISTS users (

@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { pool } from '../config/db.js';
 import type { StudentInput, StudentListResult, StudentRecord } from '../types/student.js';
+import { toDateString } from '../lib/studentFields.js';
 
 type StudentRow = RowDataPacket & StudentRecord;
 
@@ -19,6 +20,8 @@ function rowToStudent(row: StudentRow): StudentRecord {
     college_email: row.college_email ?? undefined,
     personal_email: row.personal_email ?? undefined,
     photo_url: row.photo_url ?? undefined,
+    blood_group: row.blood_group ?? undefined,
+    dob: toDateString(row.dob),
     created_at: row.created_at,
     updated_at: row.updated_at
   };
@@ -67,8 +70,8 @@ export async function getStudentById(id: number): Promise<StudentRecord | null> 
 export async function createStudent(input: StudentInput): Promise<StudentRecord> {
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO students
-      (name, register_number, enrollment_number, section, department, batch, phone, parent_phone, address, college_email, personal_email, photo_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (name, register_number, enrollment_number, section, department, batch, phone, parent_phone, address, college_email, personal_email, photo_url, blood_group, dob)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.name,
       input.register_number,
@@ -81,7 +84,9 @@ export async function createStudent(input: StudentInput): Promise<StudentRecord>
       input.address,
       input.college_email ?? null,
       input.personal_email ?? null,
-      input.photo_url ?? null
+      input.photo_url ?? null,
+      input.blood_group ?? null,
+      input.dob ?? null
     ]
   );
 
@@ -144,12 +149,13 @@ export async function getStudentByCode(code: string): Promise<StudentRecord | nu
 }
 
 export interface FilterParams {
-  name?:       string;
-  department?: string;
-  batch?:      string;
-  section?:    string;
-  page?:       number;
-  limit?:      number;
+  name?:        string;
+  department?:  string;
+  batch?:       string;
+  section?:     string;
+  blood_group?: string;
+  page?:        number;
+  limit?:       number;
 }
 
 export async function filterStudents(
@@ -175,6 +181,10 @@ export async function filterStudents(
     conditions.push('section = ?');
     values.push(params.section);
   }
+  if (params.blood_group) {
+    conditions.push('blood_group = ?');
+    values.push(params.blood_group);
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const page  = params.page  ?? 1;
@@ -196,20 +206,43 @@ export async function filterStudents(
   };
 }
 
-/** Returns distinct department & batch values for filter dropdowns */
-export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[] }> {
-  const [[deptRows], [batchRows]] = await Promise.all([
+/** Returns distinct department, batch & blood-group values for filter dropdowns */
+export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[]; bloodGroups: string[] }> {
+  const [[deptRows], [batchRows], [bloodRows]] = await Promise.all([
     pool.query<Array<{ department: string } & RowDataPacket>>(
       'SELECT DISTINCT department FROM students ORDER BY department ASC'
     ),
     pool.query<Array<{ batch: string } & RowDataPacket>>(
       'SELECT DISTINCT batch FROM students ORDER BY batch DESC'
     ),
+    pool.query<Array<{ blood_group: string } & RowDataPacket>>(
+      "SELECT DISTINCT blood_group FROM students WHERE blood_group IS NOT NULL AND blood_group <> '' ORDER BY blood_group ASC"
+    ),
   ]);
   return {
     departments: (deptRows as Array<{ department: string } & RowDataPacket>).map(r => r.department),
     batches:     (batchRows as Array<{ batch: string } & RowDataPacket>).map(r => r.batch),
+    bloodGroups: (bloodRows as Array<{ blood_group: string } & RowDataPacket>).map(r => r.blood_group),
   };
+}
+
+/** Students whose date of birth falls on the given month/day (for the birthday widget). */
+export async function getBirthdaysByDay(month: number, day: number): Promise<StudentRecord[]> {
+  const [rows] = await pool.query<StudentRow[]>(
+    `SELECT * FROM students
+     WHERE dob IS NOT NULL AND MONTH(dob) = ? AND DAYOFMONTH(dob) = ?
+     ORDER BY name ASC`,
+    [month, day]
+  );
+  return rows.map(rowToStudent);
+}
+
+/** All students that have a date of birth (used to compute upcoming birthdays). */
+export async function getStudentsWithDob(): Promise<StudentRecord[]> {
+  const [rows] = await pool.query<StudentRow[]>(
+    "SELECT * FROM students WHERE dob IS NOT NULL ORDER BY name ASC"
+  );
+  return rows.map(rowToStudent);
 }
 
 export async function getDashboardStats(): Promise<{

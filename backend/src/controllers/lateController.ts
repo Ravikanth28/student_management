@@ -4,6 +4,7 @@ import { lateCreateSchema } from '../validators/activityValidator.js';
 import * as lateRepo from '../repositories/lateRepository.js';
 import * as studentRepo from '../repositories/studentRepository.js';
 import * as audit from '../services/auditService.js';
+import { notifyAllInBackground } from '../services/notificationService.js';
 import { PERIOD_SCHEDULE, computeMinutesLate } from '../config/lateSchedule.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
@@ -68,6 +69,15 @@ export const createLateRecord = asyncWrap(async (req, res) => {
     entity_id: String(student_id),
     details: `${student.name} (${student.register_number}) — ${PERIOD_LABEL[period]} at ${lateTime}${minutesLate != null ? ` (${minutesLate} min late)` : ''}`,
   });
+
+  notifyAllInBackground(
+    {
+      title: '⏰ Late comer marked',
+      body: `${student.name} — ${PERIOD_LABEL[period]} at ${lateTime}${minutesLate != null ? ` (${minutesLate} min late)` : ''}`,
+      data: { type: 'late', studentId: String(student_id) },
+    },
+    req.user?.username ?? null,
+  );
 
   return res.status(201).json({ message: 'Marked late', student, period, scheduledTime, time: lateTime, minutesLate, date });
 });

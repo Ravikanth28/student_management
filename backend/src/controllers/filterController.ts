@@ -15,14 +15,28 @@ function parseOptionalInt(val: unknown, fallback: number): number {
 // ─── GET /api/students/filter ─────────────────────────────────
 export const filterStudents = asyncWrap(async (req, res) => {
   const result = await service.filterStudents({
-    name:       req.query.name       ? String(req.query.name)       : undefined,
-    department: req.query.department ? String(req.query.department) : undefined,
-    batch:      req.query.batch      ? String(req.query.batch)      : undefined,
-    section:    req.query.section    ? String(req.query.section)    : undefined,
-    page:       parseOptionalInt(req.query.page,  1),
-    limit:      parseOptionalInt(req.query.limit, 50),
+    name:        req.query.name        ? String(req.query.name)        : undefined,
+    department:  req.query.department  ? String(req.query.department)  : undefined,
+    batch:       req.query.batch       ? String(req.query.batch)       : undefined,
+    section:     req.query.section     ? String(req.query.section)     : undefined,
+    blood_group: req.query.blood_group ? String(req.query.blood_group) : undefined,
+    page:        parseOptionalInt(req.query.page,  1),
+    limit:       parseOptionalInt(req.query.limit, 50),
   });
   return res.json(result);
+});
+
+// ─── GET /api/students/birthdays ──────────────────────────────
+export const getBirthdays = asyncWrap(async (_req, res) => {
+  const data = await service.getTodaysBirthdays();
+  return res.json({ data });
+});
+
+// ─── GET /api/students/birthdays/upcoming?days=60 ─────────────
+export const getUpcomingBirthdays = asyncWrap(async (req, res) => {
+  const days = Math.min(366, Math.max(1, Number(req.query.days) || 60));
+  const data = await service.getUpcomingBirthdays(days);
+  return res.json({ data });
 });
 
 // ─── GET /api/students/meta ───────────────────────────────────

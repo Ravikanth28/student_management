@@ -11,6 +11,8 @@ export type StudentInput = {
   college_email?: string;
   personal_email?: string;
   photo_url?: string;
+  blood_group?: string;
+  dob?: string;
 };
 
 export type StudentRecord = StudentInput & {

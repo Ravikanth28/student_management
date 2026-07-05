@@ -15,6 +15,16 @@ const optionalPhotoUrl = z.preprocess(
   z.string().trim().url().optional()
 );
 
+const optionalBloodGroup = z.preprocess(
+  (value) => (value === '' || value === null ? undefined : value),
+  z.string().trim().max(8).optional()
+);
+
+const optionalDob = z.preprocess(
+  (value) => (value === '' || value === null ? undefined : value),
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'dob must be YYYY-MM-DD').optional()
+);
+
 export const studentCreateSchema = z.object({
   name: z.string().trim().min(2).max(120),
   register_number: z.string().trim().min(2).max(40),
@@ -27,7 +37,9 @@ export const studentCreateSchema = z.object({
   address: z.string().trim().min(5).max(255),
   college_email: optionalEmail,
   personal_email: optionalEmail,
-  photo_url: optionalPhotoUrl
+  photo_url: optionalPhotoUrl,
+  blood_group: optionalBloodGroup,
+  dob: optionalDob
 });
 
 export const studentUpdateSchema = studentCreateSchema.partial().refine((value) => Object.keys(value).length > 0, {

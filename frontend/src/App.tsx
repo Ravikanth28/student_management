@@ -2,12 +2,14 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { setAuthToken } from './api';
 import { ToastProvider } from './components/Toast';
+import { NotificationsManager } from './components/NotificationsManager';
 import { AuthProvider, useAuth } from './state/auth';
 import { ThemeProvider } from './state/theme';
 import { canAccess } from './lib/roles';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { StudentsPage } from './pages/StudentsPage';
+import { BloodGroupsPage } from './pages/BloodGroupsPage';
 import { StudentDetailPage } from './pages/StudentDetailPage';
 import { StudentCreatePage } from './pages/StudentCreatePage';
 import { StudentEditPage } from './pages/StudentEditPage';
@@ -39,11 +41,14 @@ function AppRoutes() {
   setAuthToken(token);
 
   return (
-    <Routes>
+    <>
+      <NotificationsManager />
+      <Routes>
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
 
       <Route path="/dashboard" element={<Protected roleKey="/dashboard"><DashboardPage onLogout={logout} /></Protected>} />
       <Route path="/students" element={<Protected roleKey="/students"><StudentsPage onLogout={logout} /></Protected>} />
+      <Route path="/blood-groups" element={<Protected roleKey="/blood-groups"><BloodGroupsPage onLogout={logout} /></Protected>} />
       <Route path="/students/new" element={<Protected roleKey="/students/new"><StudentCreatePage onLogout={logout} /></Protected>} />
       <Route path="/students/:id/edit" element={<Protected roleKey="/students/:id/edit"><StudentEditPage onLogout={logout} /></Protected>} />
       <Route path="/students/:id" element={<Protected roleKey="/students/:id"><StudentDetailPage onLogout={logout} /></Protected>} />
@@ -66,7 +71,8 @@ function AppRoutes() {
       <Route path="/settings" element={<Protected roleKey="/settings"><SettingsPage onLogout={logout} /></Protected>} />
 
       <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
 

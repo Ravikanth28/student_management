@@ -149,6 +149,14 @@ function IconBriefcase() {
   );
 }
 
+function IconDroplet() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2.7l5.3 5.3a7.5 7.5 0 1 1-10.6 0z" />
+    </svg>
+  );
+}
+
 function IconUsersCog() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -178,6 +186,7 @@ function IconMoon() {
 const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; roles: Role[] }> = [
   { to: '/dashboard',    label: 'Dashboard',        Icon: IconGrid,      roles: ['superadmin', 'admin', 'user'] },
   { to: '/students',     label: 'Student Records',  Icon: IconUsers,     roles: ['superadmin', 'admin', 'user'] },
+  { to: '/blood-groups', label: 'Blood Groups',     Icon: IconDroplet,   roles: ['superadmin', 'admin', 'user'] },
   { to: '/students/new', label: 'Add Student',      Icon: IconPlus,      roles: ['superadmin', 'admin'] },
   { to: '/scanner',      label: 'Scanner',          Icon: IconScan,      roles: ['superadmin', 'admin'] },
   { to: '/late-comers',  label: 'Late Comers',      Icon: IconClock,     roles: ['superadmin', 'admin'] },

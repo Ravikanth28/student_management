@@ -100,12 +100,14 @@ function Spinner() {
 }
 
 // ─── Field config ────────────────────────────────────────────
-const FIELDS: { key: keyof Student; label: string; icon?: React.ReactNode; span?: boolean }[] = [
+const FIELDS: { key: keyof Student; label: string; icon?: React.ReactNode; span?: boolean; isDate?: boolean }[] = [
   { key: 'register_number',   label: 'Register Number' },
   { key: 'enrollment_number', label: 'Enrollment Number' },
   { key: 'department',        label: 'Department' },
   { key: 'batch',             label: 'Batch' },
   { key: 'section',           label: 'Section' },
+  { key: 'dob',               label: 'Date of Birth', isDate: true },
+  { key: 'blood_group',       label: 'Blood Group' },
   { key: 'phone',             label: 'Phone',         icon: <IconPhone /> },
   { key: 'parent_phone',      label: 'Parent Phone',  icon: <IconPhone /> },
   { key: 'college_email',     label: 'College Email', icon: <IconMail /> },
@@ -464,8 +466,9 @@ export function StudentDetailPage({ onLogout }: Props) {
               </h2>
 
               <div className="profile-info-grid">
-                {FIELDS.map(({ key, label, icon, span }) => {
-                  const value = student[key];
+                {FIELDS.map(({ key, label, icon, span, isDate }) => {
+                  const raw = student[key];
+                  const value = isDate && raw ? fmtDate(String(raw)) : raw;
                   return (
                     <div key={key} className="profile-field" style={span ? { gridColumn: '1 / -1' } : undefined}>
                       <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

@@ -76,7 +76,7 @@ interface ImportSuccess {
   photo_url: string;
 }
 interface ImportResult {
-  mode?: 'full_import' | 'photo_update';
+  mode?: 'full_import' | 'photo_update' | 'details_update';
   imported: number;
   updated: number;
   skipped: number;
@@ -93,13 +93,15 @@ interface ImportProgress {
 // ─── Download template CSV ────────────────────────────────────
 function downloadTemplate() {
   const headers = [
-    'name', 'register_number', 'enrollment_number', 'department', 'batch',
-    'phone', 'parent_phone', 'address', 'college_email', 'personal_email', 'photo_url'
+    'name', 'register_number', 'enrollment_number', 'section', 'department', 'batch',
+    'phone', 'parent_phone', 'address', 'college_email', 'personal_email',
+    'dob', 'blood_group', 'photo_url'
   ];
   const example = [
-    'Arun Kumar', '21CS001', 'EN21CS001', 'Computer Science', '2021-2025',
+    'Arun Kumar', '21CS001', 'EN21CS001', 'A', 'Computer Science', '2021-2025',
     '9876543210', '9876543211', '12 Main St, Chennai 600001',
     'arun@college.edu', 'arun@gmail.com',
+    '2004-05-21', 'O+',
     'https://drive.google.com/file/d/YOUR_FILE_ID/view'
   ];
   const csv = [headers.join(','), example.join(',')].join('\n');
@@ -179,6 +181,10 @@ export function ImportPage({ onLogout }: Props) {
       if (data.mode === 'photo_update') {
         if (data.updated > 0) {
           success('Photos Updated', `${data.updated} student photos updated successfully.`);
+        }
+      } else if (data.mode === 'details_update') {
+        if (data.updated > 0) {
+          success('Details Updated', `${data.updated} students updated (blood group / DOB).`);
         }
       } else {
         if (data.imported > 0) {
@@ -314,7 +320,7 @@ export function ImportPage({ onLogout }: Props) {
             Required Columns
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {['name', 'register_number', 'enrollment_number', 'department', 'batch', 'phone', 'parent_phone', 'address'].map(col => (
+            {['name', 'register_number', 'enrollment_number', 'section', 'department', 'batch', 'phone', 'parent_phone', 'address'].map(col => (
               <span key={col} className="badge badge-blue" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{col}</span>
             ))}
           </div>
@@ -322,12 +328,17 @@ export function ImportPage({ onLogout }: Props) {
             Optional Columns
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {['college_email', 'personal_email', 'photo_url'].map(col => (
+            {['dob', 'blood_group', 'college_email', 'personal_email', 'photo_url'].map(col => (
               <span key={col} className="badge badge-gray" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{col}</span>
             ))}
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 8 }}>
             💡 <strong>photo_url</strong> accepts Google Drive share links — photos are automatically downloaded and uploaded to Cloudinary.
+          </p>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 6 }}>
+            💡 <strong>dob</strong> accepts <code>YYYY-MM-DD</code> or <code>M/D/YY</code>. <strong>blood_group</strong> like <code>O+</code> or <code>B +ve</code>.
+            To only fill blood group / DOB for students that already exist, upload a sheet with just
+            <code> register_number</code> (or <code>enrollment_number</code>) plus <code>dob</code> / <code>blood_group</code>.
           </p>
         </div>
       </div>
@@ -503,10 +514,10 @@ export function ImportPage({ onLogout }: Props) {
               </div>
               <div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--green)', lineHeight: 1 }}>
-                  {result.mode === 'photo_update' ? result.updated : result.imported}
+                  {result.mode === 'full_import' ? result.imported : result.updated}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600 }}>
-                  {result.mode === 'photo_update' ? 'Photos Updated' : 'Imported Successfully'}
+                  {result.mode === 'photo_update' ? 'Photos Updated' : result.mode === 'details_update' ? 'Students Updated' : 'Imported Successfully'}
                 </div>
               </div>
             </div>

@@ -710,6 +710,8 @@ td {
 .badge-green { background: var(--green-light); color: var(--green); }
 .badge-amber { background: var(--amber-light); color: var(--amber); }
 .badge-gray  { background: var(--surface-2); color: var(--text-2); }
+.badge-red   { background: #fee2e2; color: #b91c1c; }
+[data-theme="dark"] .badge-red { color: #fca5a5; background: rgba(239,68,68,0.18); }
 
 /* ─── Pagination ────────────────────────────────────────────── */
 .pagination {

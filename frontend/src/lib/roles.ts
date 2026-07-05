@@ -7,6 +7,7 @@ export const isSuperadmin = (r?: Role | null): boolean => r === 'superadmin';
 export const PATH_ROLES: Record<string, Role[]> = {
   '/dashboard':     ['superadmin', 'admin', 'user'],
   '/students':      ['superadmin', 'admin', 'user'],
+  '/blood-groups':  ['superadmin', 'admin', 'user'],
   '/students/new':  ['superadmin', 'admin'],
   '/students/:id/edit': ['superadmin', 'admin'],
   '/scanner':       ['superadmin', 'admin'],

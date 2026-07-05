@@ -25,6 +25,8 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().optional(),
   // Google Drive photo import
   GOOGLE_API_KEY:        z.string().optional(),
+  // Firebase Cloud Messaging (push notifications) — service account JSON as a string
+  FCM_SERVICE_ACCOUNT:   z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
