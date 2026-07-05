@@ -177,6 +177,24 @@ export type AttendanceSummaryRow = {
   percentage: number;
 };
 
+export type StudentAttendanceRow = {
+  att_date: string;
+  status: string;
+  year: string | null;
+  section: string | null;
+};
+
+export type AchievementSummaryRow = {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  year: string | null;
+  total: number;
+  wins: number;
+  participated: number;
+};
+
 export type EventType = 'hackathon' | 'presentation' | 'symposium' | 'other';
 
 export const EVENT_TYPE_LABELS: Record<string, string> = {

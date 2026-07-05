@@ -100,6 +100,23 @@ export async function getDay(date: string): Promise<DaySection[]> {
   return [...map.values()];
 }
 
+export interface StudentAttendanceRow {
+  att_date: string;
+  status: string;
+  year: string | null;
+  section: string | null;
+}
+
+/** One student's full attendance history (most recent first). */
+export async function listByStudent(studentId: number): Promise<StudentAttendanceRow[]> {
+  const [rows] = await pool.query<Array<StudentAttendanceRow & RowDataPacket>>(
+    `SELECT DATE_FORMAT(att_date, '%Y-%m-%d') AS att_date, status, year, section
+       FROM attendance WHERE student_id = ? ORDER BY att_date DESC`,
+    [studentId],
+  );
+  return rows;
+}
+
 export interface AttendanceSummaryRow {
   student_id: number;
   name: string;

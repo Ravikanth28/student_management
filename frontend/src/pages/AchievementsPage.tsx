@@ -4,8 +4,9 @@ import { Shell } from '../components/Shell';
 import { Pagination } from '../components/Pagination';
 import { AchievementForm } from '../components/AchievementForm';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { StudentActivityModal } from '../components/StudentActivityModal';
 import { useToast } from '../components/Toast';
-import { EVENT_TYPE_LABELS, YEAR_LABELS, type Achievement, type AchievementListResponse } from '../types';
+import { EVENT_TYPE_LABELS, YEAR_LABELS, type Achievement, type AchievementListResponse, type AchievementSummaryRow, type Student } from '../types';
 
 type Props = { onLogout: () => void };
 const LIMIT = 20;
@@ -18,6 +19,7 @@ function fmtDate(d: string | null): string {
 
 export function AchievementsPage({ onLogout }: Props) {
   const { success, error: toastError } = useToast();
+  const [view, setView] = useState<'records' | 'summary'>('records');
   const [rows, setRows] = useState<Achievement[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -43,7 +45,38 @@ export function AchievementsPage({ onLogout }: Props) {
     }
   }, [page, q]);
 
-  useEffect(() => { void fetchRows(); }, [fetchRows]);
+  useEffect(() => { if (view === 'records') void fetchRows(); }, [view, fetchRows]);
+
+  // ── Summary view ──
+  const [summary, setSummary] = useState<AchievementSummaryRow[]>([]);
+  const [sQ, setSQ] = useState('');
+  const [sLoading, setSLoading] = useState(false);
+  const fetchSummary = useCallback(async () => {
+    setSLoading(true);
+    try {
+      const res = await api.get<{ data: AchievementSummaryRow[] }>('/achievements/summary', { params: { q: sQ || undefined } });
+      setSummary(res.data.data);
+    } catch { setSummary([]); } finally { setSLoading(false); }
+  }, [sQ]);
+  useEffect(() => { if (view === 'summary') void fetchSummary(); }, [view, fetchSummary]);
+
+  // ── Per-student "View" popup ──
+  const [viewStudent, setViewStudent] = useState<Student | null>(null);
+  const [viewAch, setViewAch] = useState<Achievement[]>([]);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewLoading, setViewLoading] = useState(false);
+  const openView = async (studentId: number) => {
+    setViewOpen(true); setViewLoading(true); setViewStudent(null); setViewAch([]);
+    try {
+      const [s, ach] = await Promise.all([
+        api.get<Student>(`/students/${studentId}`),
+        api.get<{ data: Achievement[] }>(`/students/${studentId}/achievements`),
+      ]);
+      setViewStudent(s.data);
+      setViewAch(ach.data.data);
+    } catch { /* ignore */ } finally { setViewLoading(false); }
+  };
+  const vWins = viewAch.filter((a) => a.result === 'winner').length;
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -65,8 +98,47 @@ export function AchievementsPage({ onLogout }: Props) {
       title="Achievements"
       subtitle="Hackathons, competitions, and awards"
       onLogout={onLogout}
-      actions={<button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Add achievement</button>}
+      actions={
+        <>
+          <button type="button" className={`btn btn-sm ${view === 'records' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('records')}>Records</button>
+          <button type="button" className={`btn btn-sm ${view === 'summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('summary')}>Summary</button>
+          <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Add achievement</button>
+        </>
+      }
     >
+      {view === 'summary' ? (
+        <div className="card">
+          <div className="toolbar">
+            <input className="form-control" style={{ height: 40, flex: 1, minWidth: 180 }} placeholder="Search name / number…" value={sQ} onChange={(e) => setSQ(e.target.value)} />
+          </div>
+          {sLoading ? (
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 40, borderRadius: 8 }} />)}</div>
+          ) : summary.length === 0 ? (
+            <div className="empty-state"><p className="empty-title">No achievements yet</p><p className="empty-sub">Nothing to summarise.</p></div>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead><tr><th>#</th><th>Name</th><th>Register No.</th><th>Year</th><th>Sec</th><th>Total</th><th>Wins</th><th>Participated</th><th></th></tr></thead>
+                <tbody>
+                  {summary.map((r, i) => (
+                    <tr key={r.student_id}>
+                      <td className="td-muted">{i + 1}</td>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td className="td-muted">{r.register_number}</td>
+                      <td>{r.year ? (YEAR_LABELS[r.year] ?? r.year) : '—'}</td>
+                      <td>{r.section}</td>
+                      <td><span className="badge badge-navy">{r.total}</span></td>
+                      <td><span className="badge badge-green">{r.wins}</span></td>
+                      <td className="td-muted">{r.participated}</td>
+                      <td style={{ textAlign: 'right' }}><button className="btn btn-outline btn-sm" type="button" onClick={() => void openView(r.student_id)}>View</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="card">
         <div className="toolbar">
           <input className="form-control" style={{ height: 40, flex: 1, minWidth: 180 }} placeholder="Search title / venue…" value={q} onChange={(e) => { setPage(1); setQ(e.target.value); }} />
@@ -121,6 +193,42 @@ export function AchievementsPage({ onLogout }: Props) {
 
         <Pagination page={page} totalPages={totalPages} total={total} limit={LIMIT} onPage={setPage} noun="achievements" />
       </div>
+      )}
+
+      {viewOpen && (
+        <StudentActivityModal
+          student={viewStudent}
+          title="Achievements"
+          loading={viewLoading}
+          onClose={() => setViewOpen(false)}
+          kpis={[
+            { label: 'Total', value: viewAch.length, tone: 'default' },
+            { label: 'Wins', value: vWins, tone: 'green' },
+            { label: 'Participated', value: viewAch.length - vWins, tone: 'default' },
+          ]}
+        >
+          {viewAch.length === 0 ? (
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>No achievements.</p>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead><tr><th>Date</th><th>Event</th><th>Type</th><th>Result</th><th>Position</th></tr></thead>
+                <tbody>
+                  {viewAch.map((a) => (
+                    <tr key={a.id}>
+                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(a.event_date)}</td>
+                      <td style={{ fontWeight: 600 }}>{a.title}</td>
+                      <td><span className="badge badge-navy">{EVENT_TYPE_LABELS[a.event_type ?? 'other'] ?? a.event_type}</span></td>
+                      <td><span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>{a.result === 'winner' ? 'Winner' : 'Participated'}</span></td>
+                      <td className="td-muted">{a.result === 'winner' ? (a.position ?? '—') : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </StudentActivityModal>
+      )}
 
       {/* Add modal */}
       {showAdd && (

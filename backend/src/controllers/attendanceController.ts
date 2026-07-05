@@ -77,6 +77,13 @@ export const getDay = asyncWrap(async (req, res) => {
   return res.json({ date, data: await attendanceRepo.getDay(date) });
 });
 
+// GET /api/attendance/student/:id  (one student's attendance history)
+export const getStudentAttendance = asyncWrap(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Invalid student id');
+  return res.json({ data: await attendanceRepo.listByStudent(id) });
+});
+
 // GET /api/attendance/summary?from=&to=&year=&section=
 export const getSummary = asyncWrap(async (req, res) => {
   const rows = await attendanceRepo.summarize({

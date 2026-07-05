@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { StudentActivityModal } from '../components/StudentActivityModal';
 import { useToast } from '../components/Toast';
-import { YEAR_OPTIONS, YEAR_LABELS, type RosterStudent, type AttendanceDaySection, type AttendanceSummaryRow } from '../types';
+import { YEAR_OPTIONS, YEAR_LABELS, type RosterStudent, type AttendanceDaySection, type AttendanceSummaryRow, type StudentAttendanceRow, type Student } from '../types';
 
 type Props = { onLogout: () => void };
 
@@ -40,6 +41,27 @@ export function AttendancePage({ onLogout }: Props) {
   const [sumYear, setSumYear] = useState('');
   const [threshold, setThreshold] = useState(75);
   const [summary, setSummary] = useState<AttendanceSummaryRow[]>([]);
+
+  // ── Per-student "View" popup ──
+  const [viewStudent, setViewStudent] = useState<Student | null>(null);
+  const [viewRows, setViewRows] = useState<StudentAttendanceRow[]>([]);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  const openView = async (studentId: number) => {
+    setViewOpen(true); setViewLoading(true); setViewStudent(null); setViewRows([]);
+    try {
+      const [s, rows] = await Promise.all([
+        api.get<Student>(`/students/${studentId}`),
+        api.get<{ data: StudentAttendanceRow[] }>(`/attendance/student/${studentId}`),
+      ]);
+      setViewStudent(s.data);
+      setViewRows(rows.data.data);
+    } catch { /* ignore */ } finally { setViewLoading(false); }
+  };
+  const vPresent = viewRows.filter((r) => r.status === 'present').length;
+  const vAbsent = viewRows.filter((r) => r.status === 'absent').length;
+  const vPct = viewRows.length ? Math.round((1000 * vPresent) / viewRows.length) / 10 : 0;
 
   // Load roster when year + section chosen.
   useEffect(() => {
@@ -269,7 +291,7 @@ export function AttendancePage({ onLogout }: Props) {
             <div className="table-container">
               <table>
                 <thead>
-                  <tr><th>Name</th><th>Register No.</th><th>Year</th><th>Sec</th><th>Days</th><th>Present</th><th>Absent</th><th>%</th><th></th></tr>
+                  <tr><th>Name</th><th>Register No.</th><th>Year</th><th>Sec</th><th>Days</th><th>Present</th><th>Absent</th><th>%</th><th></th><th></th></tr>
                 </thead>
                 <tbody>
                   {summary.map((r) => {
@@ -285,6 +307,7 @@ export function AttendancePage({ onLogout }: Props) {
                         <td>{r.absent}</td>
                         <td style={{ fontWeight: 700, color: low ? 'var(--amber)' : 'var(--green)' }}>{r.percentage}%</td>
                         <td>{low ? <span className="badge badge-red">Defaulter</span> : null}</td>
+                        <td style={{ textAlign: 'right' }}><button className="btn btn-outline btn-sm" type="button" onClick={() => void openView(r.student_id)}>View</button></td>
                       </tr>
                     );
                   })}
@@ -293,6 +316,40 @@ export function AttendancePage({ onLogout }: Props) {
             </div>
           )}
         </div>
+      )}
+
+      {viewOpen && (
+        <StudentActivityModal
+          student={viewStudent}
+          title="Attendance history"
+          loading={viewLoading}
+          onClose={() => setViewOpen(false)}
+          kpis={[
+            { label: 'Days', value: viewRows.length },
+            { label: 'Present', value: vPresent, tone: 'green' },
+            { label: 'Absent', value: vAbsent, tone: 'red' },
+            { label: '%', value: `${vPct}%`, tone: vPct < 75 ? 'amber' : 'green' },
+          ]}
+        >
+          {viewRows.length === 0 ? (
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>No attendance records.</p>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead><tr><th>Date</th><th>Status</th><th>Sec</th></tr></thead>
+                <tbody>
+                  {viewRows.map((r) => (
+                    <tr key={r.att_date}>
+                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{r.att_date}</td>
+                      <td><span className={`badge ${r.status === 'absent' ? 'badge-red' : 'badge-green'}`}>{r.status === 'absent' ? 'Absent' : 'Present'}</span></td>
+                      <td>{r.section ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </StudentActivityModal>
       )}
 
       {deleteTarget && (

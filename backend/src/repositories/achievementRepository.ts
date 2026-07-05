@@ -136,6 +136,51 @@ export async function listAchievements(q: string | undefined, page: number, limi
   };
 }
 
+export interface AchievementSummaryRow {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  year: string | null;
+  total: number;
+  wins: number;
+  participated: number;
+}
+
+/** Per-student achievement totals (wins vs participated), most achievements first. */
+export async function summarizeByStudent(f: { year?: string; section?: string; q?: string }): Promise<AchievementSummaryRow[]> {
+  const conds: string[] = [];
+  const vals: unknown[] = [];
+  if (f.year) { conds.push('s.year = ?'); vals.push(f.year); }
+  if (f.section) { conds.push('s.section = ?'); vals.push(f.section); }
+  if (f.q) { conds.push('(s.name LIKE ? OR s.register_number LIKE ?)'); vals.push(`%${f.q}%`, `%${f.q}%`); }
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+  const [rows] = await pool.query<Array<AchievementSummaryRow & RowDataPacket>>(
+    `SELECT s.id AS student_id, s.name, s.register_number, s.section, s.year,
+            COUNT(*) AS total,
+            SUM(a.result = 'winner') AS wins,
+            SUM(a.result = 'participated') AS participated
+       FROM achievement_members am
+       JOIN achievements a ON a.id = am.achievement_id
+       JOIN students s ON s.id = am.student_id
+       ${where}
+      GROUP BY s.id, s.name, s.register_number, s.section, s.year
+      ORDER BY total DESC, s.name ASC`,
+    vals,
+  );
+  return rows.map((r) => ({
+    student_id: Number(r.student_id),
+    name: r.name,
+    register_number: r.register_number,
+    section: r.section,
+    year: r.year ?? null,
+    total: Number(r.total),
+    wins: Number(r.wins),
+    participated: Number(r.participated),
+  }));
+}
+
 export async function listAchievementsByStudent(studentId: number): Promise<Achievement[]> {
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
     `SELECT a.id, a.event_type, a.title, a.venue, a.duration, a.result, a.position, a.prize,

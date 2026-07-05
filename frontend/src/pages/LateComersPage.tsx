@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { Pagination } from '../components/Pagination';
-import { LATE_PERIOD_LABELS, YEAR_OPTIONS, YEAR_LABELS, type LateListResponse, type LateRecord, type LateSummaryRow } from '../types';
+import { StudentActivityModal } from '../components/StudentActivityModal';
+import { LATE_PERIOD_LABELS, YEAR_OPTIONS, YEAR_LABELS, type LateListResponse, type LateRecord, type LateSummaryRow, type Student } from '../types';
 
 const yearLabel = (y?: string | null) => (y ? (YEAR_LABELS[y] ?? y) : '—');
 
@@ -70,6 +71,25 @@ export function LateComersPage({ onLogout }: Props) {
   }, [sFrom, sTo, sYear, sQ]);
 
   useEffect(() => { if (view === 'records') void fetchRows(); else void fetchSummary(); }, [view, fetchRows, fetchSummary]);
+
+  // ── Per-student "View" popup ──
+  const [viewStudent, setViewStudent] = useState<Student | null>(null);
+  const [viewRecords, setViewRecords] = useState<LateRecord[]>([]);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  const openView = async (studentId: number) => {
+    setViewOpen(true); setViewLoading(true); setViewStudent(null); setViewRecords([]);
+    try {
+      const [s, recs] = await Promise.all([
+        api.get<Student>(`/students/${studentId}`),
+        api.get<{ data: LateRecord[] }>(`/students/${studentId}/late-records`),
+      ]);
+      setViewStudent(s.data);
+      setViewRecords(recs.data.data);
+    } catch { /* ignore */ } finally { setViewLoading(false); }
+  };
+  const viewMinutes = viewRecords.reduce((t, r) => t + (r.minutes_late ?? 0), 0);
 
   const exportRecords = async () => {
     const res = await api.get<LateListResponse>('/late-records', { params: { page: 1, limit: 2000, date: date || undefined, period: period || undefined, q: q || undefined } });
@@ -173,7 +193,7 @@ export function LateComersPage({ onLogout }: Props) {
           ) : (
             <div className="table-container">
               <table>
-                <thead><tr><th>#</th><th>Name</th><th>Register No.</th><th>Year</th><th>Sec</th><th>Batch</th><th>Morning</th><th>M. break</th><th>Lunch</th><th>E. break</th><th>Total</th><th>Total min</th></tr></thead>
+                <thead><tr><th>#</th><th>Name</th><th>Register No.</th><th>Year</th><th>Sec</th><th>Batch</th><th>Morning</th><th>M. break</th><th>Lunch</th><th>E. break</th><th>Total</th><th>Total min</th><th></th></tr></thead>
                 <tbody>
                   {summary.map((r, i) => (
                     <tr key={r.student_id}>
@@ -189,6 +209,7 @@ export function LateComersPage({ onLogout }: Props) {
                       <td className="td-muted">{r.evening_break || '—'}</td>
                       <td><span className={`badge ${r.total >= 5 ? 'badge-amber' : 'badge-gray'}`}>{r.total}</span></td>
                       <td className="td-muted">{r.total_minutes}</td>
+                      <td style={{ textAlign: 'right' }}><button className="btn btn-outline btn-sm" type="button" onClick={() => void openView(r.student_id)}>View</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -196,6 +217,40 @@ export function LateComersPage({ onLogout }: Props) {
             </div>
           )}
         </div>
+      )}
+
+      {viewOpen && (
+        <StudentActivityModal
+          student={viewStudent}
+          title="Late-comer history"
+          loading={viewLoading}
+          onClose={() => setViewOpen(false)}
+          kpis={[
+            { label: 'Total lates', value: viewRecords.length, tone: 'amber' },
+            { label: 'Total minutes', value: viewMinutes, tone: 'amber' },
+          ]}
+        >
+          {viewRecords.length === 0 ? (
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>No late records.</p>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead><tr><th>Date</th><th>Period</th><th>Scheduled</th><th>Arrival</th><th>Late</th></tr></thead>
+                <tbody>
+                  {viewRecords.map((r) => (
+                    <tr key={r.id}>
+                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.late_date)}</td>
+                      <td><span className="badge badge-amber">{LATE_PERIOD_LABELS[r.period] ?? r.period}</span></td>
+                      <td className="td-muted">{r.scheduled_time ?? '—'}</td>
+                      <td className="td-muted">{r.late_time ?? '—'}</td>
+                      <td>{r.minutes_late == null ? '—' : <span className="badge badge-amber">{r.minutes_late} min</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </StudentActivityModal>
       )}
     </Shell>
   );

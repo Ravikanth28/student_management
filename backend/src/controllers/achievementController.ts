@@ -44,6 +44,16 @@ export const createAchievement = asyncWrap(async (req, res) => {
   return res.status(201).json({ message: 'Achievement added', id });
 });
 
+// GET /api/achievements/summary?year=&section=&q=
+export const achievementSummary = asyncWrap(async (req, res) => {
+  const rows = await achievementRepo.summarizeByStudent({
+    year: req.query.year ? String(req.query.year) : undefined,
+    section: req.query.section ? String(req.query.section) : undefined,
+    q: req.query.q ? String(req.query.q) : undefined,
+  });
+  return res.json({ data: rows });
+});
+
 // GET /api/achievements
 export const listAchievements = asyncWrap(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
