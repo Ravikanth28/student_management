@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import { DecodeHintType, BarcodeFormat } from '@zxing/library';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
@@ -9,9 +9,7 @@ import type { Student } from '../types';
 
 type Props = { onLogout: () => void };
 
-// Restrict to the barcode types actually found on ID cards. Fewer formats +
-// no TRY_HARDER means each frame decodes much faster, so far more frames are
-// checked per second → quicker, more reliable scans.
+// Only the symbologies used on ID cards — fewer formats = faster decode.
 const SCAN_HINTS = new Map<DecodeHintType, unknown>([
   [DecodeHintType.POSSIBLE_FORMATS, [
     BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93,
@@ -20,11 +18,19 @@ const SCAN_HINTS = new Map<DecodeHintType, unknown>([
   ]],
 ]);
 
+// Region of interest: a wide, short band in the middle where the barcode sits.
+// Fractions of the video frame — matches the on-screen scan box.
+const ROI = { x: 0.05, y: 0.30, w: 0.90, h: 0.40 };
+
 export function ScannerPage({ onLogout }: Props) {
   const { error: toastError } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const controlsRef = useRef<IScannerControls | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
+  const runningRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
   const lockRef = useRef(false);
 
   const [student, setStudent] = useState<Student | null>(null);
@@ -36,20 +42,43 @@ export function ScannerPage({ onLogout }: Props) {
   const [torchAvailable, setTorchAvailable] = useState(false);
 
   const stopScan = () => {
-    controlsRef.current?.stop();
-    controlsRef.current = null;
+    runningRef.current = false;
+    if (timerRef.current) { window.clearTimeout(timerRef.current); timerRef.current = null; }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
     trackRef.current = null;
     setScanning(false);
     setTorchOn(false);
   };
 
+  // Decode only the cropped ROI band — fast, and ignores glare outside the box.
+  const decodeLoop = () => {
+    if (!runningRef.current) return;
+    const v = videoRef.current;
+    const reader = readerRef.current;
+    if (v && reader && v.videoWidth && v.readyState >= 2) {
+      const canvas = canvasRef.current ?? (canvasRef.current = document.createElement('canvas'));
+      const vw = v.videoWidth, vh = v.videoHeight;
+      const sx = Math.floor(vw * ROI.x), sy = Math.floor(vh * ROI.y);
+      const sw = Math.floor(vw * ROI.w), sh = Math.floor(vh * ROI.h);
+      canvas.width = sw; canvas.height = sh;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
+        try {
+          const text = reader.decodeFromCanvas(canvas)?.getText?.();
+          if (text) void lookup(text);
+        } catch { /* no barcode in this frame */ }
+      }
+    }
+    if (runningRef.current) timerRef.current = window.setTimeout(decodeLoop, 80);
+  };
+
   const startScan = async () => {
     setCameraError(null);
     if (!videoRef.current) return;
-    // Scan very frequently; 720p decodes noticeably faster than 1080p.
-    const reader = new BrowserMultiFormatReader(SCAN_HINTS, { delayBetweenScanAttempts: 40, delayBetweenScanSuccess: 800 });
-    // Keep only standard "ideal" constraints at the top level; put non-standard
-    // focus hints in `advanced` (optional) so no device rejects the camera.
+    readerRef.current = readerRef.current ?? new BrowserMultiFormatReader(SCAN_HINTS);
+
     const video = {
       facingMode: { ideal: 'environment' },
       width: { ideal: 1280 },
@@ -58,17 +87,19 @@ export function ScannerPage({ onLogout }: Props) {
     } as unknown as MediaTrackConstraints;
 
     try {
-      controlsRef.current = await reader.decodeFromConstraints(
-        { video },
-        videoRef.current,
-        (result) => { if (result) void lookup(result.getText()); }
-      );
-      setScanning(true);
-      // Detect torch support on the active track.
-      const track = (videoRef.current.srcObject as MediaStream | null)?.getVideoTracks?.()[0] ?? null;
+      const stream = await navigator.mediaDevices.getUserMedia({ video });
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+
+      const track = stream.getVideoTracks()[0] ?? null;
       trackRef.current = track;
-      const caps = (track?.getCapabilities?.() as { torch?: boolean } | undefined);
+      const caps = track?.getCapabilities?.() as { torch?: boolean } | undefined;
       setTorchAvailable(Boolean(caps?.torch));
+
+      runningRef.current = true;
+      setScanning(true);
+      decodeLoop();
     } catch {
       setScanning(false);
       setCameraError('Could not access the camera. Allow camera access and press "Restart camera", or use manual entry below.');
@@ -82,9 +113,7 @@ export function ScannerPage({ onLogout }: Props) {
       const next = !torchOn;
       await track.applyConstraints({ advanced: [{ torch: next }] } as unknown as MediaTrackConstraints);
       setTorchOn(next);
-    } catch {
-      /* torch not supported on this device */
-    }
+    } catch { /* torch unsupported */ }
   };
 
   const lookup = async (code: string) => {
@@ -114,20 +143,19 @@ export function ScannerPage({ onLogout }: Props) {
   const closeModal = () => {
     setStudent(null);
     setManual('');
-    void startScan(); // resume scanning
+    void startScan();
   };
 
   return (
     <Shell title="Scanner" subtitle="Scan a student ID barcode to mark late or add an achievement" onLogout={onLogout}>
       <div className="card card-padded" style={{ maxWidth: 560, margin: '0 auto' }}>
-        {/* Camera */}
         <div style={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', background: '#0f172a', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
           <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted playsInline />
 
-          {/* Scan frame + moving line + status (while actively scanning) */}
           {scanning && !looking && (
             <>
-              <div className="scan-frame">
+              {/* Wide, short band matching the ROI — aim the barcode inside it */}
+              <div className="scan-frame" style={{ inset: '30% 5%' }}>
                 <div className="scanline" />
               </div>
               <div className="scan-status">Scanning…</div>
@@ -143,7 +171,7 @@ export function ScannerPage({ onLogout }: Props) {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', margin: 0, textAlign: 'center' }}>
-            Hold the barcode inside the box — it scans automatically.
+            Line the barcode up inside the box. Tilt slightly to kill glare.
           </p>
           {torchAvailable && (
             <button className="btn btn-outline btn-sm" type="button" onClick={() => void toggleTorch()}>
