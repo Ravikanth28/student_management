@@ -11,11 +11,16 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function fmtDate(d: string): string {
+  const dt = new Date(d.includes('T') ? d : `${d}T00:00:00`);
+  return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 function toCsv(rows: LateRecord[]): string {
-  const header = ['Date', 'Period', 'Name', 'Register No', 'Enrollment No', 'Section', 'Batch', 'Marked By'];
+  const header = ['Date', 'Period', 'Scheduled', 'Arrival', 'Minutes Late', 'Name', 'Register No', 'Enrollment No', 'Section', 'Batch', 'Marked By'];
   const body = rows.map((r) => [
-    r.late_date, LATE_PERIOD_LABELS[r.period] ?? r.period, r.name ?? '', r.register_number ?? '',
-    r.enrollment_number ?? '', r.section ?? '', r.batch ?? '', r.marked_by ?? '',
+    fmtDate(r.late_date), LATE_PERIOD_LABELS[r.period] ?? r.period, r.scheduled_time ?? '', r.late_time ?? '',
+    r.minutes_late ?? '', r.name ?? '', r.register_number ?? '', r.enrollment_number ?? '', r.section ?? '', r.batch ?? '', r.marked_by ?? '',
   ].map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','));
   return [header.join(','), ...body].join('\n');
 }
@@ -90,13 +95,16 @@ export function LateComersPage({ onLogout }: Props) {
           <div className="table-container">
             <table>
               <thead>
-                <tr><th>Date</th><th>Period</th><th>Name</th><th>Register No.</th><th>Section</th><th>Batch</th></tr>
+                <tr><th>Date</th><th>Period</th><th>Scheduled</th><th>Arrival</th><th>Late</th><th>Name</th><th>Register No.</th><th>Section</th><th>Batch</th></tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
-                    <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{r.late_date}</td>
+                    <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.late_date)}</td>
                     <td><span className="badge badge-amber">{LATE_PERIOD_LABELS[r.period] ?? r.period}</span></td>
+                    <td className="td-muted">{r.scheduled_time ?? '—'}</td>
+                    <td className="td-muted">{r.late_time ?? '—'}</td>
+                    <td>{r.minutes_late == null ? '—' : <span className="badge badge-amber">{r.minutes_late} min</span>}</td>
                     <td style={{ fontWeight: 600 }}>{r.name}</td>
                     <td className="td-muted">{r.register_number}</td>
                     <td>{r.section}</td>

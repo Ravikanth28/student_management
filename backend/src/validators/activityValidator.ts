@@ -6,6 +6,10 @@ const optionalText = (max: number) =>
 export const lateCreateSchema = z.object({
   student_id: z.coerce.number().int().positive(),
   period: z.enum(['morning', 'morning_break', 'lunch', 'evening_break']),
+  time: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.string().regex(/^\d{2}:\d{2}$/, 'time must be HH:MM').optional()
+  ),
 });
 
 export const achievementCreateSchema = z.object({

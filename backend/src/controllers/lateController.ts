@@ -4,6 +4,7 @@ import { lateCreateSchema } from '../validators/activityValidator.js';
 import * as lateRepo from '../repositories/lateRepository.js';
 import * as studentRepo from '../repositories/studentRepository.js';
 import * as audit from '../services/auditService.js';
+import { PERIOD_SCHEDULE, computeMinutesLate } from '../config/lateSchedule.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -15,9 +16,9 @@ function parseId(raw: string | string[]) {
   return id;
 }
 
-/** YYYY-MM-DD in the server's local time. */
+/** YYYY-MM-DD in India Standard Time (UTC+5:30), regardless of server timezone. */
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 const PERIOD_LABEL: Record<string, string> = {
@@ -33,14 +34,27 @@ export const createLateRecord = asyncWrap(async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid late record', issues: parsed.error.flatten() });
   }
-  const { student_id, period } = parsed.data;
+  const { student_id, period, time } = parsed.data;
 
   const student = await studentRepo.getStudentById(student_id);
   if (!student) throw new HttpError(404, 'Student not found');
 
   const date = today();
+  // Arrival time (from the device, IST), or server-side IST time as a fallback.
+  const lateTime = time ?? new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16);
+  const scheduledTime = PERIOD_SCHEDULE[period] ?? null;
+  const minutesLate = scheduledTime ? computeMinutesLate(scheduledTime, lateTime) : null;
+
   try {
-    await lateRepo.createLate(student_id, period, date, req.user?.username ?? null);
+    await lateRepo.createLate({
+      studentId: student_id,
+      period,
+      scheduledTime,
+      time: lateTime,
+      minutesLate,
+      date,
+      markedBy: req.user?.username ?? null,
+    });
   } catch (err) {
     if ((err as { code?: string }).code === 'ER_DUP_ENTRY') {
       throw new HttpError(409, `${student.name} is already marked late for ${PERIOD_LABEL[period]} today.`);
@@ -52,10 +66,10 @@ export const createLateRecord = asyncWrap(async (req, res) => {
     action: 'late.mark',
     entity: 'student',
     entity_id: String(student_id),
-    details: `${student.name} (${student.register_number}) — ${PERIOD_LABEL[period]}`,
+    details: `${student.name} (${student.register_number}) — ${PERIOD_LABEL[period]} at ${lateTime}${minutesLate != null ? ` (${minutesLate} min late)` : ''}`,
   });
 
-  return res.status(201).json({ message: 'Marked late', student, period, date });
+  return res.status(201).json({ message: 'Marked late', student, period, scheduledTime, time: lateTime, minutesLate, date });
 });
 
 // GET /api/late-records  (report, filterable)

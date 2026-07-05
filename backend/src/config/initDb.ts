@@ -44,6 +44,9 @@ export async function ensureSchema(): Promise<void> {
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
       student_id BIGINT UNSIGNED NOT NULL,
       period VARCHAR(24) NOT NULL,
+      scheduled_time VARCHAR(8) NULL,
+      late_time VARCHAR(8) NULL,
+      minutes_late INT NULL,
       late_date DATE NOT NULL,
       marked_by VARCHAR(120) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -53,6 +56,19 @@ export async function ensureSchema(): Promise<void> {
       KEY idx_late_date (late_date)
     )
   `);
+
+  // Add columns when upgrading an existing table (ignore "already exists").
+  for (const sql of [
+    "ALTER TABLE late_records ADD COLUMN late_time VARCHAR(8) NULL AFTER period",
+    "ALTER TABLE late_records ADD COLUMN scheduled_time VARCHAR(8) NULL AFTER period",
+    "ALTER TABLE late_records ADD COLUMN minutes_late INT NULL AFTER late_time",
+  ]) {
+    try {
+      await pool.query(sql);
+    } catch (err) {
+      if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  }
 
   // Achievements (may belong to a team of students via achievement_members).
   await pool.query(`

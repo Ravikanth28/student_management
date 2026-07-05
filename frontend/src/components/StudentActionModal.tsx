@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useToast } from './Toast';
 import { AchievementForm } from './AchievementForm';
 import { proxiedImage } from '../lib/img';
+import { PERIOD_SCHEDULE, minutesLate } from '../lib/lateSchedule';
 import { LATE_PERIOD_LABELS, type LatePeriod, type Student } from '../types';
 
 type Props = { student: Student; onClose: () => void };
@@ -25,6 +26,7 @@ export function StudentActionModal({ student, onClose }: Props) {
   const { success, error: toastError } = useToast();
   const [step, setStep] = useState<Step>('choose');
   const [period, setPeriod] = useState<LatePeriod | null>(null);
+  const [time, setTime] = useState(() => new Date().toTimeString().slice(0, 5));
   const [saving, setSaving] = useState(false);
 
   const photo = proxiedImage(student.photo_url);
@@ -33,8 +35,8 @@ export function StudentActionModal({ student, onClose }: Props) {
     if (!period) return;
     setSaving(true);
     try {
-      await api.post('/late-records', { student_id: student.id, period });
-      success('Marked late', `${student.name} — ${LATE_PERIOD_LABELS[period]}`);
+      await api.post('/late-records', { student_id: student.id, period, time });
+      success('Marked late', `${student.name} — ${LATE_PERIOD_LABELS[period]} at ${time}`);
       setStep('late-done');
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -95,6 +97,23 @@ export function StudentActionModal({ student, onClose }: Props) {
                 </button>
               ))}
             </div>
+            <div style={{ marginTop: 14, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                  Coming (arrival) time
+                </label>
+                <input type="time" className="form-control" value={time} onChange={(e) => setTime(e.target.value)} style={{ maxWidth: 160 }} />
+              </div>
+              {period && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', paddingBottom: 8 }}>
+                  Scheduled <strong>{PERIOD_SCHEDULE[period]}</strong>
+                  {' · '}
+                  <span style={{ color: minutesLate(PERIOD_SCHEDULE[period], time) > 0 ? 'var(--amber)' : 'var(--green)', fontWeight: 700 }}>
+                    {minutesLate(PERIOD_SCHEDULE[period], time)} min late
+                  </span>
+                </div>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
               <button className="btn btn-outline" onClick={() => { setStep('choose'); setPeriod(null); }} disabled={saving}>Back</button>
               <button className="btn btn-primary" onClick={markLate} disabled={!period || saving}>{saving ? 'Marking…' : 'Mark late'}</button>
@@ -108,7 +127,7 @@ export function StudentActionModal({ student, onClose }: Props) {
             <div style={{ fontSize: 40 }}>✅</div>
             <div style={{ fontSize: '1rem', fontWeight: 700, margin: '8px 0 4px' }}>Marked late</div>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-2)', marginBottom: 18 }}>
-              {student.name} — {period ? LATE_PERIOD_LABELS[period] : ''}
+              {student.name} — {period ? LATE_PERIOD_LABELS[period] : ''}{time ? ` at ${time}` : ''}
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={() => navigate(`/students/${student.id}`)}>View student record</button>

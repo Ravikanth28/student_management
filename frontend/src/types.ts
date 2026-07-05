@@ -87,6 +87,9 @@ export type LateRecord = {
   id: number;
   student_id: number;
   period: string;
+  scheduled_time: string | null;
+  late_time: string | null;
+  minutes_late: number | null;
   late_date: string;
   marked_by: string | null;
   created_at: string;

@@ -314,6 +314,12 @@ function PhotoPanel({ student, onPhotoUpdate }: { student: Student; onPhotoUpdat
   );
 }
 
+function fmtDate(d: string): string {
+  // Treat a bare YYYY-MM-DD as local midnight so the displayed date never shifts.
+  const dt = new Date(d.includes('T') ? d : `${d}T00:00:00`);
+  return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 // ─── Main Page ────────────────────────────────────────────────
 type Props = { onLogout: () => void };
 
@@ -488,25 +494,41 @@ export function StudentDetailPage({ onLogout }: Props) {
           {lateRecords.length === 0 ? (
             <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No late records.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {lateRecords.map((r) => (
-                <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: '0.85rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span className="badge badge-amber">{LATE_PERIOD_LABELS[r.period] ?? r.period}</span>
-                    <span className="td-muted">{r.late_date}</span>
-                  </div>
-                  {staff && (
-                    <button
-                      className="btn btn-danger btn-sm"
-                      type="button"
-                      title="Delete late record"
-                      onClick={() => setPendingDelete({ kind: 'late', id: r.id, label: `${LATE_PERIOD_LABELS[r.period] ?? r.period} · ${r.late_date}` })}
-                    >
-                      <IconTrashPhoto />
-                    </button>
-                  )}
-                </div>
-              ))}
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr><th>Date</th><th>Period</th><th>Scheduled</th><th>Arrival</th><th>Late</th>{staff && <th></th>}</tr>
+                </thead>
+                <tbody>
+                  {lateRecords.map((r) => (
+                    <tr key={r.id}>
+                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.late_date)}</td>
+                      <td><span className="badge badge-amber">{LATE_PERIOD_LABELS[r.period] ?? r.period}</span></td>
+                      <td className="td-muted">{r.scheduled_time ?? '—'}</td>
+                      <td className="td-muted">{r.late_time ?? '—'}</td>
+                      <td>
+                        {r.minutes_late == null
+                          ? '—'
+                          : r.minutes_late > 0
+                            ? <span className="badge badge-amber">{r.minutes_late} min</span>
+                            : <span className="badge badge-green">On time</span>}
+                      </td>
+                      {staff && (
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            type="button"
+                            title="Delete late record"
+                            onClick={() => setPendingDelete({ kind: 'late', id: r.id, label: `${LATE_PERIOD_LABELS[r.period] ?? r.period} · ${fmtDate(r.late_date)}` })}
+                          >
+                            <IconTrashPhoto />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

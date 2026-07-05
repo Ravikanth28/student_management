@@ -8,6 +8,9 @@ export interface LateRecord {
   id: number;
   student_id: number;
   period: string;
+  scheduled_time: string | null;
+  late_time: string | null;
+  minutes_late: number | null;
   late_date: string;
   marked_by: string | null;
   created_at: string;
@@ -27,15 +30,19 @@ export interface LateListResult {
 
 /** Creates a late record. Throws ER_DUP_ENTRY if the student is already marked
  *  for that period today (handled by the caller). */
-export async function createLate(
-  studentId: number,
-  period: string,
-  date: string,
-  markedBy: string | null
-): Promise<number> {
+export async function createLate(entry: {
+  studentId: number;
+  period: string;
+  scheduledTime: string | null;
+  time: string | null;
+  minutesLate: number | null;
+  date: string;
+  markedBy: string | null;
+}): Promise<number> {
   const [result] = await pool.query<ResultSetHeader>(
-    'INSERT INTO late_records (student_id, period, late_date, marked_by) VALUES (?, ?, ?, ?)',
-    [studentId, period, date, markedBy]
+    `INSERT INTO late_records (student_id, period, scheduled_time, late_time, minutes_late, late_date, marked_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [entry.studentId, entry.period, entry.scheduledTime, entry.time, entry.minutesLate, entry.date, entry.markedBy]
   );
   return Number(result.insertId);
 }
@@ -47,7 +54,9 @@ export async function deleteLate(id: number): Promise<boolean> {
 
 export async function listLateByStudent(studentId: number): Promise<LateRecord[]> {
   const [rows] = await pool.query<Array<LateRecord & RowDataPacket>>(
-    'SELECT * FROM late_records WHERE student_id = ? ORDER BY late_date DESC, id DESC',
+    `SELECT id, student_id, period, scheduled_time, late_time, minutes_late,
+            DATE_FORMAT(late_date, '%Y-%m-%d') AS late_date, marked_by, created_at
+     FROM late_records WHERE student_id = ? ORDER BY late_date DESC, id DESC`,
     [studentId]
   );
   return rows.map(normalize);
@@ -83,7 +92,9 @@ export async function listLate(f: LateFilter): Promise<LateListResult> {
   const offset = (page - 1) * limit;
 
   const [rows] = await pool.query<Array<LateRecord & RowDataPacket>>(
-    `SELECT lr.*, s.name, s.register_number, s.enrollment_number, s.section, s.department, s.batch
+    `SELECT lr.id, lr.student_id, lr.period, lr.scheduled_time, lr.late_time, lr.minutes_late,
+            DATE_FORMAT(lr.late_date, '%Y-%m-%d') AS late_date, lr.marked_by, lr.created_at,
+            s.name, s.register_number, s.enrollment_number, s.section, s.department, s.batch
      FROM late_records lr
      JOIN students s ON s.id = lr.student_id
      ${where}
@@ -107,6 +118,9 @@ function normalize(r: LateRecord & RowDataPacket): LateRecord {
     id: Number(r.id),
     student_id: Number(r.student_id),
     period: r.period,
+    scheduled_time: r.scheduled_time ?? null,
+    late_time: r.late_time ?? null,
+    minutes_late: r.minutes_late == null ? null : Number(r.minutes_late),
     late_date: r.late_date,
     marked_by: r.marked_by ?? null,
     created_at: r.created_at,
