@@ -6,6 +6,7 @@ import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { useToast } from '../components/Toast';
 import { StudentActionModal } from '../components/StudentActionModal';
+import { proxiedImage } from '../lib/img';
 import { LATE_PERIOD_LABELS, type LatePeriod, type Student } from '../types';
 
 type Props = { onLogout: () => void };
@@ -58,6 +59,9 @@ export function ScannerPage({ onLogout }: Props) {
 
   const [student, setStudent] = useState<Student | null>(null);
   const [manual, setManual] = useState('');
+  const [results, setResults] = useState<Student[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimerRef = useRef<number | null>(null);
   const [looking, setLooking] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -225,9 +229,37 @@ export function ScannerPage({ onLogout }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Live search by name / enrollment / register number.
+  const onManualChange = (v: string) => {
+    setManual(v);
+    if (searchTimerRef.current) window.clearTimeout(searchTimerRef.current);
+    const term = v.trim();
+    if (term.length < 2) { setResults([]); setSearching(false); return; }
+    setSearching(true);
+    searchTimerRef.current = window.setTimeout(async () => {
+      try {
+        const res = await api.get<{ data: Student[] }>('/students/search', { params: { q: term } });
+        setResults(res.data.data);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  };
+
+  // Pick a searched student → open the action popup (works the same in rapid mode).
+  const selectStudent = (s: Student) => {
+    stopScan();
+    setResults([]);
+    setManual('');
+    setStudent(s);
+  };
+
   const closeModal = () => {
     setStudent(null);
     setManual('');
+    setResults([]);
     void startScan();
   };
 
@@ -315,22 +347,45 @@ export function ScannerPage({ onLogout }: Props) {
           </div>
         )}
 
-        {/* Manual fallback */}
+        {/* Manual search — by name, enrollment, or register number */}
         <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 6 }}>Or enter the number manually</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              className="form-control"
-              style={{ flex: 1 }}
-              placeholder="Enrollment or register number"
-              value={manual}
-              onChange={(e) => setManual(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void lookup(manual); }}
-            />
-            <button className="btn btn-primary" onClick={() => void lookup(manual)} disabled={!manual.trim() || looking}>
-              Find
-            </button>
-          </div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 6 }}>Or search by name / number</div>
+          <input
+            className="form-control"
+            style={{ width: '100%' }}
+            placeholder="Type a name, enrollment or register number…"
+            value={manual}
+            onChange={(e) => onManualChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && results[0]) selectStudent(results[0]); }}
+          />
+          {searching && <div style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginTop: 8 }}>Searching…</div>}
+          {results.length > 0 && (
+            <div style={{ marginTop: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+              {results.map((s) => {
+                const photo = proxiedImage(s.photo_url);
+                return (
+                  <button key={s.id} type="button" className="scan-result" onClick={() => selectStudent(s)}>
+                    <span className="scan-result-avatar">
+                      {photo ? (
+                        <img src={photo} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; const f = e.currentTarget.nextElementSibling as HTMLElement | null; if (f) f.style.display = 'flex'; }} />
+                      ) : null}
+                      <span className="scan-result-initial" style={{ display: photo ? 'none' : 'flex' }}>{s.name?.charAt(0).toUpperCase() || '?'}</span>
+                    </span>
+                    <span className="scan-result-info">
+                      <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)' }}>
+                        {s.name}
+                        {s.section ? <span className="scan-result-section">Sec {s.section}</span> : null}
+                      </span>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-2)' }}>{s.register_number} · {s.enrollment_number} · {s.department} · {s.batch}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {!searching && manual.trim().length >= 2 && results.length === 0 && (
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginTop: 8 }}>No students match “{manual.trim()}”.</div>
+          )}
         </div>
 
         {/* Rapid-mode session feed */}

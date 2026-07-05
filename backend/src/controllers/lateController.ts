@@ -34,12 +34,12 @@ export const createLateRecord = asyncWrap(async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid late record', issues: parsed.error.flatten() });
   }
-  const { student_id, period, time } = parsed.data;
+  const { student_id, period, time, date: bodyDate } = parsed.data;
 
   const student = await studentRepo.getStudentById(student_id);
   if (!student) throw new HttpError(404, 'Student not found');
 
-  const date = today();
+  const date = bodyDate ?? today();
   // Arrival time (from the device, IST), or server-side IST time as a fallback.
   const lateTime = time ?? new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16);
   const scheduledTime = PERIOD_SCHEDULE[period] ?? null;

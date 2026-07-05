@@ -115,12 +115,12 @@ export async function searchStudents(term: string, limit = 6): Promise<StudentRe
   const [rows] = await pool.query<StudentRow[]>(
     `SELECT *
      FROM students
-     WHERE name LIKE ? OR register_number LIKE ?
+     WHERE name LIKE ? OR register_number LIKE ? OR enrollment_number LIKE ?
      ORDER BY
-       CASE WHEN register_number LIKE ? THEN 0 ELSE 1 END,
+       CASE WHEN register_number = ? OR enrollment_number = ? THEN 0 ELSE 1 END,
        name ASC
      LIMIT ?`,
-    [like, like, like, limit]
+    [like, like, like, term, term, limit]
   );
 
   return rows.map(rowToStudent);

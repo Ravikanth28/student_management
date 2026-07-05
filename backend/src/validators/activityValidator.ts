@@ -10,6 +10,10 @@ export const lateCreateSchema = z.object({
     (v) => (v === '' || v === null ? undefined : v),
     z.string().regex(/^\d{2}:\d{2}$/, 'time must be HH:MM').optional()
   ),
+  date: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD').optional()
+  ),
 });
 
 export const achievementCreateSchema = z.object({

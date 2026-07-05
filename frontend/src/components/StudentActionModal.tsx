@@ -28,6 +28,8 @@ export function StudentActionModal({ student, onClose }: Props) {
   const [step, setStep] = useState<Step>('choose');
   const [period, setPeriod] = useState<LatePeriod | null>(null);
   const [time, setTime] = useState(() => new Date().toTimeString().slice(0, 5));
+  // Date of the late record — defaults to today (IST), but can be changed.
+  const [date, setDate] = useState(() => new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
 
   const photo = proxiedImage(student.photo_url);
@@ -36,7 +38,7 @@ export function StudentActionModal({ student, onClose }: Props) {
     if (!period) return;
     setSaving(true);
     try {
-      await api.post('/late-records', { student_id: student.id, period, time });
+      await api.post('/late-records', { student_id: student.id, period, time, date });
       success('Marked late', `${student.name} — ${LATE_PERIOD_LABELS[period]} at ${time}`);
       setStep('late-done');
     } catch (err) {
@@ -102,6 +104,12 @@ export function StudentActionModal({ student, onClose }: Props) {
               ))}
             </div>
             <div style={{ marginTop: 14, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                  Date
+                </label>
+                <input type="date" className="form-control" value={date} onChange={(e) => setDate(e.target.value)} style={{ maxWidth: 170 }} />
+              </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
                   Coming (arrival) time
