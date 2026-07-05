@@ -58,6 +58,7 @@ export function ScannerPage({ onLogout }: Props) {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
+  const [engine, setEngine] = useState<'native' | 'fallback' | null>(null);
 
   const stopScan = () => {
     runningRef.current = false;
@@ -109,6 +110,7 @@ export function ScannerPage({ onLogout }: Props) {
     if (!detectorRef.current && !readerRef.current) {
       readerRef.current = new BrowserMultiFormatReader(SCAN_HINTS);
     }
+    setEngine(detectorRef.current ? 'native' : 'fallback');
 
     const video = {
       facingMode: { ideal: 'environment' },
@@ -203,6 +205,11 @@ export function ScannerPage({ onLogout }: Props) {
           <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', margin: 0, textAlign: 'center' }}>
             Line the barcode up inside the box. Tilt slightly to kill glare.
           </p>
+          {engine && (
+            <span className={`badge ${engine === 'native' ? 'badge-green' : 'badge-amber'}`}>
+              {engine === 'native' ? 'Fast scanner' : 'Basic scanner'}
+            </span>
+          )}
           {torchAvailable && (
             <button className="btn btn-outline btn-sm" type="button" onClick={() => void toggleTorch()}>
               {torchOn ? '🔦 Torch on' : '🔦 Torch'}
