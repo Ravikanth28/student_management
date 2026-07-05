@@ -9,13 +9,14 @@ import type { Student } from '../types';
 
 type Props = { onLogout: () => void };
 
-// Look for common ID-card symbologies and try harder on blurry frames.
+// Restrict to the barcode types actually found on ID cards. Fewer formats +
+// no TRY_HARDER means each frame decodes much faster, so far more frames are
+// checked per second → quicker, more reliable scans.
 const SCAN_HINTS = new Map<DecodeHintType, unknown>([
-  [DecodeHintType.TRY_HARDER, true],
   [DecodeHintType.POSSIBLE_FORMATS, [
     BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93,
-    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
-    BarcodeFormat.ITF, BarcodeFormat.CODABAR, BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX,
+    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+    BarcodeFormat.ITF, BarcodeFormat.QR_CODE,
   ]],
 ]);
 
@@ -45,14 +46,14 @@ export function ScannerPage({ onLogout }: Props) {
   const startScan = async () => {
     setCameraError(null);
     if (!videoRef.current) return;
-    // Scan often; prefer the back camera at high resolution with continuous focus.
-    const reader = new BrowserMultiFormatReader(SCAN_HINTS, { delayBetweenScanAttempts: 120, delayBetweenScanSuccess: 800 });
+    // Scan very frequently; 720p decodes noticeably faster than 1080p.
+    const reader = new BrowserMultiFormatReader(SCAN_HINTS, { delayBetweenScanAttempts: 40, delayBetweenScanSuccess: 800 });
     // Keep only standard "ideal" constraints at the top level; put non-standard
     // focus hints in `advanced` (optional) so no device rejects the camera.
     const video = {
       facingMode: { ideal: 'environment' },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
       advanced: [{ focusMode: 'continuous' }],
     } as unknown as MediaTrackConstraints;
 
