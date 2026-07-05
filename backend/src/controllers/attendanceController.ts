@@ -2,6 +2,7 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { HttpError } from '../middleware/error.js';
 import * as attendanceRepo from '../repositories/attendanceRepository.js';
 import * as audit from '../services/auditService.js';
+import { notifyAllInBackground } from '../services/notificationService.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -41,6 +42,16 @@ export const saveAttendance = asyncWrap(async (req, res) => {
     entity: 'attendance',
     details: `${date} — Year ${year} Sec ${section}: ${result.present} present, ${result.absent} absent`,
   });
+
+  notifyAllInBackground(
+    {
+      title: '📋 Attendance marked',
+      body: `Year ${year} Sec ${section} · ${date} — ${result.present} present, ${result.absent} absent`,
+      data: { type: 'attendance', date, year, section },
+    },
+    req.user?.username ?? null,
+  );
+
   return res.status(201).json(result);
 });
 

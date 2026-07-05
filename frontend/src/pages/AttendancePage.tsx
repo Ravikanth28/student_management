@@ -9,7 +9,10 @@ type Props = { onLogout: () => void };
 
 const SECTIONS = ['A', 'B', 'C', 'D', 'E'];
 const todayIST = () => new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+// Case/space/dot-insensitive: "PRAVEEN.M" / "praveen m" / "Praveen  M" → "PRAVEENM"
 const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+// Order-insensitive token key: "ABINASH.S" and "S ABINASH" both → "ABINASH S"
+const tokenKey = (s: string) => s.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean).sort().join(' ');
 
 export function AttendancePage({ onLogout }: Props) {
   const { success, error: toastError } = useToast();
@@ -63,9 +66,11 @@ export function AttendancePage({ onLogout }: Props) {
     const miss: string[] = [];
     for (const line of lines) {
       const n = norm(line);
-      const hit = roster.find((s) => norm(s.name) === n)
-        ?? roster.find((s) => norm(s.name).startsWith(n) || n.startsWith(norm(s.name)))
-        ?? roster.find((s) => norm(s.name).includes(n) && n.length >= 4);
+      const tk = tokenKey(line);
+      const hit = roster.find((s) => norm(s.name) === n)                                   // exact (ignoring case/dots/spaces)
+        ?? roster.find((s) => tokenKey(s.name) === tk)                                      // same words, any order (initial before/after)
+        ?? roster.find((s) => norm(s.name).startsWith(n) || n.startsWith(norm(s.name)))     // with/without initial
+        ?? roster.find((s) => n.length >= 4 && norm(s.name).includes(n));                   // loose contains
       if (hit) matched.add(hit.id); else miss.push(line);
     }
     setAbsentIds(matched);
@@ -306,9 +311,25 @@ export function AttendancePage({ onLogout }: Props) {
         <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setPreview(false); }}>
           <div style={{ width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto', background: 'var(--surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', padding: 'clamp(18px, 4vw, 26px)' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: 4 }}>Confirm attendance</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: 14 }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: 12 }}>
               {YEAR_LABELS[year] ?? year} · Section {section} · {date} — tap a name to toggle absent/present.
             </p>
+
+            {/* KPI cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
+              <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text)' }}>{roster.length}</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-3)' }}>Total</div>
+              </div>
+              <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--green-light)', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--green)' }}>{roster.length - absentIds.size}</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#16a34a' }}>Present</div>
+              </div>
+              <div style={{ padding: '10px 12px', borderRadius: 10, background: '#fee2e2', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#b91c1c' }}>{absentIds.size}</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#b91c1c' }}>Absent</div>
+              </div>
+            </div>
 
             {unmatched.length > 0 && (
               <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--amber-light)', color: '#b45309', fontSize: '0.78rem', marginBottom: 12 }}>
@@ -341,8 +362,8 @@ export function AttendancePage({ onLogout }: Props) {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-              <button className="btn btn-outline" type="button" onClick={() => setPreview(false)} disabled={saving}>Edit</button>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 16 }}>
+              <button className="btn btn-outline" type="button" onClick={() => setPreview(false)} disabled={saving}>← Back</button>
               <button className="btn btn-primary" type="button" onClick={confirmSave} disabled={saving}>{saving ? 'Saving…' : 'Confirm & save'}</button>
             </div>
           </div>
