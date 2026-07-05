@@ -9,8 +9,7 @@ import type { Student } from '../types';
 
 type Props = { onLogout: () => void };
 
-// Tell ZXing exactly which symbologies to look for and to work harder on
-// blurry/angled frames — makes 1D ID-card barcodes scan far more reliably.
+// Look for common ID-card symbologies and try harder on blurry frames.
 const SCAN_HINTS = new Map<DecodeHintType, unknown>([
   [DecodeHintType.TRY_HARDER, true],
   [DecodeHintType.POSSIBLE_FORMATS, [
@@ -24,30 +23,65 @@ export function ScannerPage({ onLogout }: Props) {
   const { error: toastError } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
+  const trackRef = useRef<MediaStreamTrack | null>(null);
   const lockRef = useRef(false);
 
   const [student, setStudent] = useState<Student | null>(null);
   const [manual, setManual] = useState('');
   const [looking, setLooking] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchAvailable, setTorchAvailable] = useState(false);
 
   const stopScan = () => {
     controlsRef.current?.stop();
     controlsRef.current = null;
+    trackRef.current = null;
+    setScanning(false);
+    setTorchOn(false);
   };
 
   const startScan = async () => {
     setCameraError(null);
     if (!videoRef.current) return;
-    const reader = new BrowserMultiFormatReader(SCAN_HINTS);
+    // Scan often; prefer the back camera at high resolution with continuous focus.
+    const reader = new BrowserMultiFormatReader(SCAN_HINTS, { delayBetweenScanAttempts: 120, delayBetweenScanSuccess: 800 });
+    const video = {
+      facingMode: { ideal: 'environment' },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      focusMode: 'continuous',
+      advanced: [{ focusMode: 'continuous' }],
+    } as unknown as MediaTrackConstraints;
+
     try {
       controlsRef.current = await reader.decodeFromConstraints(
-        { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
+        { video },
         videoRef.current,
         (result) => { if (result) void lookup(result.getText()); }
       );
+      setScanning(true);
+      // Detect torch support on the active track.
+      const track = (videoRef.current.srcObject as MediaStream | null)?.getVideoTracks?.()[0] ?? null;
+      trackRef.current = track;
+      const caps = (track?.getCapabilities?.() as { torch?: boolean } | undefined);
+      setTorchAvailable(Boolean(caps?.torch));
     } catch {
+      setScanning(false);
       setCameraError('Could not access the camera. Allow camera access and press "Restart camera", or use manual entry below.');
+    }
+  };
+
+  const toggleTorch = async () => {
+    const track = trackRef.current;
+    if (!track) return;
+    try {
+      const next = !torchOn;
+      await track.applyConstraints({ advanced: [{ torch: next }] } as unknown as MediaTrackConstraints);
+      setTorchOn(next);
+    } catch {
+      /* torch not supported on this device */
     }
   };
 
@@ -87,18 +121,34 @@ export function ScannerPage({ onLogout }: Props) {
         {/* Camera */}
         <div style={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', background: '#0f172a', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
           <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted playsInline />
-          {/* Scan frame overlay */}
-          <div style={{ position: 'absolute', inset: '18% 12%', border: '2px solid rgba(255,255,255,0.7)', borderRadius: 12, boxShadow: '0 0 0 100vmax rgba(0,0,0,0.15)' }} />
+
+          {/* Scan frame + moving line + status (while actively scanning) */}
+          {scanning && !looking && (
+            <>
+              <div className="scan-frame">
+                <div className="scanline" />
+              </div>
+              <div className="scan-status">Scanning…</div>
+            </>
+          )}
+
           {looking && (
-            <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', background: 'rgba(0,0,0,0.4)', color: '#fff', fontWeight: 600 }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', background: 'rgba(0,0,0,0.5)', color: '#fff', fontWeight: 600 }}>
               Looking up…
             </div>
           )}
         </div>
 
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginTop: 10, textAlign: 'center' }}>
-          Point the camera at the barcode on the ID card. It scans automatically.
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', margin: 0, textAlign: 'center' }}>
+            Hold the barcode inside the box — it scans automatically.
+          </p>
+          {torchAvailable && (
+            <button className="btn btn-outline btn-sm" type="button" onClick={() => void toggleTorch()}>
+              {torchOn ? '🔦 Torch on' : '🔦 Torch'}
+            </button>
+          )}
+        </div>
 
         {cameraError && (
           <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--red-light)', color: '#b91c1c', borderRadius: 'var(--radius)', fontSize: '0.8rem' }}>
