@@ -6,9 +6,12 @@ import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { useToast } from '../components/Toast';
 import { StudentActionModal } from '../components/StudentActionModal';
-import type { Student } from '../types';
+import { LATE_PERIOD_LABELS, type LatePeriod, type Student } from '../types';
 
 type Props = { onLogout: () => void };
+
+const PERIODS: LatePeriod[] = ['morning', 'morning_break', 'lunch', 'evening_break'];
+type FeedItem = { id: number; name: string; sub: string; status: 'ok' | 'dup' | 'err' | 'notfound' };
 
 // ZXing fallback (when the native BarcodeDetector isn't available).
 // TRY_HARDER helps read low-contrast / glare-affected barcodes.
@@ -62,6 +65,16 @@ export function ScannerPage({ onLogout }: Props) {
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [engine, setEngine] = useState<'native' | 'fallback' | null>(null);
+
+  // Rapid attendance: mark each scan late for a chosen period, no modal, keep scanning.
+  const [rapidMode, setRapidMode] = useState(false);
+  const [rapidPeriod, setRapidPeriod] = useState<LatePeriod>('morning');
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const markedRef = useRef<Set<string>>(new Set());
+  const feedIdRef = useRef(0);
+
+  const pushFeed = (name: string, sub: string, status: FeedItem['status']) =>
+    setFeed((prev) => [{ id: ++feedIdRef.current, name, sub, status }, ...prev].slice(0, 15));
 
   const stopScan = () => {
     runningRef.current = false;
@@ -156,7 +169,33 @@ export function ScannerPage({ onLogout }: Props) {
   const lookup = async (code: string) => {
     const value = code.trim();
     if (!value || lockRef.current) return;
+    if (rapidMode && markedRef.current.has(value)) return; // already handled this session
     lockRef.current = true;
+
+    // ── Rapid mode: mark late immediately and keep scanning ──
+    if (rapidMode) {
+      try {
+        const res = await api.get<{ student: Student }>('/students/lookup', { params: { code: value } });
+        const s = res.data.student;
+        const time = new Date().toTimeString().slice(0, 5);
+        markedRef.current.add(value);
+        try {
+          await api.post('/late-records', { student_id: s.id, period: rapidPeriod, time });
+          if (navigator.vibrate) navigator.vibrate(60);
+          pushFeed(s.name, `${LATE_PERIOD_LABELS[rapidPeriod]} · ${time}`, 'ok');
+        } catch (e) {
+          const st = (e as { response?: { status?: number } })?.response?.status;
+          pushFeed(s.name, st === 409 ? 'Already marked today' : 'Save failed', st === 409 ? 'dup' : 'err');
+        }
+      } catch {
+        if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+        pushFeed(`Code ${value}`, 'Not registered', 'notfound');
+      } finally {
+        setTimeout(() => { lockRef.current = false; }, 1200);
+      }
+      return; // keep the camera scanning for the next student
+    }
+
     setLooking(true);
     try {
       const res = await api.get<{ student: Student }>('/students/lookup', { params: { code: value } });
@@ -195,6 +234,26 @@ export function ScannerPage({ onLogout }: Props) {
   return (
     <Shell title="Scanner" subtitle="Scan a student ID barcode to mark late or add an achievement" onLogout={onLogout}>
       <div className="card card-padded" style={{ maxWidth: 560, margin: '0 auto' }}>
+        {/* Rapid attendance mode */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
+            <input type="checkbox" checked={rapidMode} onChange={(e) => { setRapidMode(e.target.checked); markedRef.current.clear(); setFeed([]); }} />
+            Rapid attendance mode
+          </label>
+          {rapidMode && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-2)', marginBottom: 6 }}>Each scan is marked late for:</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {PERIODS.map((p) => (
+                  <button key={p} type="button" className={`btn btn-sm ${rapidPeriod === p ? 'btn-primary' : 'btn-outline'}`} onClick={() => setRapidPeriod(p)}>
+                    {LATE_PERIOD_LABELS[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div style={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', background: '#0f172a', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
           <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted playsInline />
 
@@ -273,6 +332,23 @@ export function ScannerPage({ onLogout }: Props) {
             </button>
           </div>
         </div>
+
+        {/* Rapid-mode session feed */}
+        {rapidMode && feed.length > 0 && (
+          <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>
+              Marked this session ({markedRef.current.size})
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+              {feed.map((f) => (
+                <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: '0.82rem' }}>
+                  <span style={{ fontWeight: 600 }}>{f.name}</span>
+                  <span className={`badge ${f.status === 'ok' ? 'badge-green' : f.status === 'dup' ? 'badge-amber' : 'badge-gray'}`}>{f.sub}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {student && <StudentActionModal student={student} onClose={closeModal} />}

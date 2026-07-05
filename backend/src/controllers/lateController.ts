@@ -88,6 +88,18 @@ export const listLateRecords = asyncWrap(async (req, res) => {
   return res.json(result);
 });
 
+// GET /api/late-records/summary  (per-student totals over a date range)
+export const lateSummary = asyncWrap(async (req, res) => {
+  const rows = await lateRepo.summarize({
+    from: req.query.from ? String(req.query.from) : undefined,
+    to: req.query.to ? String(req.query.to) : undefined,
+    section: req.query.section ? String(req.query.section) : undefined,
+    batch: req.query.batch ? String(req.query.batch) : undefined,
+    q: req.query.q ? String(req.query.q) : undefined,
+  });
+  return res.json({ data: rows });
+});
+
 // DELETE /api/late-records/:id
 export const deleteLateRecord = asyncWrap(async (req, res) => {
   const id = parseId(req.params.id);

@@ -113,6 +113,65 @@ export async function listLate(f: LateFilter): Promise<LateListResult> {
   };
 }
 
+export interface LateSummaryRow {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  batch: string;
+  total: number;
+  morning: number;
+  morning_break: number;
+  lunch: number;
+  evening_break: number;
+  total_minutes: number;
+}
+
+/** Per-student late totals over a date range, ordered by most late. */
+export async function summarize(f: { from?: string; to?: string; section?: string; batch?: string; q?: string }): Promise<LateSummaryRow[]> {
+  const conds: string[] = [];
+  const vals: unknown[] = [];
+  if (f.from)    { conds.push('lr.late_date >= ?'); vals.push(f.from); }
+  if (f.to)      { conds.push('lr.late_date <= ?'); vals.push(f.to); }
+  if (f.section) { conds.push('s.section = ?'); vals.push(f.section); }
+  if (f.batch)   { conds.push('s.batch = ?'); vals.push(f.batch); }
+  if (f.q) {
+    conds.push('(s.name LIKE ? OR s.register_number LIKE ?)');
+    const like = `%${f.q}%`;
+    vals.push(like, like);
+  }
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+  const [rows] = await pool.query<Array<LateSummaryRow & RowDataPacket>>(
+    `SELECT s.id AS student_id, s.name, s.register_number, s.section, s.batch,
+            COUNT(*) AS total,
+            SUM(lr.period = 'morning')        AS morning,
+            SUM(lr.period = 'morning_break')  AS morning_break,
+            SUM(lr.period = 'lunch')          AS lunch,
+            SUM(lr.period = 'evening_break')  AS evening_break,
+            COALESCE(SUM(lr.minutes_late), 0) AS total_minutes
+     FROM late_records lr JOIN students s ON s.id = lr.student_id
+     ${where}
+     GROUP BY s.id, s.name, s.register_number, s.section, s.batch
+     ORDER BY total DESC, s.name ASC`,
+    vals
+  );
+
+  return rows.map((r) => ({
+    student_id: Number(r.student_id),
+    name: r.name,
+    register_number: r.register_number,
+    section: r.section,
+    batch: r.batch,
+    total: Number(r.total),
+    morning: Number(r.morning),
+    morning_break: Number(r.morning_break),
+    lunch: Number(r.lunch),
+    evening_break: Number(r.evening_break),
+    total_minutes: Number(r.total_minutes),
+  }));
+}
+
 function normalize(r: LateRecord & RowDataPacket): LateRecord {
   return {
     id: Number(r.id),

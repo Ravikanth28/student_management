@@ -106,6 +106,20 @@ export type LateListResponse = {
   meta: { page: number; limit: number; total: number };
 };
 
+export type LateSummaryRow = {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  batch: string;
+  total: number;
+  morning: number;
+  morning_break: number;
+  lunch: number;
+  evening_break: number;
+  total_minutes: number;
+};
+
 export type AchievementMember = {
   student_id: number;
   name: string;
