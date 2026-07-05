@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import { useToast } from './Toast';
 import { StudentPicker } from './StudentPicker';
-import type { Student } from '../types';
+import type { EventType, Student } from '../types';
 
 type Props = {
   /** Pre-selected members (e.g. the scanned student). */
@@ -17,6 +17,7 @@ const label: React.CSSProperties = { fontSize: '0.75rem', fontWeight: 700, color
 
 export function AchievementForm({ initialMembers = [], lockedIds = [], onSuccess, onCancel }: Props) {
   const { success, error: toastError } = useToast();
+  const [eventType, setEventType] = useState<EventType>('hackathon');
   const [title, setTitle] = useState('');
   const [venue, setVenue] = useState('');
   const [duration, setDuration] = useState('');
@@ -34,6 +35,7 @@ export function AchievementForm({ initialMembers = [], lockedIds = [], onSuccess
     setSaving(true);
     try {
       await api.post('/achievements', {
+        event_type: eventType,
         title: title.trim(),
         venue: venue.trim() || undefined,
         duration: duration.trim() || undefined,
@@ -55,9 +57,20 @@ export function AchievementForm({ initialMembers = [], lockedIds = [], onSuccess
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <label style={label}>Event / Hackathon name *</label>
-        <input className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Smart India Hackathon 2025" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+        <div>
+          <label style={label}>Event type</label>
+          <select className="form-control" value={eventType} onChange={(e) => setEventType(e.target.value as EventType)}>
+            <option value="hackathon">Hackathon</option>
+            <option value="presentation">Presentation</option>
+            <option value="symposium">Symposium</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label style={label}>Event name *</label>
+          <input className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Smart India Hackathon 2025" />
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

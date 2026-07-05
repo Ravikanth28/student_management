@@ -5,7 +5,7 @@ import { Pagination } from '../components/Pagination';
 import { AchievementForm } from '../components/AchievementForm';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
-import type { Achievement, AchievementListResponse } from '../types';
+import { EVENT_TYPE_LABELS, type Achievement, type AchievementListResponse } from '../types';
 
 type Props = { onLogout: () => void };
 const LIMIT = 20;
@@ -82,18 +82,20 @@ export function AchievementsPage({ onLogout }: Props) {
             <table>
               <thead>
                 <tr>
-                  <th>Event</th><th>Result</th><th>Venue</th><th>Duration</th><th>Date</th><th>Prize</th><th>Members</th><th></th>
+                  <th>Event Type</th><th>Event Name</th><th>Result</th><th>Position</th><th>Venue</th><th>Duration</th><th>Date</th><th>Prize</th><th>Members</th><th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((a) => (
                   <tr key={a.id}>
+                    <td><span className="badge badge-navy">{EVENT_TYPE_LABELS[a.event_type ?? 'other'] ?? a.event_type}</span></td>
                     <td style={{ fontWeight: 600 }}>{a.title}</td>
                     <td>
                       <span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>
-                        {a.result === 'winner' ? `Winner${a.position ? ` · ${a.position}` : ''}` : 'Participated'}
+                        {a.result === 'winner' ? 'Winner' : 'Participated'}
                       </span>
                     </td>
+                    <td className="td-muted">{a.result === 'winner' ? (a.position ?? '—') : '—'}</td>
                     <td className="td-muted">{a.venue ?? '—'}</td>
                     <td className="td-muted">{a.duration ?? '—'}</td>
                     <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(a.event_date)}</td>

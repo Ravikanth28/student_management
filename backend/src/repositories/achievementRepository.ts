@@ -11,6 +11,7 @@ export interface AchievementMember {
 
 export interface Achievement {
   id: number;
+  event_type: string | null;
   title: string;
   venue: string | null;
   duration: string | null;
@@ -24,6 +25,7 @@ export interface Achievement {
 }
 
 export interface AchievementInput {
+  event_type?: string | null;
   title: string;
   venue?: string | null;
   duration?: string | null;
@@ -47,9 +49,10 @@ export async function createAchievement(
   try {
     await conn.beginTransaction();
     const [result] = await conn.query<ResultSetHeader>(
-      `INSERT INTO achievements (title, venue, duration, result, position, prize, event_date, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO achievements (event_type, title, venue, duration, result, position, prize, event_date, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        input.event_type ?? null,
         input.title,
         input.venue ?? null,
         input.duration ?? null,
@@ -115,7 +118,7 @@ export async function listAchievements(q: string | undefined, page: number, limi
   const offset = (page - 1) * limit;
 
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
-    `SELECT id, title, venue, duration, result, position, prize,
+    `SELECT id, event_type, title, venue, duration, result, position, prize,
             DATE_FORMAT(event_date, '%Y-%m-%d') AS event_date, created_by, created_at
      FROM achievements ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
@@ -133,7 +136,7 @@ export async function listAchievements(q: string | undefined, page: number, limi
 
 export async function listAchievementsByStudent(studentId: number): Promise<Achievement[]> {
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
-    `SELECT a.id, a.title, a.venue, a.duration, a.result, a.position, a.prize,
+    `SELECT a.id, a.event_type, a.title, a.venue, a.duration, a.result, a.position, a.prize,
             DATE_FORMAT(a.event_date, '%Y-%m-%d') AS event_date, a.created_by, a.created_at
      FROM achievements a
      JOIN achievement_members am ON am.achievement_id = a.id
@@ -197,6 +200,7 @@ export async function deleteAchievement(id: number): Promise<boolean> {
 function normalize(a: Achievement & RowDataPacket, members: AchievementMember[]): Achievement {
   return {
     id: Number(a.id),
+    event_type: a.event_type ?? null,
     title: a.title,
     venue: a.venue ?? null,
     duration: a.duration ?? null,

@@ -13,6 +13,7 @@ export const lateCreateSchema = z.object({
 });
 
 export const achievementCreateSchema = z.object({
+  event_type: z.enum(['hackathon', 'presentation', 'symposium', 'other']).default('other'),
   title: z.string().trim().min(2).max(200),
   venue: optionalText(200),
   duration: optionalText(120),

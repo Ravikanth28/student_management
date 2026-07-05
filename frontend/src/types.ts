@@ -114,8 +114,18 @@ export type AchievementMember = {
   batch: string;
 };
 
+export type EventType = 'hackathon' | 'presentation' | 'symposium' | 'other';
+
+export const EVENT_TYPE_LABELS: Record<string, string> = {
+  hackathon: 'Hackathon',
+  presentation: 'Presentation',
+  symposium: 'Symposium',
+  other: 'Other',
+};
+
 export type Achievement = {
   id: number;
+  event_type: string | null;
   title: string;
   venue: string | null;
   duration: string | null;

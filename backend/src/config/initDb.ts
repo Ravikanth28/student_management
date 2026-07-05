@@ -74,6 +74,7 @@ export async function ensureSchema(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS achievements (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      event_type VARCHAR(40) NULL,
       title VARCHAR(200) NOT NULL,
       venue VARCHAR(200) NULL,
       duration VARCHAR(120) NULL,
@@ -87,6 +88,13 @@ export async function ensureSchema(): Promise<void> {
       KEY idx_ach_created_at (created_at)
     )
   `);
+
+  // Add event_type when upgrading an existing achievements table.
+  try {
+    await pool.query('ALTER TABLE achievements ADD COLUMN event_type VARCHAR(40) NULL AFTER id');
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
+  }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS achievement_members (

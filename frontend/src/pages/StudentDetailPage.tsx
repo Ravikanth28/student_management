@@ -7,7 +7,7 @@ import { useToast } from '../components/Toast';
 import { proxiedImage } from '../lib/img';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
-import { LATE_PERIOD_LABELS, type Student, type LateRecord, type Achievement } from '../types';
+import { LATE_PERIOD_LABELS, EVENT_TYPE_LABELS, type Student, type LateRecord, type Achievement } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
 function IconCamera() {
@@ -544,17 +544,19 @@ export function StudentDetailPage({ onLogout }: Props) {
             <div className="table-container">
               <table>
                 <thead>
-                  <tr><th>Event</th><th>Result</th><th>Venue</th><th>Duration</th><th>Date</th><th>Prize</th><th>Team</th>{staff && <th></th>}</tr>
+                  <tr><th>Event Type</th><th>Event Name</th><th>Result</th><th>Position</th><th>Venue</th><th>Duration</th><th>Date</th><th>Prize</th><th>Team</th>{staff && <th>Action</th>}</tr>
                 </thead>
                 <tbody>
                   {achievements.map((a) => (
                     <tr key={a.id}>
+                      <td><span className="badge badge-navy">{EVENT_TYPE_LABELS[a.event_type ?? 'other'] ?? a.event_type}</span></td>
                       <td style={{ fontWeight: 600 }}>{a.title}</td>
                       <td>
                         <span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>
-                          {a.result === 'winner' ? `Winner${a.position ? ` · ${a.position}` : ''}` : 'Participated'}
+                          {a.result === 'winner' ? 'Winner' : 'Participated'}
                         </span>
                       </td>
+                      <td className="td-muted">{a.result === 'winner' ? (a.position ?? '—') : '—'}</td>
                       <td className="td-muted">{a.venue ?? '—'}</td>
                       <td className="td-muted">{a.duration ?? '—'}</td>
                       <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{a.event_date ? fmtDate(a.event_date) : '—'}</td>
