@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { InstallAppCard } from '../components/InstallApp';
+import { AppUpdateBanner } from '../components/AppUpdateBanner';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
 import type { Student } from '../types';
@@ -133,6 +134,9 @@ export function DashboardPage({ onLogout }: Props) {
         )
       }
     >
+      {/* Prompt installed apps to update when a newer version exists */}
+      <AppUpdateBanner />
+
       {/* Get the mobile app (hidden inside the installed app / when no APK URL is set) */}
       <InstallAppCard style={{ marginBottom: 16 }} />
 

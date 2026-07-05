@@ -65,6 +65,12 @@ jobs:
           grep -q "android.permission.CAMERA" "$MANIFEST" || \
             sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n</manifest>#' "$MANIFEST"
 
+      - name: Stamp APK version from package.json
+        run: |
+          APP_VERSION=$(node -p "require('./package.json').version")
+          sed -i "s/versionName \"[^\"]*\"/versionName \"$APP_VERSION\"/" android/app/build.gradle
+          echo "APK versionName set to $APP_VERSION"
+
       - name: Sync web assets into Android project
         run: npx --no-install cap sync android
 

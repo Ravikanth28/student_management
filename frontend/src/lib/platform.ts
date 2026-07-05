@@ -12,3 +12,18 @@ export function isNativeApp(): boolean {
   }).Capacitor;
   return Boolean(cap?.isNativePlatform?.());
 }
+
+/**
+ * The installed native app's version (versionName), or null on the web / on error.
+ * Loaded lazily so the Capacitor App plugin isn't pulled into the web bundle path.
+ */
+export async function getNativeAppVersion(): Promise<string | null> {
+  if (!isNativeApp()) return null;
+  try {
+    const { App } = await import('@capacitor/app');
+    const info = await App.getInfo();
+    return info.version ?? null;
+  } catch {
+    return null;
+  }
+}

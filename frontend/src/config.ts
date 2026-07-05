@@ -13,3 +13,7 @@ export const API_BASE_URL =
 // Typically your GitHub release asset:
 //   https://github.com/<OWNER>/<REPO>/releases/download/apk-latest/student-portal.apk
 export const APK_DOWNLOAD_URL = import.meta.env.VITE_APK_URL ?? '';
+
+// Current app version (from package.json). The installed APK is stamped with the
+// same value; if an installed app reports an older version, it prompts to update.
+export const APP_VERSION = __APP_VERSION__;
