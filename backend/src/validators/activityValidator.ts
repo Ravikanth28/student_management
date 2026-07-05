@@ -26,3 +26,19 @@ export const achievementCreateSchema = z.object({
   ),
   member_ids: z.array(z.coerce.number().int().positive()).min(1, 'At least one student is required'),
 });
+
+const placementCore = {
+  company: z.string().trim().min(1).max(200),
+  position: optionalText(200),
+  package: optionalText(60),
+  placement_type: z.enum(['on_campus', 'off_campus']).default('on_campus'),
+  offer_type: z.enum(['full_time', 'internship', 'internship_ppo']).optional(),
+  location: optionalText(200),
+  placed_date: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'placed_date must be YYYY-MM-DD').optional()
+  ),
+};
+
+export const placementCreateSchema = z.object({ student_id: z.coerce.number().int().positive(), ...placementCore });
+export const placementUpdateSchema = z.object(placementCore);

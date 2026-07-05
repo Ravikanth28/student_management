@@ -7,7 +7,7 @@ import { useToast } from '../components/Toast';
 import { proxiedImage } from '../lib/img';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
-import { LATE_PERIOD_LABELS, EVENT_TYPE_LABELS, type Student, type LateRecord, type Achievement } from '../types';
+import { LATE_PERIOD_LABELS, EVENT_TYPE_LABELS, PLACEMENT_TYPE_LABELS, OFFER_TYPE_LABELS, type Student, type LateRecord, type Achievement, type Placement } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
 function IconCamera() {
@@ -336,6 +336,7 @@ export function StudentDetailPage({ onLogout }: Props) {
   const [deleting, setDeleting]     = useState(false);
   const [lateRecords, setLateRecords] = useState<LateRecord[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [placements, setPlacements] = useState<Placement[]>([]);
   const [pendingDelete, setPendingDelete] = useState<{ kind: 'late' | 'achievement'; id: number; label: string } | null>(null);
   const [removing, setRemoving] = useState(false);
 
@@ -360,7 +361,8 @@ export function StudentDetailPage({ onLogout }: Props) {
     if (!id) return;
     api.get<{ data: LateRecord[] }>(`/students/${id}/late-records`).then((r) => setLateRecords(r.data.data)).catch(() => {});
     api.get<{ data: Achievement[] }>(`/students/${id}/achievements`).then((r) => setAchievements(r.data.data)).catch(() => {});
-  }, [id]);
+    if (staff) api.get<{ data: Placement[] }>(`/students/${id}/placements`).then((r) => setPlacements(r.data.data)).catch(() => {});
+  }, [id, staff]);
 
   useEffect(() => { loadActivity(); }, [loadActivity]);
 
@@ -581,6 +583,39 @@ export function StudentDetailPage({ onLogout }: Props) {
             </div>
           )}
         </div>
+
+        {/* Placements (staff only) */}
+        {staff && (
+          <div className="card card-padded" style={{ marginTop: 16 }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12 }}>
+              Placements {placements.length > 0 && <span className="badge badge-green" style={{ marginLeft: 6 }}>{placements.length}</span>}
+            </h3>
+            {placements.length === 0 ? (
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No placements yet.</p>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Location</th><th>Date</th></tr>
+                  </thead>
+                  <tbody>
+                    {placements.map((p) => (
+                      <tr key={p.id}>
+                        <td style={{ fontWeight: 600 }}>{p.company}</td>
+                        <td className="td-muted">{p.position ?? '—'}</td>
+                        <td className="td-muted">{p.package ?? '—'}</td>
+                        <td><span className={`badge ${p.placement_type === 'on_campus' ? 'badge-green' : 'badge-blue'}`}>{PLACEMENT_TYPE_LABELS[p.placement_type] ?? p.placement_type}</span></td>
+                        <td className="td-muted">{p.offer_type ? OFFER_TYPE_LABELS[p.offer_type] ?? p.offer_type : '—'}</td>
+                        <td className="td-muted">{p.location ?? '—'}</td>
+                        <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{p.placed_date ? fmtDate(p.placed_date) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
         </>
       ) : (
         <div className="card card-padded">

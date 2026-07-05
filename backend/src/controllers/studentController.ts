@@ -6,6 +6,7 @@ import * as audit from '../services/auditService.js';
 import * as studentRepo from '../repositories/studentRepository.js';
 import * as lateRepo from '../repositories/lateRepository.js';
 import * as achievementRepo from '../repositories/achievementRepository.js';
+import * as placementRepo from '../repositories/placementRepository.js';
 
 /** Wraps an async route handler so unhandled rejections go to Express error middleware */
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
@@ -119,5 +120,11 @@ export const getStudentLateRecords = asyncWrap(async (req, res) => {
 export const getStudentAchievements = asyncWrap(async (req, res) => {
   const achievements = await achievementRepo.listAchievementsByStudent(parseId(req.params.id));
   return res.json({ data: achievements });
+});
+
+// GET /api/students/:id/placements
+export const getStudentPlacements = asyncWrap(async (req, res) => {
+  const placements = await placementRepo.listByStudent(parseId(req.params.id));
+  return res.json({ data: placements });
 });
 

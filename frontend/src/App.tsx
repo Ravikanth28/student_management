@@ -16,6 +16,7 @@ import { ImportPage } from './pages/ImportPage';
 import { AuditLogPage } from './pages/AuditLogPage';
 import { LateComersPage } from './pages/LateComersPage';
 import { AchievementsPage } from './pages/AchievementsPage';
+import { PlacementsPage } from './pages/PlacementsPage';
 import { UsersPage } from './pages/UsersPage';
 
 // Lazy-loaded: the scanner pulls in the heavy ZXing library, so only load it
@@ -59,6 +60,7 @@ function AppRoutes() {
       />
       <Route path="/late-comers" element={<Protected roleKey="/late-comers"><LateComersPage onLogout={logout} /></Protected>} />
       <Route path="/achievements" element={<Protected roleKey="/achievements"><AchievementsPage onLogout={logout} /></Protected>} />
+      <Route path="/placements" element={<Protected roleKey="/placements"><PlacementsPage onLogout={logout} /></Protected>} />
       <Route path="/users" element={<Protected roleKey="/users"><UsersPage onLogout={logout} /></Protected>} />
       <Route path="/audit" element={<Protected roleKey="/audit"><AuditLogPage onLogout={logout} /></Protected>} />
       <Route path="/settings" element={<Protected roleKey="/settings"><SettingsPage onLogout={logout} /></Protected>} />

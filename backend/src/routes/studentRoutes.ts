@@ -14,6 +14,7 @@ import {
   lookupStudent,
   getStudentLateRecords,
   getStudentAchievements,
+  getStudentPlacements,
 } from '../controllers/studentController.js';
 import { importStudents, importPhotosFromDrive, getImportProgress, getImportHistory, deleteImportHistory } from '../controllers/importController.js';
 import { uploadStudentPhoto, deleteStudentPhoto } from '../controllers/photoController.js';
@@ -78,6 +79,7 @@ studentRoutes.put('/:id',      staff, updateStudent);
 studentRoutes.delete('/:id',   staff, deleteStudent);
 studentRoutes.get('/:id/late-records',  getStudentLateRecords);
 studentRoutes.get('/:id/achievements',  getStudentAchievements);
+studentRoutes.get('/:id/placements',     staff, getStudentPlacements);
 
 // ── Photo (Cloudinary) ────────────────────────────────────────
 studentRoutes.post('/:id/photo',   staff, uploadMiddleware, uploadStudentPhoto);

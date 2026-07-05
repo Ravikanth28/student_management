@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useToast } from './Toast';
 import { AchievementForm } from './AchievementForm';
+import { PlacementForm } from './PlacementForm';
 import { proxiedImage } from '../lib/img';
 import { PERIOD_SCHEDULE, minutesLate } from '../lib/lateSchedule';
 import { LATE_PERIOD_LABELS, type LatePeriod, type Student } from '../types';
 
 type Props = { student: Student; onClose: () => void };
-type Step = 'choose' | 'late' | 'achievement' | 'late-done';
+type Step = 'choose' | 'late' | 'achievement' | 'placement' | 'late-done';
 
 const PERIODS: LatePeriod[] = ['morning', 'morning_break', 'lunch', 'evening_break'];
 
@@ -72,12 +73,15 @@ export function StudentActionModal({ student, onClose }: Props) {
         {step === 'choose' && (
           <>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: 10 }}>What would you like to do?</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '18px 12px', gap: 8 }} onClick={() => setStep('late')}>
-                ⏰<span style={{ fontWeight: 700 }}>Late Comer</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('late')}>
+                ⏰<span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Late Comer</span>
               </button>
-              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '18px 12px', gap: 8 }} onClick={() => setStep('achievement')}>
-                🏆<span style={{ fontWeight: 700 }}>Achievement</span>
+              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('achievement')}>
+                🏆<span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Achievement</span>
+              </button>
+              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('placement')}>
+                💼<span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Placement</span>
               </button>
             </div>
             <div style={{ marginTop: 14, textAlign: 'right' }}>
@@ -146,6 +150,14 @@ export function StudentActionModal({ student, onClose }: Props) {
               onSuccess={onClose}
               onCancel={() => setStep('choose')}
             />
+          </>
+        )}
+
+        {/* Step: placement */}
+        {step === 'placement' && (
+          <>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 12 }}>Add placement</div>
+            <PlacementForm student={student} onSuccess={onClose} onCancel={() => setStep('choose')} />
           </>
         )}
       </div>

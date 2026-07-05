@@ -12,6 +12,7 @@ export const PATH_ROLES: Record<string, Role[]> = {
   '/scanner':       ['superadmin', 'admin'],
   '/late-comers':   ['superadmin', 'admin'],
   '/achievements':  ['superadmin', 'admin'],
+  '/placements':    ['superadmin', 'admin'],
   '/import':        ['superadmin', 'admin'],
   '/audit':         ['superadmin'],
   '/settings':      ['superadmin'],

@@ -157,6 +157,42 @@ export type AchievementListResponse = {
   meta: { page: number; limit: number; total: number };
 };
 
+export type PlacementType = 'on_campus' | 'off_campus';
+export type OfferType = 'full_time' | 'internship' | 'internship_ppo';
+
+export const PLACEMENT_TYPE_LABELS: Record<string, string> = {
+  on_campus: 'On-campus',
+  off_campus: 'Off-campus',
+};
+export const OFFER_TYPE_LABELS: Record<string, string> = {
+  full_time: 'Full-time',
+  internship: 'Internship',
+  internship_ppo: 'Internship + PPO',
+};
+
+export type Placement = {
+  id: number;
+  student_id: number;
+  company: string;
+  position: string | null;
+  package: string | null;
+  placement_type: string;
+  offer_type: string | null;
+  location: string | null;
+  placed_date: string | null;
+  created_by: string | null;
+  created_at: string;
+  name?: string;
+  register_number?: string;
+  section?: string;
+  batch?: string;
+};
+
+export type PlacementListResponse = {
+  data: Placement[];
+  meta: { page: number; limit: number; total: number };
+};
+
 export const LATE_PERIOD_LABELS: Record<string, string> = {
   morning: 'Morning',
   morning_break: 'Morning break',

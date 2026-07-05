@@ -105,6 +105,26 @@ export async function ensureSchema(): Promise<void> {
     )
   `);
 
+  // Placements (one student per record).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS placements (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      student_id BIGINT UNSIGNED NOT NULL,
+      company VARCHAR(200) NOT NULL,
+      position VARCHAR(200) NULL,
+      package VARCHAR(60) NULL,
+      placement_type VARCHAR(20) NOT NULL DEFAULT 'on_campus',
+      offer_type VARCHAR(30) NULL,
+      location VARCHAR(200) NULL,
+      placed_date DATE NULL,
+      created_by VARCHAR(120) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_placement_student (student_id),
+      KEY idx_placement_created (created_at)
+    )
+  `);
+
   // Application users with roles (superadmin / admin / user).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (

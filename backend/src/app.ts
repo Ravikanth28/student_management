@@ -13,6 +13,7 @@ import { mediaRoutes } from './routes/mediaRoutes.js';
 import { lateRoutes } from './routes/lateRoutes.js';
 import { achievementRoutes } from './routes/achievementRoutes.js';
 import { userRoutes } from './routes/userRoutes.js';
+import { placementRoutes } from './routes/placementRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 
 export const app = express();
@@ -72,6 +73,7 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/late-records', lateRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/placements', placementRoutes);
 
 // ── Single-service deployment: serve the built frontend ──
 // In production the web app is built into backend/dist/public. When that folder
