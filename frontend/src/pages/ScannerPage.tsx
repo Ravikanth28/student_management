@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser';
+import { DecodeHintType, BarcodeFormat } from '@zxing/library';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { useToast } from '../components/Toast';
@@ -7,6 +8,17 @@ import { StudentActionModal } from '../components/StudentActionModal';
 import type { Student } from '../types';
 
 type Props = { onLogout: () => void };
+
+// Tell ZXing exactly which symbologies to look for and to work harder on
+// blurry/angled frames — makes 1D ID-card barcodes scan far more reliably.
+const SCAN_HINTS = new Map<DecodeHintType, unknown>([
+  [DecodeHintType.TRY_HARDER, true],
+  [DecodeHintType.POSSIBLE_FORMATS, [
+    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93,
+    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+    BarcodeFormat.ITF, BarcodeFormat.CODABAR, BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX,
+  ]],
+]);
 
 export function ScannerPage({ onLogout }: Props) {
   const { error: toastError } = useToast();
@@ -27,10 +39,10 @@ export function ScannerPage({ onLogout }: Props) {
   const startScan = async () => {
     setCameraError(null);
     if (!videoRef.current) return;
-    const reader = new BrowserMultiFormatReader();
+    const reader = new BrowserMultiFormatReader(SCAN_HINTS);
     try {
       controlsRef.current = await reader.decodeFromConstraints(
-        { video: { facingMode: 'environment' } },
+        { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
         videoRef.current,
         (result) => { if (result) void lookup(result.getText()); }
       );
