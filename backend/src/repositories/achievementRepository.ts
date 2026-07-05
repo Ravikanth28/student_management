@@ -6,6 +6,7 @@ export interface AchievementMember {
   name: string;
   register_number: string;
   section: string;
+  year: string | null;
   batch: string;
 }
 
@@ -88,7 +89,7 @@ async function attachMembers(achievements: Array<Achievement & RowDataPacket>): 
   if (achievements.length === 0) return [];
   const ids = achievements.map((a) => Number(a.id));
   const [memberRows] = await pool.query<Array<{ achievement_id: number } & AchievementMember & RowDataPacket>>(
-    `SELECT am.achievement_id, s.id AS student_id, s.name, s.register_number, s.section, s.batch
+    `SELECT am.achievement_id, s.id AS student_id, s.name, s.register_number, s.section, s.year, s.batch
      FROM achievement_members am
      JOIN students s ON s.id = am.student_id
      WHERE am.achievement_id IN (${ids.map(() => '?').join(', ')})
@@ -104,6 +105,7 @@ async function attachMembers(achievements: Array<Achievement & RowDataPacket>): 
       name: m.name,
       register_number: m.register_number,
       section: m.section,
+      year: m.year ?? null,
       batch: m.batch,
     });
     byAchievement.set(Number(m.achievement_id), list);

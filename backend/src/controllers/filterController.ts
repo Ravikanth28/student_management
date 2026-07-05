@@ -19,6 +19,7 @@ export const filterStudents = asyncWrap(async (req, res) => {
     department:  req.query.department  ? String(req.query.department)  : undefined,
     batch:       req.query.batch       ? String(req.query.batch)       : undefined,
     section:     req.query.section     ? String(req.query.section)     : undefined,
+    year:        req.query.year        ? String(req.query.year)        : undefined,
     blood_group: req.query.blood_group ? String(req.query.blood_group) : undefined,
     page:        parseOptionalInt(req.query.page,  1),
     limit:       parseOptionalInt(req.query.limit, 50),
@@ -58,6 +59,7 @@ export const exportStudents = asyncWrap(async (req, res) => {
     department: req.query.department ? String(req.query.department) : undefined,
     batch:      req.query.batch      ? String(req.query.batch)      : undefined,
     section:    req.query.section    ? String(req.query.section)    : undefined,
+    year:       req.query.year       ? String(req.query.year)       : undefined,
     page:  1,
     limit: 10_000, // practical maximum
   });
@@ -67,6 +69,7 @@ export const exportStudents = asyncWrap(async (req, res) => {
     'Register Number':    s.register_number,
     'Enrollment Number':  s.enrollment_number,
     'Section':            s.section,
+    'Year':               s.year ?? '',
     'Department':         s.department,
     'Batch':              s.batch,
     'Phone':              s.phone,

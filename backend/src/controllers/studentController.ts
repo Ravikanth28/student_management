@@ -34,7 +34,8 @@ export const listStudents = asyncWrap(async (req, res) => {
     name: parsed.data.q,
     department: parsed.data.department,
     batch: parsed.data.batch,
-    section: parsed.data.section
+    section: parsed.data.section,
+    year: parsed.data.year
   });
   return res.json(data);
 });
@@ -97,6 +98,29 @@ export const searchStudents = asyncWrap(async (req, res) => {
 export const getStats = asyncWrap(async (_req, res) => {
   const stats = await service.getDashboardStats();
   return res.json(stats);
+});
+
+// GET /api/students/year-counts  (superadmin — promotion preview + undo info)
+export const getYearCounts = asyncWrap(async (_req, res) => {
+  const [counts, lastPromotion] = await Promise.all([
+    service.getYearCounts(),
+    service.getLastPromotion(),
+  ]);
+  return res.json({ counts, lastPromotion });
+});
+
+// POST /api/students/promote  (superadmin — year rollover)
+export const promoteStudents = asyncWrap(async (req, res) => {
+  const promoted = await service.promoteStudents(req.user?.username ?? null);
+  audit.record(req, { action: 'student.promote', entity: 'student', details: `Year rollover — ${promoted} student(s) promoted` });
+  return res.json({ promoted });
+});
+
+// POST /api/students/promote/revert  (superadmin — undo last rollover)
+export const revertPromotion = asyncWrap(async (req, res) => {
+  const { reverted } = await service.revertLastPromotion();
+  audit.record(req, { action: 'student.promote.revert', entity: 'student', details: `Reverted rollover — ${reverted} student(s) restored` });
+  return res.json({ reverted });
 });
 
 // GET /api/students/lookup?code=<scanned enrollment/register number>

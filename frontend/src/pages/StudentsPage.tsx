@@ -7,7 +7,7 @@ import { Pagination } from '../components/Pagination';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
-import type { Student, StudentListResponse } from '../types';
+import { YEAR_OPTIONS, YEAR_LABELS, type Student, type StudentListResponse } from '../types';
 
 // --- SVG Icons ----------------------------------------------
 function IconSearch() {
@@ -89,6 +89,7 @@ export function StudentsPage({ onLogout }: Props) {
   const [department, setDepartment] = useState('');
   const [batch, setBatch]       = useState('');
   const [section, setSection]   = useState('');
+  const [year, setYear]         = useState('');
   const [page, setPage]         = useState(1);
   const [loading, setLoading]   = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
@@ -107,17 +108,18 @@ export function StudentsPage({ onLogout }: Props) {
   useEffect(() => {
     let active = true;
 
-    const fetch = async (p: number, q: string, d: string, b: string, s: string) => {
+    const fetch = async (p: number, q: string, d: string, b: string, s: string, y: string) => {
       setLoading(true);
       try {
         const res = await api.get<StudentListResponse>('/students', {
-          params: { 
-            page: p, 
-            limit: PAGE_LIMIT, 
+          params: {
+            page: p,
+            limit: PAGE_LIMIT,
             q: q.trim() || undefined,
             department: d || undefined,
             batch: b || undefined,
-            section: s || undefined
+            section: s || undefined,
+            year: y || undefined
           },
         });
         if (active) setData(res.data);
@@ -129,10 +131,10 @@ export function StudentsPage({ onLogout }: Props) {
     };
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => void fetch(page, query, department, batch, section), query ? 300 : 0);
+    debounceRef.current = setTimeout(() => void fetch(page, query, department, batch, section, year), query ? 300 : 0);
 
     return () => { active = false; };
-  }, [page, query, department, batch, section]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, query, department, batch, section, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleQueryChange = (q: string) => {
     setQuery(q);
@@ -264,6 +266,18 @@ export function StudentsPage({ onLogout }: Props) {
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
+
+            <select
+              className="form-control"
+              style={{ width: 'auto', minWidth: 140, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+              value={year}
+              onChange={e => { setYear(e.target.value); setPage(1); }}
+            >
+              <option value="">All Years</option>
+              {YEAR_OPTIONS.map(y => (
+                <option key={y} value={y}>{YEAR_LABELS[y] ?? y}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -275,15 +289,15 @@ export function StudentsPage({ onLogout }: Props) {
             <table>
               <thead>
                 <tr>
-                  <th>Name</th><th>Register No.</th><th>Enrollment No.</th><th>Section</th><th>Department</th><th>Batch</th><th>Actions</th>
+                  <th>Name</th><th>Register No.</th><th>Enrollment No.</th><th>Year</th><th>Section</th><th>Department</th><th>Batch</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <td key={j}>
-                        <div className="skeleton" style={{ height: 14, borderRadius: 6, width: j === 6 ? 80 : '80%' }} />
+                        <div className="skeleton" style={{ height: 14, borderRadius: 6, width: j === 7 ? 80 : '80%' }} />
                       </td>
                     ))}
                   </tr>
@@ -315,6 +329,7 @@ export function StudentsPage({ onLogout }: Props) {
                     <th>Name</th>
                     <th>Register No.</th>
                     <th>Enrollment No.</th>
+                    <th>Year</th>
                     <th>Section</th>
                     <th>Department</th>
                     <th>Batch</th>
@@ -334,6 +349,7 @@ export function StudentsPage({ onLogout }: Props) {
                       </td>
                       <td className="td-muted td-nowrap">{student.register_number}</td>
                       <td className="td-muted td-nowrap">{student.enrollment_number}</td>
+                      <td className="td-nowrap">{student.year ? (YEAR_LABELS[student.year] ?? student.year) : '—'}</td>
                       <td className="td-nowrap"><span className="badge badge-purple">{student.section}</span></td>
                       <td className="td-nowrap"><span className="badge badge-blue">{student.department}</span></td>
                       <td className="td-nowrap"><span className="badge badge-gray">{student.batch}</span></td>

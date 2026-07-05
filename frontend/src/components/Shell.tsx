@@ -124,6 +124,15 @@ function IconScan() {
   );
 }
 
+function IconClipboard() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z" /><rect x="4" y="4" width="16" height="18" rx="2" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
 function IconClock() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -189,6 +198,7 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
   { to: '/blood-groups', label: 'Blood Groups',     Icon: IconDroplet,   roles: ['superadmin', 'admin', 'user'] },
   { to: '/students/new', label: 'Add Student',      Icon: IconPlus,      roles: ['superadmin', 'admin'] },
   { to: '/scanner',      label: 'Scanner',          Icon: IconScan,      roles: ['superadmin', 'admin'] },
+  { to: '/attendance',   label: 'Attendance',       Icon: IconClipboard, roles: ['superadmin', 'admin'] },
   { to: '/late-comers',  label: 'Late Comers',      Icon: IconClock,     roles: ['superadmin', 'admin'] },
   { to: '/achievements', label: 'Achievements',     Icon: IconTrophy,    roles: ['superadmin', 'admin'] },
   { to: '/placements',   label: 'Placements',       Icon: IconBriefcase, roles: ['superadmin', 'admin'] },

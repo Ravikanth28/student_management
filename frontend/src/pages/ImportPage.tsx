@@ -93,12 +93,12 @@ interface ImportProgress {
 // ─── Download template CSV ────────────────────────────────────
 function downloadTemplate() {
   const headers = [
-    'name', 'register_number', 'enrollment_number', 'section', 'department', 'batch',
+    'name', 'register_number', 'enrollment_number', 'section', 'current_year', 'department', 'batch',
     'phone', 'parent_phone', 'address', 'college_email', 'personal_email',
     'dob', 'blood_group', 'photo_url'
   ];
   const example = [
-    'Arun Kumar', '21CS001', 'EN21CS001', 'A', 'Computer Science', '2021-2025',
+    'Arun Kumar', '21CS001', 'EN21CS001', 'A', '1', 'Computer Science', '2021-2025',
     '9876543210', '9876543211', '12 Main St, Chennai 600001',
     'arun@college.edu', 'arun@gmail.com',
     '2004-05-21', 'O+',
@@ -328,7 +328,7 @@ export function ImportPage({ onLogout }: Props) {
             Optional Columns
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {['dob', 'blood_group', 'college_email', 'personal_email', 'photo_url'].map(col => (
+            {['current_year', 'dob', 'blood_group', 'college_email', 'personal_email', 'photo_url'].map(col => (
               <span key={col} className="badge badge-gray" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{col}</span>
             ))}
           </div>

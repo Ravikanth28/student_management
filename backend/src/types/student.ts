@@ -3,6 +3,7 @@ export type StudentInput = {
   register_number: string;
   enrollment_number: string;
   section: string;
+  year?: string;
   department: string;
   batch: string;
   phone: string;

@@ -5,7 +5,8 @@ import * as lateRepo from '../repositories/lateRepository.js';
 import * as studentRepo from '../repositories/studentRepository.js';
 import * as audit from '../services/auditService.js';
 import { notifyAllInBackground } from '../services/notificationService.js';
-import { PERIOD_SCHEDULE, computeMinutesLate } from '../config/lateSchedule.js';
+import { computeMinutesLate } from '../config/lateSchedule.js';
+import { getPeriodSchedule } from '../services/settingsService.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -43,7 +44,8 @@ export const createLateRecord = asyncWrap(async (req, res) => {
   const date = bodyDate ?? today();
   // Arrival time (from the device, IST), or server-side IST time as a fallback.
   const lateTime = time ?? new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16);
-  const scheduledTime = PERIOD_SCHEDULE[period] ?? null;
+  const schedule = await getPeriodSchedule();
+  const scheduledTime = schedule[period as keyof typeof schedule] ?? null;
   const minutesLate = scheduledTime ? computeMinutesLate(scheduledTime, lateTime) : null;
 
   try {
@@ -91,6 +93,7 @@ export const listLateRecords = asyncWrap(async (req, res) => {
     period: req.query.period ? String(req.query.period) : undefined,
     section: req.query.section ? String(req.query.section) : undefined,
     batch: req.query.batch ? String(req.query.batch) : undefined,
+    year: req.query.year ? String(req.query.year) : undefined,
     q: req.query.q ? String(req.query.q) : undefined,
     page,
     limit,
@@ -105,6 +108,7 @@ export const lateSummary = asyncWrap(async (req, res) => {
     to: req.query.to ? String(req.query.to) : undefined,
     section: req.query.section ? String(req.query.section) : undefined,
     batch: req.query.batch ? String(req.query.batch) : undefined,
+    year: req.query.year ? String(req.query.year) : undefined,
     q: req.query.q ? String(req.query.q) : undefined,
   });
   return res.json({ data: rows });

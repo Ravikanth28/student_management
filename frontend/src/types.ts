@@ -4,6 +4,7 @@ export type Student = {
   register_number: string;
   enrollment_number: string;
   section: string;
+  year?: string;
   department: string;
   batch: string;
   phone: string;
@@ -19,6 +20,16 @@ export type Student = {
 };
 
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
+
+/** Current academic year values (stored) + their display labels. */
+export const YEAR_OPTIONS = ['1', '2', '3', '4', 'Alumni'] as const;
+export const YEAR_LABELS: Record<string, string> = {
+  '1': 'I Year',
+  '2': 'II Year',
+  '3': 'III Year',
+  '4': 'IV Year',
+  Alumni: 'Alumni',
+};
 
 export type StudentListResponse = {
   data: Student[];
@@ -101,6 +112,7 @@ export type LateRecord = {
   register_number?: string;
   enrollment_number?: string;
   section?: string;
+  year?: string | null;
   department?: string;
   batch?: string;
 };
@@ -115,6 +127,7 @@ export type LateSummaryRow = {
   name: string;
   register_number: string;
   section: string;
+  year: string | null;
   batch: string;
   total: number;
   morning: number;
@@ -129,7 +142,39 @@ export type AchievementMember = {
   name: string;
   register_number: string;
   section: string;
+  year: string | null;
   batch: string;
+};
+
+// ─── Attendance ───────────────────────────────────────────────
+export type RosterStudent = {
+  id: number;
+  name: string;
+  register_number: string;
+  enrollment_number: string;
+  section: string;
+  year: string | null;
+};
+
+export type AttendanceDaySection = {
+  year: string | null;
+  section: string | null;
+  present: number;
+  absent: number;
+  total: number;
+  absentees: { id: number; name: string; register_number: string }[];
+};
+
+export type AttendanceSummaryRow = {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  year: string | null;
+  days: number;
+  present: number;
+  absent: number;
+  percentage: number;
 };
 
 export type EventType = 'hackathon' | 'presentation' | 'symposium' | 'other';

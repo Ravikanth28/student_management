@@ -17,6 +17,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ImportPage } from './pages/ImportPage';
 import { AuditLogPage } from './pages/AuditLogPage';
 import { LateComersPage } from './pages/LateComersPage';
+import { AttendancePage } from './pages/AttendancePage';
 import { AchievementsPage } from './pages/AchievementsPage';
 import { PlacementsPage } from './pages/PlacementsPage';
 import { UsersPage } from './pages/UsersPage';
@@ -63,6 +64,7 @@ function AppRoutes() {
           </Protected>
         }
       />
+      <Route path="/attendance" element={<Protected roleKey="/attendance"><AttendancePage onLogout={logout} /></Protected>} />
       <Route path="/late-comers" element={<Protected roleKey="/late-comers"><LateComersPage onLogout={logout} /></Protected>} />
       <Route path="/achievements" element={<Protected roleKey="/achievements"><AchievementsPage onLogout={logout} /></Protected>} />
       <Route path="/placements" element={<Protected roleKey="/placements"><PlacementsPage onLogout={logout} /></Protected>} />

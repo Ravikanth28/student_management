@@ -66,6 +66,9 @@ const ALIASES: Record<string, string> = {
   'bloodgroup': 'blood_group', 'blood': 'blood_group', 'bg': 'blood_group', 'blood type': 'blood_group',
   // dob
   'dob': 'dob', 'd o b': 'dob', 'date of birth': 'dob', 'birth date': 'dob', 'birthdate': 'dob', 'birthday': 'dob',
+  // year (current study year — kept distinct from "year" which maps to batch)
+  'current year': 'year', 'current_year': 'year', 'study year': 'year', 'year of study': 'year',
+  'studying year': 'year', 'present year': 'year', 'class year': 'year', 'std year': 'year',
 };
 
 function normalizeHeader(raw: string): string {
@@ -230,9 +233,11 @@ export async function processBulkImport(
   const hasEnrollField = rows.some(r => r.enrollment_number);
   const hasDetailField = rows.some(r => r.blood_group || r.dob);
 
+  const hasDetailFieldOrYear = rows.some((r) => r.blood_group || r.dob || r.year);
+
   // Details-update: a partial sheet keyed by reg/enroll number that only carries
-  // blood group / DOB (and maybe a photo). Updates existing students in place.
-  if (!hasFullFields && (hasRegField || hasEnrollField) && hasDetailField) {
+  // blood group / DOB / year (and maybe a photo). Updates existing students in place.
+  if (!hasFullFields && (hasRegField || hasEnrollField) && hasDetailFieldOrYear) {
     return processDetailsUpdate(rows);
   }
 
@@ -273,13 +278,14 @@ async function processDetailsUpdate(rows: Record<string, string>[]): Promise<Bul
     if (bg) changes.blood_group = bg;
     const dob = parseDob(row.dob);
     if (dob) changes.dob = dob;
+    if (row.year) changes.year = row.year.trim();
     if (row.photo_url) {
       const photoUrl = await processPhoto(row.photo_url, existing.register_number);
       if (photoUrl) changes.photo_url = photoUrl;
     }
 
     if (Object.keys(changes).length === 0) {
-      result.errors.push({ row: rowNum, register_number: code, reason: 'No blood group / DOB / photo to update' });
+      result.errors.push({ row: rowNum, register_number: code, reason: 'No blood group / DOB / year / photo to update' });
       result.skipped++;
       continue;
     }
@@ -327,6 +333,7 @@ async function processFullImport(rows: Record<string, string>[]): Promise<BulkIm
         register_number:   regNum,
         enrollment_number: row.enrollment_number,
         section:           row.section,
+        year:              row.year || undefined,
         department:        row.department,
         batch:             row.batch,
         phone:             row.phone,

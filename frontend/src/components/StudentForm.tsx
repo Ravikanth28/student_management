@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BLOOD_GROUPS, type Student } from '../types';
+import { BLOOD_GROUPS, YEAR_OPTIONS, YEAR_LABELS, type Student } from '../types';
 import { useToast } from './Toast';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -7,7 +7,7 @@ export type StudentDraft = Omit<Student, 'id' | 'created_at' | 'updated_at'>;
 
 const emptyStudent: StudentDraft = {
   name: '', register_number: '', enrollment_number: '', section: '',
-  department: '', batch: '', phone: '', parent_phone: '',
+  year: '', department: '', batch: '', phone: '', parent_phone: '',
   address: '', college_email: '', personal_email: '',
   // photo_url is managed via Cloudinary upload on the student profile page
   photo_url: '',
@@ -23,6 +23,7 @@ type FieldMeta = {
   span?: boolean;
   textarea?: boolean;
   options?: readonly string[];
+  optionLabels?: Record<string, string>;
 };
 
 // Grouped field definitions
@@ -33,6 +34,7 @@ const SECTIONS: { title: string; fields: FieldMeta[] }[] = [
       { key: 'register_number',  label: 'Register Number',    required: true, placeholder: 'e.g. 21CS001' },
       { key: 'enrollment_number', label: 'Enrollment Number', required: true, placeholder: 'e.g. EN21CS001' },
       { key: 'section',          label: 'Section',            required: true, placeholder: 'e.g. A' },
+      { key: 'year',             label: 'Current Year',       options: YEAR_OPTIONS, optionLabels: YEAR_LABELS, placeholder: 'Select year' },
       { key: 'department',       label: 'Department',         required: true, placeholder: 'e.g. Computer Science' },
       { key: 'batch',            label: 'Batch / Year',       required: true, placeholder: 'e.g. 2021–2025' },
     ],
@@ -133,7 +135,7 @@ export function StudentForm({ initialValue, onSubmit, submitLabel }: Props) {
         <div key={title} className="form-section">
           <div className="form-section-title">{title}</div>
           <div className="form-grid-2">
-            {fields.map(({ key, label, required, type = 'text', placeholder, span, textarea, options }) => (
+            {fields.map(({ key, label, required, type = 'text', placeholder, span, textarea, options, optionLabels }) => (
               <div
                 key={key}
                 className="form-group"
@@ -151,7 +153,7 @@ export function StudentForm({ initialValue, onSubmit, submitLabel }: Props) {
                     onChange={e => set(key, e.target.value)}
                   >
                     <option value="">{placeholder ?? 'Select…'}</option>
-                    {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    {options.map(opt => <option key={opt} value={opt}>{optionLabels?.[opt] ?? opt}</option>)}
                   </select>
                 ) : textarea ? (
                   <textarea

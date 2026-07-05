@@ -14,6 +14,7 @@ function normalizeInput(input: Partial<StudentInput>): Partial<StudentInput> {
   if (input.register_number !== undefined) normalized.register_number = clean(input.register_number) ?? '';
   if (input.enrollment_number !== undefined) normalized.enrollment_number = clean(input.enrollment_number) ?? '';
   if (input.section !== undefined) normalized.section = clean(input.section) ?? '';
+  if (input.year !== undefined) normalized.year = clean(input.year);
   if (input.department !== undefined) normalized.department = clean(input.department) ?? '';
   if (input.batch !== undefined) normalized.batch = clean(input.batch) ?? '';
   if (input.phone !== undefined) normalized.phone = clean(input.phone) ?? '';
@@ -100,6 +101,23 @@ export async function filterStudents(
 
 export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[]; bloodGroups: string[] }> {
   return repository.getFilterMeta();
+}
+
+export async function getYearCounts(): Promise<Record<string, number>> {
+  return repository.getYearCounts();
+}
+
+/** Promote every student one year up (I→II→III→IV→Alumni). Returns rows changed. */
+export async function promoteStudents(createdBy: string | null): Promise<number> {
+  return repository.promoteYears(createdBy);
+}
+
+export async function getLastPromotion(): Promise<repository.LastPromotion | null> {
+  return repository.getLastPromotion();
+}
+
+export async function revertLastPromotion(): Promise<{ reverted: number }> {
+  return repository.revertLastPromotion();
 }
 
 /** Students who have a birthday today (in IST). */

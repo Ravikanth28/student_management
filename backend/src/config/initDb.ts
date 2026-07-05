@@ -14,6 +14,7 @@ export async function ensureSchema(): Promise<void> {
   for (const sql of [
     "ALTER TABLE students ADD COLUMN blood_group VARCHAR(8) NULL AFTER photo_url",
     "ALTER TABLE students ADD COLUMN dob DATE NULL AFTER blood_group",
+    "ALTER TABLE students ADD COLUMN year VARCHAR(16) NULL AFTER section",
   ]) {
     try {
       await pool.query(sql);
@@ -136,6 +137,58 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (id),
       KEY idx_placement_student (student_id),
       KEY idx_placement_created (created_at)
+    )
+  `);
+
+  // Daily attendance — one row per student per day (present/absent).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS attendance (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      student_id BIGINT UNSIGNED NOT NULL,
+      att_date DATE NOT NULL,
+      status VARCHAR(10) NOT NULL DEFAULT 'present',
+      year VARCHAR(16) NULL,
+      section VARCHAR(40) NULL,
+      marked_by VARCHAR(120) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_att_student_day (student_id, att_date),
+      KEY idx_att_date (att_date),
+      KEY idx_att_student (student_id)
+    )
+  `);
+
+  // Promotion (year-rollover) history — enables a precise one-click undo.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS promotion_batches (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      created_by VARCHAR(120) NULL,
+      promoted_count INT NOT NULL DEFAULT 0,
+      reverted TINYINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      reverted_at TIMESTAMP NULL,
+      PRIMARY KEY (id),
+      KEY idx_promo_created (created_at)
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS promotion_changes (
+      batch_id BIGINT UNSIGNED NOT NULL,
+      student_id BIGINT UNSIGNED NOT NULL,
+      from_year VARCHAR(16) NULL,
+      PRIMARY KEY (batch_id, student_id),
+      KEY idx_promo_changes_batch (batch_id)
+    )
+  `);
+
+  // Key/value application settings (e.g. editable period timings).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      name VARCHAR(64) NOT NULL,
+      value TEXT NULL,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (name)
     )
   `);
 

@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS students (
   register_number VARCHAR(40) NOT NULL,
   enrollment_number VARCHAR(40) NOT NULL,
   section VARCHAR(40) NOT NULL DEFAULT 'A',
+  year VARCHAR(16) NULL,
   department VARCHAR(120) NOT NULL,
   batch VARCHAR(40) NOT NULL,
   phone VARCHAR(15) NOT NULL,
@@ -100,6 +101,48 @@ CREATE TABLE IF NOT EXISTS placements (
   PRIMARY KEY (id),
   KEY idx_placement_student (student_id),
   KEY idx_placement_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS attendance (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  student_id BIGINT UNSIGNED NOT NULL,
+  att_date DATE NOT NULL,
+  status VARCHAR(10) NOT NULL DEFAULT 'present',
+  year VARCHAR(16) NULL,
+  section VARCHAR(40) NULL,
+  marked_by VARCHAR(120) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_att_student_day (student_id, att_date),
+  KEY idx_att_date (att_date),
+  KEY idx_att_student (student_id)
+);
+
+CREATE TABLE IF NOT EXISTS promotion_batches (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  created_by VARCHAR(120) NULL,
+  promoted_count INT NOT NULL DEFAULT 0,
+  reverted TINYINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reverted_at TIMESTAMP NULL,
+  PRIMARY KEY (id),
+  KEY idx_promo_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS promotion_changes (
+  batch_id BIGINT UNSIGNED NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  from_year VARCHAR(16) NULL,
+  PRIMARY KEY (batch_id, student_id),
+  KEY idx_promo_changes_batch (batch_id)
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  name VARCHAR(64) NOT NULL,
+  value TEXT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (name)
 );
 
 CREATE TABLE IF NOT EXISTS device_tokens (

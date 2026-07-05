@@ -7,7 +7,7 @@ import { useToast } from '../components/Toast';
 import { proxiedImage } from '../lib/img';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
-import { LATE_PERIOD_LABELS, EVENT_TYPE_LABELS, PLACEMENT_TYPE_LABELS, OFFER_TYPE_LABELS, type Student, type LateRecord, type Achievement, type Placement } from '../types';
+import { LATE_PERIOD_LABELS, EVENT_TYPE_LABELS, PLACEMENT_TYPE_LABELS, OFFER_TYPE_LABELS, YEAR_LABELS, type Student, type LateRecord, type Achievement, type Placement } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
 function IconCamera() {
@@ -100,12 +100,13 @@ function Spinner() {
 }
 
 // ─── Field config ────────────────────────────────────────────
-const FIELDS: { key: keyof Student; label: string; icon?: React.ReactNode; span?: boolean; isDate?: boolean }[] = [
+const FIELDS: { key: keyof Student; label: string; icon?: React.ReactNode; span?: boolean; isDate?: boolean; isYear?: boolean }[] = [
   { key: 'register_number',   label: 'Register Number' },
   { key: 'enrollment_number', label: 'Enrollment Number' },
   { key: 'department',        label: 'Department' },
   { key: 'batch',             label: 'Batch' },
   { key: 'section',           label: 'Section' },
+  { key: 'year',              label: 'Current Year', isYear: true },
   { key: 'dob',               label: 'Date of Birth', isDate: true },
   { key: 'blood_group',       label: 'Blood Group' },
   { key: 'phone',             label: 'Phone',         icon: <IconPhone /> },
@@ -466,9 +467,9 @@ export function StudentDetailPage({ onLogout }: Props) {
               </h2>
 
               <div className="profile-info-grid">
-                {FIELDS.map(({ key, label, icon, span, isDate }) => {
+                {FIELDS.map(({ key, label, icon, span, isDate, isYear }) => {
                   const raw = student[key];
-                  const value = isDate && raw ? fmtDate(String(raw)) : raw;
+                  const value = isDate && raw ? fmtDate(String(raw)) : isYear && raw ? (YEAR_LABELS[String(raw)] ?? String(raw)) : raw;
                   return (
                     <div key={key} className="profile-field" style={span ? { gridColumn: '1 / -1' } : undefined}>
                       <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

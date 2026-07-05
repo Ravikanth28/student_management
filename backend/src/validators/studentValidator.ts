@@ -25,11 +25,17 @@ const optionalDob = z.preprocess(
   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'dob must be YYYY-MM-DD').optional()
 );
 
+const optionalYear = z.preprocess(
+  (value) => (value === '' || value === null ? undefined : value),
+  z.string().trim().max(16).optional()
+);
+
 export const studentCreateSchema = z.object({
   name: z.string().trim().min(2).max(120),
   register_number: z.string().trim().min(2).max(40),
   enrollment_number: z.string().trim().min(2).max(40),
   section: z.string().trim().min(1).max(40),
+  year: optionalYear,
   department: z.string().trim().min(2).max(120),
   batch: z.string().trim().min(2).max(40),
   phone: z.string().trim().regex(/^\+?[0-9]{10,15}$/, 'Phone number must contain 10 to 15 digits'),
@@ -55,6 +61,7 @@ export const studentListQuerySchema = z.object({
   department: z.string().trim().max(120).optional(),
   batch: z.string().trim().max(40).optional(),
   section: z.string().trim().max(40).optional(),
+  year: z.string().trim().max(16).optional(),
   page: z.preprocess((value) => Number(value ?? 1), z.number().int().min(1)).default(1),
   limit: z.preprocess((value) => Number(value ?? 10), z.number().int().min(1).max(100)).default(10)
 });

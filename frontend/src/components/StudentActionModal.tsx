@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useToast } from './Toast';
@@ -31,6 +31,14 @@ export function StudentActionModal({ student, onClose }: Props) {
   // Date of the late record — defaults to today (IST), but can be changed.
   const [date, setDate] = useState(() => new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
+  // Live period timings (editable in Settings); fall back to the static defaults.
+  const [schedule, setSchedule] = useState<Record<string, string>>(PERIOD_SCHEDULE);
+
+  useEffect(() => {
+    api.get<{ schedule: Record<string, string> }>('/settings/period-schedule')
+      .then((res) => setSchedule(res.data.schedule))
+      .catch(() => { /* keep defaults */ });
+  }, []);
 
   const photo = proxiedImage(student.photo_url);
 
@@ -118,10 +126,10 @@ export function StudentActionModal({ student, onClose }: Props) {
               </div>
               {period && (
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', paddingBottom: 8 }}>
-                  Scheduled <strong>{PERIOD_SCHEDULE[period]}</strong>
+                  Scheduled <strong>{schedule[period]}</strong>
                   {' · '}
-                  <span style={{ color: minutesLate(PERIOD_SCHEDULE[period], time) > 0 ? 'var(--amber)' : 'var(--green)', fontWeight: 700 }}>
-                    {minutesLate(PERIOD_SCHEDULE[period], time)} min late
+                  <span style={{ color: minutesLate(schedule[period], time) > 0 ? 'var(--amber)' : 'var(--green)', fontWeight: 700 }}>
+                    {minutesLate(schedule[period], time)} min late
                   </span>
                 </div>
               )}

@@ -5,7 +5,7 @@ import { Pagination } from '../components/Pagination';
 import { AchievementForm } from '../components/AchievementForm';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
-import { EVENT_TYPE_LABELS, type Achievement, type AchievementListResponse } from '../types';
+import { EVENT_TYPE_LABELS, YEAR_LABELS, type Achievement, type AchievementListResponse } from '../types';
 
 type Props = { onLogout: () => void };
 const LIMIT = 20;
@@ -104,7 +104,7 @@ export function AchievementsPage({ onLogout }: Props) {
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxWidth: 320 }}>
                         {a.members.map((m) => (
-                          <span key={m.student_id} className="badge badge-blue">{m.name} <span style={{ opacity: 0.7 }}>({m.register_number})</span></span>
+                          <span key={m.student_id} className="badge badge-blue">{m.name} <span style={{ opacity: 0.7 }}>({m.register_number}{m.year ? ` · ${YEAR_LABELS[m.year] ?? m.year}` : ''})</span></span>
                         ))}
                       </div>
                     </td>

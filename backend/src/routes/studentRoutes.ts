@@ -7,6 +7,9 @@ import {
   createStudent,
   deleteStudent,
   getStats,
+  getYearCounts,
+  promoteStudents,
+  revertPromotion,
   getStudentById,
   listStudents,
   searchStudents,
@@ -57,9 +60,13 @@ studentRoutes.use(requireAuth);
 
 // Staff = superadmin + admin. View-only "user" role can read but not mutate.
 const staff = requireRole('superadmin', 'admin');
+const superadmin = requireRole('superadmin');
 
 // ── Aggregate / special routes (MUST be before /:id) ──────────
 studentRoutes.get('/stats',   getStats);
+studentRoutes.get('/year-counts',      superadmin, getYearCounts);
+studentRoutes.post('/promote',         superadmin, promoteStudents);
+studentRoutes.post('/promote/revert',  superadmin, revertPromotion);
 studentRoutes.get('/lookup',  staff, lookupStudent);           // scanner
 studentRoutes.get('/search',  searchStudents);
 studentRoutes.get('/filter',  filterStudents);

@@ -101,6 +101,16 @@
   50%  { top: 92%; }
   100% { top: 4%; }
 }
+/* Attendance daily register — a 2×2 grid of year boxes on desktop, 1 col on mobile. */
+.att-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 720px) {
+  .att-grid { grid-template-columns: 1fr; }
+}
+
 .scan-result {
   display: flex;
   flex-direction: row;
