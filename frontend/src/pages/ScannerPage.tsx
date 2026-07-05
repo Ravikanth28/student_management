@@ -56,6 +56,7 @@ export function ScannerPage({ onLogout }: Props) {
   const [looking, setLooking] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [engine, setEngine] = useState<'native' | 'fallback' | null>(null);
@@ -99,6 +100,7 @@ export function ScannerPage({ onLogout }: Props) {
 
   const startScan = async () => {
     setCameraError(null);
+    setNotFound(null);
     if (!videoRef.current) return;
 
     // Prefer the OS-native barcode detector; keep ZXing as a fallback.
@@ -156,11 +158,20 @@ export function ScannerPage({ onLogout }: Props) {
     setLooking(true);
     try {
       const res = await api.get<{ student: Student }>('/students/lookup', { params: { code: value } });
+      if (navigator.vibrate) navigator.vibrate(60); // success buzz
       stopScan();
       setStudent(res.data.student);
     } catch (err) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toastError('Not found', msg ?? `No student found for "${value}".`);
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        // Show a clear, in-scanner "not registered" banner and pause scanning.
+        if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+        stopScan();
+        setNotFound(value);
+      } else {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        toastError('Lookup failed', msg ?? 'Please try again.');
+      }
     } finally {
       setLooking(false);
       setTimeout(() => { lockRef.current = false; }, 900); // debounce repeated scans
@@ -185,7 +196,7 @@ export function ScannerPage({ onLogout }: Props) {
         <div style={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', background: '#0f172a', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
           <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted playsInline />
 
-          {scanning && !looking && (
+          {scanning && !looking && !notFound && (
             <>
               <div className="scan-frame" style={{ inset: '28% 5%' }}>
                 <div className="scanline" />
@@ -197,6 +208,16 @@ export function ScannerPage({ onLogout }: Props) {
           {looking && (
             <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', background: 'rgba(0,0,0,0.5)', color: '#fff', fontWeight: 600 }}>
               Looking up…
+            </div>
+          )}
+
+          {notFound && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', justifyContent: 'center', background: 'rgba(127,29,29,0.92)', color: '#fff', textAlign: 'center', padding: 20 }}>
+              <div style={{ fontSize: 44, lineHeight: 1 }}>🚫</div>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>Not registered</div>
+              <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.8)' }}>No student in the system for</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.06em' }}>{notFound}</div>
+              <button className="btn btn-primary" style={{ marginTop: 8 }} type="button" onClick={() => void startScan()}>Scan again</button>
             </div>
           )}
         </div>
