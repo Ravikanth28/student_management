@@ -47,11 +47,12 @@ export function ScannerPage({ onLogout }: Props) {
     if (!videoRef.current) return;
     // Scan often; prefer the back camera at high resolution with continuous focus.
     const reader = new BrowserMultiFormatReader(SCAN_HINTS, { delayBetweenScanAttempts: 120, delayBetweenScanSuccess: 800 });
+    // Keep only standard "ideal" constraints at the top level; put non-standard
+    // focus hints in `advanced` (optional) so no device rejects the camera.
     const video = {
       facingMode: { ideal: 'environment' },
       width: { ideal: 1920 },
       height: { ideal: 1080 },
-      focusMode: 'continuous',
       advanced: [{ focusMode: 'continuous' }],
     } as unknown as MediaTrackConstraints;
 

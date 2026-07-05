@@ -10,6 +10,12 @@ import type { Achievement, AchievementListResponse } from '../types';
 type Props = { onLogout: () => void };
 const LIMIT = 20;
 
+function fmtDate(d: string | null): string {
+  if (!d) return '—';
+  const dt = new Date(d.includes('T') ? d : `${d}T00:00:00`);
+  return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 export function AchievementsPage({ onLogout }: Props) {
   const { success, error: toastError } = useToast();
   const [rows, setRows] = useState<Achievement[]>([]);
@@ -72,30 +78,40 @@ export function AchievementsPage({ onLogout }: Props) {
         ) : rows.length === 0 ? (
           <div className="empty-state"><p className="empty-title">No achievements yet</p><p className="empty-sub">Add one, or record via the Scanner.</p></div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {rows.map((a) => (
-              <div key={a.id} style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>{a.title}</span>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Event</th><th>Result</th><th>Venue</th><th>Duration</th><th>Date</th><th>Prize</th><th>Members</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((a) => (
+                  <tr key={a.id}>
+                    <td style={{ fontWeight: 600 }}>{a.title}</td>
+                    <td>
                       <span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>
                         {a.result === 'winner' ? `Winner${a.position ? ` · ${a.position}` : ''}` : 'Participated'}
                       </span>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginTop: 4 }}>
-                      {[a.venue, a.duration, a.event_date, a.prize && `Prize: ${a.prize}`].filter(Boolean).join('  ·  ')}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                      {a.members.map((m) => (
-                        <span key={m.student_id} className="badge badge-blue">{m.name} <span style={{ opacity: 0.7 }}>({m.register_number})</span></span>
-                      ))}
-                    </div>
-                  </div>
-                  <button className="btn btn-danger btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setDeleteTarget(a)}>Delete</button>
-                </div>
-              </div>
-            ))}
+                    </td>
+                    <td className="td-muted">{a.venue ?? '—'}</td>
+                    <td className="td-muted">{a.duration ?? '—'}</td>
+                    <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(a.event_date)}</td>
+                    <td className="td-muted">{a.prize ?? '—'}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxWidth: 320 }}>
+                        {a.members.map((m) => (
+                          <span key={m.student_id} className="badge badge-blue">{m.name} <span style={{ opacity: 0.7 }}>({m.register_number})</span></span>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(a)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 

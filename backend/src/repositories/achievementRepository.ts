@@ -115,7 +115,9 @@ export async function listAchievements(q: string | undefined, page: number, limi
   const offset = (page - 1) * limit;
 
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
-    `SELECT * FROM achievements ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+    `SELECT id, title, venue, duration, result, position, prize,
+            DATE_FORMAT(event_date, '%Y-%m-%d') AS event_date, created_by, created_at
+     FROM achievements ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );
   const [countRows] = await pool.query<Array<{ total: number } & RowDataPacket>>(
@@ -131,7 +133,9 @@ export async function listAchievements(q: string | undefined, page: number, limi
 
 export async function listAchievementsByStudent(studentId: number): Promise<Achievement[]> {
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
-    `SELECT a.* FROM achievements a
+    `SELECT a.id, a.title, a.venue, a.duration, a.result, a.position, a.prize,
+            DATE_FORMAT(a.event_date, '%Y-%m-%d') AS event_date, a.created_by, a.created_at
+     FROM achievements a
      JOIN achievement_members am ON am.achievement_id = a.id
      WHERE am.student_id = ?
      ORDER BY a.created_at DESC, a.id DESC`,

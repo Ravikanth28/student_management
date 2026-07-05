@@ -541,38 +541,41 @@ export function StudentDetailPage({ onLogout }: Props) {
           {achievements.length === 0 ? (
             <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No achievements yet.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {achievements.map((a) => (
-                <div key={a.id} style={{ paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{a.title}</span>
-                      <span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>
-                        {a.result === 'winner' ? `Winner${a.position ? ` · ${a.position}` : ''}` : 'Participated'}
-                      </span>
-                    </div>
-                    {staff && (
-                      <button
-                        className="btn btn-danger btn-sm"
-                        type="button"
-                        title="Remove this achievement from the student"
-                        style={{ alignSelf: 'flex-start' }}
-                        onClick={() => setPendingDelete({ kind: 'achievement', id: a.id, label: a.title })}
-                      >
-                        <IconTrashPhoto />
-                      </button>
-                    )}
-                  </div>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-2)', marginTop: 3 }}>
-                    {[a.venue, a.duration, a.event_date, a.prize && `Prize: ${a.prize}`].filter(Boolean).join('  ·  ')}
-                  </div>
-                  {a.members.length > 1 && (
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-3)', marginTop: 4 }}>
-                      Team: {a.members.map((m) => m.name).join(', ')}
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr><th>Event</th><th>Result</th><th>Venue</th><th>Duration</th><th>Date</th><th>Prize</th><th>Team</th>{staff && <th></th>}</tr>
+                </thead>
+                <tbody>
+                  {achievements.map((a) => (
+                    <tr key={a.id}>
+                      <td style={{ fontWeight: 600 }}>{a.title}</td>
+                      <td>
+                        <span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>
+                          {a.result === 'winner' ? `Winner${a.position ? ` · ${a.position}` : ''}` : 'Participated'}
+                        </span>
+                      </td>
+                      <td className="td-muted">{a.venue ?? '—'}</td>
+                      <td className="td-muted">{a.duration ?? '—'}</td>
+                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{a.event_date ? fmtDate(a.event_date) : '—'}</td>
+                      <td className="td-muted">{a.prize ?? '—'}</td>
+                      <td className="td-muted" style={{ maxWidth: 220 }}>{a.members.map((m) => m.name).join(', ')}</td>
+                      {staff && (
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            type="button"
+                            title="Remove this achievement from the student"
+                            onClick={() => setPendingDelete({ kind: 'achievement', id: a.id, label: a.title })}
+                          >
+                            <IconTrashPhoto />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
