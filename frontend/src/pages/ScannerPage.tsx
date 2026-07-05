@@ -9,8 +9,10 @@ import type { Student } from '../types';
 
 type Props = { onLogout: () => void };
 
-// Only the symbologies used on ID cards — fewer formats = faster decode.
+// ZXing fallback (when the native BarcodeDetector isn't available).
+// TRY_HARDER helps read low-contrast / glare-affected barcodes.
 const SCAN_HINTS = new Map<DecodeHintType, unknown>([
+  [DecodeHintType.TRY_HARDER, true],
   [DecodeHintType.POSSIBLE_FORMATS, [
     BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93,
     BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
@@ -18,15 +20,31 @@ const SCAN_HINTS = new Map<DecodeHintType, unknown>([
   ]],
 ]);
 
-// Region of interest: a wide, short band in the middle where the barcode sits.
-// Fractions of the video frame — matches the on-screen scan box.
-const ROI = { x: 0.05, y: 0.30, w: 0.90, h: 0.40 };
+// Region of interest: the wide, short band where the barcode sits.
+const ROI = { x: 0.05, y: 0.28, w: 0.90, h: 0.44 };
+
+// Boost contrast on the cropped band so faint bars survive the glare.
+function enhance(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const contrast = 1.6;
+  const intercept = 128 * (1 - contrast);
+  for (let i = 0; i < d.length; i += 4) {
+    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    let v = gray * contrast + intercept;
+    v = v < 0 ? 0 : v > 255 ? 255 : v;
+    d[i] = d[i + 1] = d[i + 2] = v;
+  }
+  ctx.putImageData(img, 0, 0);
+}
 
 export function ScannerPage({ onLogout }: Props) {
   const { error: toastError } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const detectorRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const runningRef = useRef(false);
@@ -51,38 +69,51 @@ export function ScannerPage({ onLogout }: Props) {
     setTorchOn(false);
   };
 
-  // Decode only the cropped ROI band — fast, and ignores glare outside the box.
-  const decodeLoop = () => {
+  const decodeLoop = async () => {
     if (!runningRef.current) return;
     const v = videoRef.current;
-    const reader = readerRef.current;
-    if (v && reader && v.videoWidth && v.readyState >= 2) {
+    if (v && v.videoWidth && v.readyState >= 2) {
       const canvas = canvasRef.current ?? (canvasRef.current = document.createElement('canvas'));
       const vw = v.videoWidth, vh = v.videoHeight;
-      const sx = Math.floor(vw * ROI.x), sy = Math.floor(vh * ROI.y);
       const sw = Math.floor(vw * ROI.w), sh = Math.floor(vh * ROI.h);
       canvas.width = sw; canvas.height = sh;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (ctx) {
-        ctx.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
+        ctx.drawImage(v, Math.floor(vw * ROI.x), Math.floor(vh * ROI.y), sw, sh, 0, 0, sw, sh);
+        enhance(ctx, sw, sh);
         try {
-          const text = reader.decodeFromCanvas(canvas)?.getText?.();
+          let text: string | undefined;
+          if (detectorRef.current) {
+            const codes = await detectorRef.current.detect(canvas);
+            text = codes?.[0]?.rawValue;
+          } else if (readerRef.current) {
+            text = readerRef.current.decodeFromCanvas(canvas)?.getText?.();
+          }
           if (text) void lookup(text);
-        } catch { /* no barcode in this frame */ }
+        } catch { /* no barcode this frame */ }
       }
     }
-    if (runningRef.current) timerRef.current = window.setTimeout(decodeLoop, 80);
+    if (runningRef.current) timerRef.current = window.setTimeout(() => void decodeLoop(), 120);
   };
 
   const startScan = async () => {
     setCameraError(null);
     if (!videoRef.current) return;
-    readerRef.current = readerRef.current ?? new BrowserMultiFormatReader(SCAN_HINTS);
+
+    // Prefer the OS-native barcode detector; keep ZXing as a fallback.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const BD = (window as any).BarcodeDetector;
+    if (BD && !detectorRef.current) {
+      try { detectorRef.current = new BD(); } catch { detectorRef.current = null; }
+    }
+    if (!detectorRef.current && !readerRef.current) {
+      readerRef.current = new BrowserMultiFormatReader(SCAN_HINTS);
+    }
 
     const video = {
       facingMode: { ideal: 'environment' },
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
       advanced: [{ focusMode: 'continuous' }],
     } as unknown as MediaTrackConstraints;
 
@@ -99,7 +130,7 @@ export function ScannerPage({ onLogout }: Props) {
 
       runningRef.current = true;
       setScanning(true);
-      decodeLoop();
+      void decodeLoop();
     } catch {
       setScanning(false);
       setCameraError('Could not access the camera. Allow camera access and press "Restart camera", or use manual entry below.');
@@ -154,8 +185,7 @@ export function ScannerPage({ onLogout }: Props) {
 
           {scanning && !looking && (
             <>
-              {/* Wide, short band matching the ROI — aim the barcode inside it */}
-              <div className="scan-frame" style={{ inset: '30% 5%' }}>
+              <div className="scan-frame" style={{ inset: '28% 5%' }}>
                 <div className="scanline" />
               </div>
               <div className="scan-status">Scanning…</div>
