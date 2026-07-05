@@ -51,6 +51,19 @@ export async function getUserById(id: number): Promise<UserRecord | null> {
   return rows[0] ? toRecord(rows[0]) : null;
 }
 
+export async function updateUser(
+  id: number,
+  fields: { name?: string; role?: Role; passwordHash?: string }
+): Promise<void> {
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  if (fields.name !== undefined) { sets.push('name = ?'); vals.push(fields.name); }
+  if (fields.role !== undefined) { sets.push('role = ?'); vals.push(fields.role); }
+  if (fields.passwordHash !== undefined) { sets.push('password_hash = ?'); vals.push(fields.passwordHash); }
+  if (sets.length === 0) return;
+  await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, [...vals, id]);
+}
+
 export async function deleteUser(id: number): Promise<boolean> {
   const [result] = await pool.query<ResultSetHeader>('DELETE FROM users WHERE id = ?', [id]);
   return result.affectedRows > 0;

@@ -24,6 +24,7 @@ export function AchievementsPage({ onLogout }: Props) {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [editTarget, setEditTarget] = useState<Achievement | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Achievement | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -107,7 +108,8 @@ export function AchievementsPage({ onLogout }: Props) {
                         ))}
                       </div>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => setEditTarget(a)}>Edit</button>
                       <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(a)}>Delete</button>
                     </td>
                   </tr>
@@ -126,6 +128,16 @@ export function AchievementsPage({ onLogout }: Props) {
           <div style={{ width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto', background: 'var(--surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', padding: 'clamp(18px, 4vw, 28px)' }}>
             <h2 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 14 }}>Add achievement</h2>
             <AchievementForm onSuccess={() => { setShowAdd(false); void fetchRows(); }} onCancel={() => setShowAdd(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editTarget && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setEditTarget(null); }}>
+          <div style={{ width: '100%', maxWidth: 560, maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto', background: 'var(--surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', padding: 'clamp(18px, 4vw, 28px)' }}>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 14 }}>Edit achievement</h2>
+            <AchievementForm edit={editTarget} onSuccess={() => { setEditTarget(null); void fetchRows(); }} onCancel={() => setEditTarget(null)} />
           </div>
         </div>
       )}

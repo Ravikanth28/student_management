@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { DecodeHintType, BarcodeFormat } from '@zxing/library';
 import { api } from '../api';
@@ -39,6 +40,7 @@ function enhance(ctx: CanvasRenderingContext2D, w: number, h: number) {
 }
 
 export function ScannerPage({ onLogout }: Props) {
+  const navigate = useNavigate();
   const { error: toastError } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -217,7 +219,16 @@ export function ScannerPage({ onLogout }: Props) {
               <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>Not registered</div>
               <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.8)' }}>No student in the system for</div>
               <div style={{ fontFamily: 'monospace', fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.06em' }}>{notFound}</div>
-              <button className="btn btn-primary" style={{ marginTop: 8 }} type="button" onClick={() => void startScan()}>Scan again</button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button className="btn btn-primary" type="button" onClick={() => void startScan()}>Scan again</button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/students/new')}
+                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: 'var(--radius-sm)', padding: '0 14px', height: 38, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Add student
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -1,8 +1,9 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { HttpError } from '../middleware/error.js';
-import { userCreateSchema } from '../validators/authValidator.js';
+import { userCreateSchema, userUpdateSchema } from '../validators/authValidator.js';
 import * as userRepo from '../repositories/userRepository.js';
+import type { Role } from '../repositories/userRepository.js';
 import * as audit from '../services/auditService.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
@@ -38,6 +39,36 @@ export const createUser = asyncWrap(async (req, res) => {
 
   audit.record(req, { action: 'user.create', entity: 'user', entity_id: String(id), details: `${name} (${username}, ${role})` });
   return res.status(201).json({ message: 'User created', user: { id, username, name, role } });
+});
+
+// PUT /api/users/:id  (reset password / change name or role)
+export const updateUser = asyncWrap(async (req, res) => {
+  const id = parseId(req.params.id);
+  const parsed = userUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid update', issues: parsed.error.flatten() });
+  }
+  const target = await userRepo.getUserById(id);
+  if (!target) throw new HttpError(404, 'User not found');
+
+  // Never demote the last superadmin.
+  if (parsed.data.role && parsed.data.role !== 'superadmin' && target.role === 'superadmin' && (await userRepo.countByRole('superadmin')) <= 1) {
+    throw new HttpError(400, 'Cannot change the role of the last superadmin');
+  }
+
+  const fields: { name?: string; role?: Role; passwordHash?: string } = {};
+  if (parsed.data.name !== undefined) fields.name = parsed.data.name;
+  if (parsed.data.role !== undefined) fields.role = parsed.data.role;
+  if (parsed.data.password) fields.passwordHash = await bcrypt.hash(parsed.data.password, 12);
+
+  await userRepo.updateUser(id, fields);
+  audit.record(req, {
+    action: 'user.update',
+    entity: 'user',
+    entity_id: String(id),
+    details: `${target.username}${fields.role ? ` role→${fields.role}` : ''}${fields.passwordHash ? ' (password reset)' : ''}`,
+  });
+  return res.json({ message: 'User updated' });
 });
 
 // DELETE /api/users/:id

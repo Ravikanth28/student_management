@@ -147,6 +147,51 @@ export async function listAchievementsByStudent(studentId: number): Promise<Achi
   return attachMembers(rows);
 }
 
+export async function updateAchievement(
+  id: number,
+  input: AchievementInput,
+  memberIds: number[]
+): Promise<boolean> {
+  const conn: PoolConnection = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [res] = await conn.query<ResultSetHeader>(
+      `UPDATE achievements
+       SET event_type = ?, title = ?, venue = ?, duration = ?, result = ?, position = ?, prize = ?, event_date = ?
+       WHERE id = ?`,
+      [
+        input.event_type ?? null,
+        input.title,
+        input.venue ?? null,
+        input.duration ?? null,
+        input.result,
+        input.position ?? null,
+        input.prize ?? null,
+        input.event_date ?? null,
+        id,
+      ]
+    );
+    if (res.affectedRows === 0) { await conn.rollback(); return false; }
+
+    // Replace the member set.
+    await conn.query('DELETE FROM achievement_members WHERE achievement_id = ?', [id]);
+    const uniqueIds = [...new Set(memberIds)];
+    if (uniqueIds.length > 0) {
+      await conn.query(
+        `INSERT INTO achievement_members (achievement_id, student_id) VALUES ${uniqueIds.map(() => '(?, ?)').join(', ')}`,
+        uniqueIds.flatMap((sid) => [id, sid])
+      );
+    }
+    await conn.commit();
+    return true;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 /** Remove one student from an achievement. If no members remain afterwards,
  *  the achievement itself is deleted. */
 export async function removeMember(

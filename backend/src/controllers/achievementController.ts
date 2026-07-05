@@ -43,6 +43,25 @@ export const listAchievements = asyncWrap(async (req, res) => {
   return res.json(result);
 });
 
+// PUT /api/achievements/:id
+export const updateAchievement = asyncWrap(async (req, res) => {
+  const id = parseId(req.params.id);
+  const parsed = achievementCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid achievement', issues: parsed.error.flatten() });
+  }
+  const { member_ids, ...input } = parsed.data;
+  const ok = await achievementRepo.updateAchievement(id, input, member_ids);
+  if (!ok) throw new HttpError(404, 'Achievement not found');
+  audit.record(req, {
+    action: 'achievement.update',
+    entity: 'achievement',
+    entity_id: String(id),
+    details: `${input.title} — ${input.result}, ${member_ids.length} member(s)`,
+  });
+  return res.json({ message: 'Achievement updated' });
+});
+
 // DELETE /api/achievements/:id
 export const deleteAchievement = asyncWrap(async (req, res) => {
   const id = parseId(req.params.id);

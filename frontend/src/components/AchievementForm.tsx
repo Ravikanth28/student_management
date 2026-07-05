@@ -2,30 +2,36 @@ import { useState } from 'react';
 import { api } from '../api';
 import { useToast } from './Toast';
 import { StudentPicker } from './StudentPicker';
-import type { EventType, Student } from '../types';
+import type { Achievement, EventType, Student } from '../types';
 
 type Props = {
   /** Pre-selected members (e.g. the scanned student). */
   initialMembers?: Student[];
   /** Member ids that cannot be removed. */
   lockedIds?: number[];
+  /** When provided, the form edits this achievement instead of creating one. */
+  edit?: Achievement;
   onSuccess: () => void;
   onCancel: () => void;
 };
 
 const label: React.CSSProperties = { fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' };
 
-export function AchievementForm({ initialMembers = [], lockedIds = [], onSuccess, onCancel }: Props) {
+export function AchievementForm({ initialMembers = [], lockedIds = [], edit, onSuccess, onCancel }: Props) {
   const { success, error: toastError } = useToast();
-  const [eventType, setEventType] = useState<EventType>('hackathon');
-  const [title, setTitle] = useState('');
-  const [venue, setVenue] = useState('');
-  const [duration, setDuration] = useState('');
-  const [result, setResult] = useState<'participated' | 'winner'>('participated');
-  const [position, setPosition] = useState('');
-  const [prize, setPrize] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const [members, setMembers] = useState<Student[]>(initialMembers);
+  const [eventType, setEventType] = useState<EventType>((edit?.event_type as EventType) ?? 'hackathon');
+  const [title, setTitle] = useState(edit?.title ?? '');
+  const [venue, setVenue] = useState(edit?.venue ?? '');
+  const [duration, setDuration] = useState(edit?.duration ?? '');
+  const [result, setResult] = useState<'participated' | 'winner'>(edit?.result === 'winner' ? 'winner' : 'participated');
+  const [position, setPosition] = useState(edit?.position ?? '');
+  const [prize, setPrize] = useState(edit?.prize ?? '');
+  const [eventDate, setEventDate] = useState(edit?.event_date ?? '');
+  const [members, setMembers] = useState<Student[]>(
+    edit
+      ? edit.members.map((m) => ({ id: m.student_id, name: m.name, register_number: m.register_number, section: m.section, batch: m.batch } as unknown as Student))
+      : initialMembers
+  );
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
@@ -33,19 +39,25 @@ export function AchievementForm({ initialMembers = [], lockedIds = [], onSuccess
     if (members.length === 0) { toastError('No students', 'Add at least one student to this achievement.'); return; }
 
     setSaving(true);
+    const payload = {
+      event_type: eventType,
+      title: title.trim(),
+      venue: venue.trim() || undefined,
+      duration: duration.trim() || undefined,
+      result,
+      position: result === 'winner' ? (position.trim() || undefined) : undefined,
+      prize: prize.trim() || undefined,
+      event_date: eventDate || undefined,
+      member_ids: members.map((m) => m.id),
+    };
     try {
-      await api.post('/achievements', {
-        event_type: eventType,
-        title: title.trim(),
-        venue: venue.trim() || undefined,
-        duration: duration.trim() || undefined,
-        result,
-        position: result === 'winner' ? (position.trim() || undefined) : undefined,
-        prize: prize.trim() || undefined,
-        event_date: eventDate || undefined,
-        member_ids: members.map((m) => m.id),
-      });
-      success('Achievement added', `Saved for ${members.length} student(s).`);
+      if (edit) {
+        await api.put(`/achievements/${edit.id}`, payload);
+        success('Achievement updated', `Saved for ${members.length} student(s).`);
+      } else {
+        await api.post('/achievements', payload);
+        success('Achievement added', `Saved for ${members.length} student(s).`);
+      }
       onSuccess();
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -127,7 +139,7 @@ export function AchievementForm({ initialMembers = [], lockedIds = [], onSuccess
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
         <button type="button" className="btn btn-outline" onClick={onCancel} disabled={saving}>Cancel</button>
         <button type="button" className="btn btn-primary" onClick={submit} disabled={saving}>
-          {saving ? 'Saving…' : 'Save achievement'}
+          {saving ? 'Saving…' : edit ? 'Save changes' : 'Save achievement'}
         </button>
       </div>
     </div>
