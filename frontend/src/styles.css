@@ -994,10 +994,10 @@ td {
 .toast-warning { background: var(--amber-light); border-color: #fcd34d; color: #92400e; }
 .toast-info    { background: var(--blue-light); border-color: #93c5fd; color: #1e40af; }
 
-[data-theme="dark"] .toast-success { border-color: #22c55e; color: #86efac; }
-[data-theme="dark"] .toast-error   { border-color: #ef4444; color: #fca5a5; }
-[data-theme="dark"] .toast-warning { border-color: #f59e0b; color: #fcd34d; }
-[data-theme="dark"] .toast-info    { border-color: #3b82f6; color: #93c5fd; }
+[data-theme="dark"] .toast-success { background: #14532d; border-color: #22c55e; color: #ffffff; }
+[data-theme="dark"] .toast-error   { background: #7f1d1d; border-color: #ef4444; color: #ffffff; }
+[data-theme="dark"] .toast-warning { background: #78350f; border-color: #f59e0b; color: #ffffff; }
+[data-theme="dark"] .toast-info    { background: #1e3a8a; border-color: #3b82f6; color: #ffffff; }
 
 .toast-icon  { flex-shrink: 0; margin-top: 1px; }
 .toast-body  { flex: 1; }
