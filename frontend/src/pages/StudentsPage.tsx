@@ -7,7 +7,7 @@ import { Pagination } from '../components/Pagination';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
-import type { Student, StudentListResponse } from '../types';
+import { YEAR_OPTIONS, YEAR_LABELS, type Student, type StudentListResponse } from '../types';
 
 // --- SVG Icons ----------------------------------------------
 function IconSearch() {
@@ -94,7 +94,7 @@ export function StudentsPage({ onLogout }: Props) {
   const [loading, setLoading]   = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [meta, setMeta]         = useState<{ departments: string[]; batches: string[]; years: string[]; sections: string[] }>({ departments: [], batches: [], years: [], sections: [] });
+  const [meta, setMeta]         = useState<{ departments: string[]; batches: string[]; sections: string[] }>({ departments: [], batches: [], sections: [] });
   const [dynamicSections, setDynamicSections] = useState<string[]>([]);
   const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null);
 
@@ -117,7 +117,6 @@ export function StudentsPage({ onLogout }: Props) {
     api.get<{ sections: string[] }>('/students/meta/sections', { params })
       .then(res => {
         setDynamicSections(res.data.sections ?? []);
-        // Reset section if it's no longer valid in the new filtered set
         if (section && !res.data.sections.includes(section)) setSection('');
       })
       .catch(() => {});
@@ -127,18 +126,18 @@ export function StudentsPage({ onLogout }: Props) {
   useEffect(() => {
     let active = true;
 
-    const fetch = async (p: number, q: string, d: string, b: string, s: string) => {
+    const fetch = async (p: number, q: string, d: string, b: string, s: string, y: string) => {
       setLoading(true);
       try {
         const res = await api.get<StudentListResponse>('/students', {
-          params: { 
-            page: p, 
-            limit: PAGE_LIMIT, 
+          params: {
+            page: p,
+            limit: PAGE_LIMIT,
             q: q.trim() || undefined,
             department: d || undefined,
             batch: b || undefined,
             section: s || undefined,
-            year: year || undefined,
+            year: y || undefined
           },
         });
         if (active) setData(res.data);
@@ -150,7 +149,7 @@ export function StudentsPage({ onLogout }: Props) {
     };
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => void fetch(page, query, department, batch, section), query ? 300 : 0);
+    debounceRef.current = setTimeout(() => void fetch(page, query, department, batch, section, year), query ? 300 : 0);
 
     return () => { active = false; };
   }, [page, query, department, batch, section, year]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -175,8 +174,7 @@ export function StudentsPage({ onLogout }: Props) {
             q: query.trim() || undefined,
             department: department || undefined,
             batch: batch || undefined,
-            section: section || undefined,
-            year: year || undefined,
+            section: section || undefined
         },
       });
       setData(res.data);
@@ -218,13 +216,12 @@ export function StudentsPage({ onLogout }: Props) {
         <div className="card" style={{ padding: '16px 20px', borderLeft: '4px solid var(--blue)', background: 'linear-gradient(to right, rgba(58, 12, 163, 0.03), transparent)' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Active Filters</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {(!department && !batch && !section && !year) ? (
+            {(!department && !batch && !section) ? (
               <span style={{ fontSize: '0.9rem', color: 'var(--text-2)', fontWeight: 500 }}>No filters active</span>
             ) : (
               <>
                 {department && <span className="badge badge-primary">{department}</span>}
                 {batch && <span className="badge badge-blue">{batch}</span>}
-                {year && <span className="badge badge-amber">{year}</span>}
                 {section && <span className="badge badge-gray">Sec {section}</span>}
               </>
             )}
@@ -275,19 +272,7 @@ export function StudentsPage({ onLogout }: Props) {
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
-
-            <select
-              className="form-control"
-              style={{ width: 'auto', minWidth: 140, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
-              value={year}
-              onChange={e => { setYear(e.target.value); setSection(''); setPage(1); }}
-            >
-              <option value="">All Years</option>
-              {meta.years.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-
+            
             <select
               className="form-control"
               style={{ width: 'auto', minWidth: 140, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
@@ -297,6 +282,18 @@ export function StudentsPage({ onLogout }: Props) {
               <option value="">All Sections</option>
               {dynamicSections.map(s => (
                 <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+
+            <select
+              className="form-control"
+              style={{ width: 'auto', minWidth: 140, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+              value={year}
+              onChange={e => { setYear(e.target.value); setPage(1); }}
+            >
+              <option value="">All Years</option>
+              {YEAR_OPTIONS.map(y => (
+                <option key={y} value={y}>{YEAR_LABELS[y] ?? y}</option>
               ))}
             </select>
           </div>
@@ -310,15 +307,15 @@ export function StudentsPage({ onLogout }: Props) {
             <table>
               <thead>
                 <tr>
-                  <th>Name</th><th>Register No.</th><th>Enrollment No.</th><th>Section</th><th>Department</th><th>Batch</th><th>Actions</th>
+                  <th>Name</th><th>Register No.</th><th>Enrollment No.</th><th>Year</th><th>Section</th><th>Department</th><th>Batch</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <td key={j}>
-                        <div className="skeleton" style={{ height: 14, borderRadius: 6, width: j === 6 ? 80 : '80%' }} />
+                        <div className="skeleton" style={{ height: 14, borderRadius: 6, width: j === 7 ? 80 : '80%' }} />
                       </td>
                     ))}
                   </tr>
@@ -329,13 +326,13 @@ export function StudentsPage({ onLogout }: Props) {
         ) : students.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon"><IconUsers /></div>
-            <p className="empty-title">{query || department || batch || section || year ? 'No results found' : 'No students yet'}</p>
+            <p className="empty-title">{query || department || batch || section ? 'No results found' : 'No students yet'}</p>
             <p className="empty-sub">
-              {query || department || batch || section || year
+              {query || department || batch || section
                 ? `No students match your criteria. Try adjusting the search or filters.`
                 : 'Add your first student record to get started.'}
             </p>
-            {staff && (!query && !department && !batch && !section && !year) && (
+            {staff && (!query && !department && !batch && !section) && (
               <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} type="button" onClick={() => navigate('/students/new')}>
                 <IconPlus /> Add First Student
               </button>
@@ -350,6 +347,7 @@ export function StudentsPage({ onLogout }: Props) {
                     <th>Name</th>
                     <th>Register No.</th>
                     <th>Enrollment No.</th>
+                    <th>Year</th>
                     <th>Section</th>
                     <th>Department</th>
                     <th>Batch</th>
@@ -369,6 +367,7 @@ export function StudentsPage({ onLogout }: Props) {
                       </td>
                       <td className="td-muted td-nowrap">{student.register_number}</td>
                       <td className="td-muted td-nowrap">{student.enrollment_number}</td>
+                      <td className="td-nowrap">{student.year ? (YEAR_LABELS[student.year] ?? student.year) : 'ΓÇö'}</td>
                       <td className="td-nowrap"><span className="badge badge-purple">{student.section}</span></td>
                       <td className="td-nowrap"><span className="badge badge-blue">{student.department}</span></td>
                       <td className="td-nowrap"><span className="badge badge-gray">{student.batch}</span></td>

@@ -31,6 +31,37 @@ export function UsersPage({ onLogout }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [editUser, setEditUser] = useState<AppUser | null>(null);
+  const [eName, setEName] = useState('');
+  const [eRole, setERole] = useState<Role>('user');
+  const [ePassword, setEPassword] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEdit = (u: AppUser) => { setEditUser(u); setEName(u.name ?? ''); setERole(u.role); setEPassword(''); };
+
+  const saveEdit = async () => {
+    if (!editUser) return;
+    if (ePassword && ePassword.length < 8) { toastError('Weak password', 'At least 8 characters.'); return; }
+    const payload: { name?: string; role?: Role; password?: string } = {};
+    if (eName.trim() && eName.trim() !== (editUser.name ?? '')) payload.name = eName.trim();
+    if (eRole !== editUser.role) payload.role = eRole;
+    if (ePassword) payload.password = ePassword;
+    if (Object.keys(payload).length === 0) { setEditUser(null); return; }
+
+    setSavingEdit(true);
+    try {
+      await api.put(`/users/${editUser.id}`, payload);
+      success('User updated', editUser.username);
+      setEditUser(null);
+      load();
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toastError('Update failed', msg ?? 'Please try again.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const load = () => {
     setLoading(true);
     api.get<{ data: AppUser[] }>('/users')
@@ -126,7 +157,8 @@ export function UsersPage({ onLogout }: Props) {
                     <td><span className={`badge ${ROLE_BADGE[u.role]}`} style={{ textTransform: 'capitalize' }}>{u.role}</span></td>
                     <td className="td-muted">{u.created_by ?? '—'}</td>
                     <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{new Date(u.created_at).toLocaleDateString('en-IN')}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => openEdit(u)}>Edit</button>
                       {u.username !== me && (
                         <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(u)}>Delete</button>
                       )}
@@ -138,6 +170,37 @@ export function UsersPage({ onLogout }: Props) {
           </div>
         )}
       </div>
+
+      {editUser && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setEditUser(null); }}>
+          <div style={{ width: '100%', maxWidth: 420, background: 'var(--surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', padding: 'clamp(18px, 4vw, 28px)' }}>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 4 }}>Edit user</h2>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginBottom: 16 }}>@{editUser.username}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={label}>Full name</label>
+                <input className="form-control" value={eName} onChange={(e) => setEName(e.target.value)} />
+              </div>
+              <div>
+                <label style={label}>Role</label>
+                <select className="form-control" value={eRole} onChange={(e) => setERole(e.target.value as Role)}>
+                  <option value="user">User (view only)</option>
+                  <option value="admin">Admin</option>
+                  <option value="superadmin">Superadmin</option>
+                </select>
+              </div>
+              <div>
+                <label style={label}>New password</label>
+                <input className="form-control" type="password" value={ePassword} onChange={(e) => setEPassword(e.target.value)} placeholder="Leave blank to keep current" autoComplete="new-password" />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button className="btn btn-outline" onClick={() => setEditUser(null)} disabled={savingEdit}>Cancel</button>
+                <button className="btn btn-primary" onClick={saveEdit} disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {deleteTarget && (
         <ConfirmModal

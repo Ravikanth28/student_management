@@ -6,11 +6,13 @@ export interface AchievementMember {
   name: string;
   register_number: string;
   section: string;
+  year: string | null;
   batch: string;
 }
 
 export interface Achievement {
   id: number;
+  event_type: string | null;
   title: string;
   venue: string | null;
   duration: string | null;
@@ -24,6 +26,7 @@ export interface Achievement {
 }
 
 export interface AchievementInput {
+  event_type?: string | null;
   title: string;
   venue?: string | null;
   duration?: string | null;
@@ -47,9 +50,10 @@ export async function createAchievement(
   try {
     await conn.beginTransaction();
     const [result] = await conn.query<ResultSetHeader>(
-      `INSERT INTO achievements (title, venue, duration, result, position, prize, event_date, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO achievements (event_type, title, venue, duration, result, position, prize, event_date, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        input.event_type ?? null,
         input.title,
         input.venue ?? null,
         input.duration ?? null,
@@ -85,7 +89,7 @@ async function attachMembers(achievements: Array<Achievement & RowDataPacket>): 
   if (achievements.length === 0) return [];
   const ids = achievements.map((a) => Number(a.id));
   const [memberRows] = await pool.query<Array<{ achievement_id: number } & AchievementMember & RowDataPacket>>(
-    `SELECT am.achievement_id, s.id AS student_id, s.name, s.register_number, s.section, s.batch
+    `SELECT am.achievement_id, s.id AS student_id, s.name, s.register_number, s.section, s.year, s.batch
      FROM achievement_members am
      JOIN students s ON s.id = am.student_id
      WHERE am.achievement_id IN (${ids.map(() => '?').join(', ')})
@@ -101,6 +105,7 @@ async function attachMembers(achievements: Array<Achievement & RowDataPacket>): 
       name: m.name,
       register_number: m.register_number,
       section: m.section,
+      year: m.year ?? null,
       batch: m.batch,
     });
     byAchievement.set(Number(m.achievement_id), list);
@@ -115,7 +120,9 @@ export async function listAchievements(q: string | undefined, page: number, limi
   const offset = (page - 1) * limit;
 
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
-    `SELECT * FROM achievements ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+    `SELECT id, event_type, title, venue, duration, result, position, prize,
+            DATE_FORMAT(event_date, '%Y-%m-%d') AS event_date, created_by, created_at
+     FROM achievements ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );
   const [countRows] = await pool.query<Array<{ total: number } & RowDataPacket>>(
@@ -129,15 +136,107 @@ export async function listAchievements(q: string | undefined, page: number, limi
   };
 }
 
+export interface AchievementSummaryRow {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  year: string | null;
+  total: number;
+  wins: number;
+  participated: number;
+}
+
+/** Per-student achievement totals (wins vs participated), most achievements first. */
+export async function summarizeByStudent(f: { year?: string; section?: string; q?: string }): Promise<AchievementSummaryRow[]> {
+  const conds: string[] = [];
+  const vals: unknown[] = [];
+  if (f.year) { conds.push('s.year = ?'); vals.push(f.year); }
+  if (f.section) { conds.push('s.section = ?'); vals.push(f.section); }
+  if (f.q) { conds.push('(s.name LIKE ? OR s.register_number LIKE ?)'); vals.push(`%${f.q}%`, `%${f.q}%`); }
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+  const [rows] = await pool.query<Array<AchievementSummaryRow & RowDataPacket>>(
+    `SELECT s.id AS student_id, s.name, s.register_number, s.section, s.year,
+            COUNT(*) AS total,
+            SUM(a.result = 'winner') AS wins,
+            SUM(a.result = 'participated') AS participated
+       FROM achievement_members am
+       JOIN achievements a ON a.id = am.achievement_id
+       JOIN students s ON s.id = am.student_id
+       ${where}
+      GROUP BY s.id, s.name, s.register_number, s.section, s.year
+      ORDER BY total DESC, s.name ASC`,
+    vals,
+  );
+  return rows.map((r) => ({
+    student_id: Number(r.student_id),
+    name: r.name,
+    register_number: r.register_number,
+    section: r.section,
+    year: r.year ?? null,
+    total: Number(r.total),
+    wins: Number(r.wins),
+    participated: Number(r.participated),
+  }));
+}
+
 export async function listAchievementsByStudent(studentId: number): Promise<Achievement[]> {
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
-    `SELECT a.* FROM achievements a
+    `SELECT a.id, a.event_type, a.title, a.venue, a.duration, a.result, a.position, a.prize,
+            DATE_FORMAT(a.event_date, '%Y-%m-%d') AS event_date, a.created_by, a.created_at
+     FROM achievements a
      JOIN achievement_members am ON am.achievement_id = a.id
      WHERE am.student_id = ?
      ORDER BY a.created_at DESC, a.id DESC`,
     [studentId]
   );
   return attachMembers(rows);
+}
+
+export async function updateAchievement(
+  id: number,
+  input: AchievementInput,
+  memberIds: number[]
+): Promise<boolean> {
+  const conn: PoolConnection = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [res] = await conn.query<ResultSetHeader>(
+      `UPDATE achievements
+       SET event_type = ?, title = ?, venue = ?, duration = ?, result = ?, position = ?, prize = ?, event_date = ?
+       WHERE id = ?`,
+      [
+        input.event_type ?? null,
+        input.title,
+        input.venue ?? null,
+        input.duration ?? null,
+        input.result,
+        input.position ?? null,
+        input.prize ?? null,
+        input.event_date ?? null,
+        id,
+      ]
+    );
+    if (res.affectedRows === 0) { await conn.rollback(); return false; }
+
+    // Replace the member set.
+    await conn.query('DELETE FROM achievement_members WHERE achievement_id = ?', [id]);
+    const uniqueIds = [...new Set(memberIds)];
+    if (uniqueIds.length > 0) {
+      await conn.query(
+        `INSERT INTO achievement_members (achievement_id, student_id) VALUES ${uniqueIds.map(() => '(?, ?)').join(', ')}`,
+        uniqueIds.flatMap((sid) => [id, sid])
+      );
+    }
+    await conn.commit();
+    return true;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 /** Remove one student from an achievement. If no members remain afterwards,
@@ -193,6 +292,7 @@ export async function deleteAchievement(id: number): Promise<boolean> {
 function normalize(a: Achievement & RowDataPacket, members: AchievementMember[]): Achievement {
   return {
     id: Number(a.id),
+    event_type: a.event_type ?? null,
     title: a.title,
     venue: a.venue ?? null,
     duration: a.duration ?? null,

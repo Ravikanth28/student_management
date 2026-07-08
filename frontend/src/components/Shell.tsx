@@ -124,6 +124,15 @@ function IconScan() {
   );
 }
 
+function IconClipboard() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z" /><rect x="4" y="4" width="16" height="18" rx="2" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
 function IconClock() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -137,6 +146,22 @@ function IconTrophy() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" />
       <path d="M7 4H4v2a3 3 0 0 0 3 3M17 4h3v2a3 3 0 0 1-3 3" />
+    </svg>
+  );
+}
+
+function IconBriefcase() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    </svg>
+  );
+}
+
+function IconDroplet() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2.7l5.3 5.3a7.5 7.5 0 1 1-10.6 0z" />
     </svg>
   );
 }
@@ -170,10 +195,13 @@ function IconMoon() {
 const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; roles: Role[] }> = [
   { to: '/dashboard',    label: 'Dashboard',        Icon: IconGrid,      roles: ['superadmin', 'admin', 'user'] },
   { to: '/students',     label: 'Student Records',  Icon: IconUsers,     roles: ['superadmin', 'admin', 'user'] },
+  { to: '/blood-groups', label: 'Blood Groups',     Icon: IconDroplet,   roles: ['superadmin', 'admin', 'user'] },
   { to: '/students/new', label: 'Add Student',      Icon: IconPlus,      roles: ['superadmin', 'admin'] },
   { to: '/scanner',      label: 'Scanner',          Icon: IconScan,      roles: ['superadmin', 'admin'] },
+  { to: '/attendance',   label: 'Attendance',       Icon: IconClipboard, roles: ['superadmin', 'admin'] },
   { to: '/late-comers',  label: 'Late Comers',      Icon: IconClock,     roles: ['superadmin', 'admin'] },
   { to: '/achievements', label: 'Achievements',     Icon: IconTrophy,    roles: ['superadmin', 'admin'] },
+  { to: '/placements',   label: 'Placements',       Icon: IconBriefcase, roles: ['superadmin', 'admin'] },
   { to: '/import',       label: 'Bulk Import',      Icon: IconUploadNav, roles: ['superadmin', 'admin'] },
   { to: '/users',        label: 'Users',            Icon: IconUsersCog,  roles: ['superadmin'] },
   { to: '/audit',        label: 'Audit Log',        Icon: IconActivity,  roles: ['superadmin'] },

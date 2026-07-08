@@ -12,18 +12,32 @@ function parseOptionalInt(val: unknown, fallback: number): number {
   return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
-// ─── GET /api/students/filter ─────────────────────────────────
+// ΓöÇΓöÇΓöÇ GET /api/students/filter ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 export const filterStudents = asyncWrap(async (req, res) => {
   const result = await service.filterStudents({
-    name:       req.query.name       ? String(req.query.name)       : undefined,
-    department: req.query.department ? String(req.query.department) : undefined,
-    batch:      req.query.batch      ? String(req.query.batch)      : undefined,
-    section:    req.query.section    ? String(req.query.section)    : undefined,
-    year:       req.query.year       ? String(req.query.year)       : undefined,
-    page:       parseOptionalInt(req.query.page,  1),
-    limit:      parseOptionalInt(req.query.limit, 50),
+    name:        req.query.name        ? String(req.query.name)        : undefined,
+    department:  req.query.department  ? String(req.query.department)  : undefined,
+    batch:       req.query.batch       ? String(req.query.batch)       : undefined,
+    section:     req.query.section     ? String(req.query.section)     : undefined,
+    year:        req.query.year        ? String(req.query.year)        : undefined,
+    blood_group: req.query.blood_group ? String(req.query.blood_group) : undefined,
+    page:        parseOptionalInt(req.query.page,  1),
+    limit:       parseOptionalInt(req.query.limit, 50),
   });
   return res.json(result);
+});
+
+// ΓöÇΓöÇΓöÇ GET /api/students/birthdays ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+export const getBirthdays = asyncWrap(async (_req, res) => {
+  const data = await service.getTodaysBirthdays();
+  return res.json({ data });
+});
+
+// ΓöÇΓöÇΓöÇ GET /api/students/birthdays/upcoming?days=60 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+export const getUpcomingBirthdays = asyncWrap(async (req, res) => {
+  const days = Math.min(366, Math.max(1, Number(req.query.days) || 60));
+  const data = await service.getUpcomingBirthdays(days);
+  return res.json({ data });
 });
 
 // ─── GET /api/students/meta ───────────────────────────────────
@@ -42,14 +56,7 @@ export const getFilteredSections = asyncWrap(async (req, res) => {
   return res.json({ sections });
 });
 
-// ─── GET /api/students/year-stats ─────────────────────────────
-export const getYearStats = asyncWrap(async (_req, res) => {
-  const stats = await service.getYearStats();
-  return res.json(stats);
-});
-
-
-// ─── GET /api/students/export?format=csv|xlsx&... ────────────
+// ΓöÇΓöÇΓöÇ GET /api/students/export?format=csv|xlsx&... ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 export const exportStudents = asyncWrap(async (req, res) => {
   const format = String(req.query.format ?? 'xlsx').toLowerCase();
   if (!['csv', 'xlsx'].includes(format)) {
@@ -72,6 +79,7 @@ export const exportStudents = asyncWrap(async (req, res) => {
     'Register Number':    s.register_number,
     'Enrollment Number':  s.enrollment_number,
     'Section':            s.section,
+    'Year':               s.year ?? '',
     'Department':         s.department,
     'Batch':              s.batch,
     'Phone':              s.phone,

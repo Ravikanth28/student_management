@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import { cloudinary, cloudinaryEnabled } from '../config/cloudinary.js';
 import * as repository from '../repositories/studentRepository.js';
 import { logger } from '../config/logger.js';
+import { normalizeBloodGroup, parseDob } from '../lib/studentFields.js';
 
 // ─── Column aliases ───────────────────────────────────────────
 const ALIASES: Record<string, string> = {
@@ -60,6 +61,14 @@ const ALIASES: Record<string, string> = {
   'photo_url': 'photo_url', 'photo': 'photo_url', 'image': 'photo_url', 'photo link': 'photo_url',
   'drive link': 'photo_url', 'photo url': 'photo_url', 'image url': 'photo_url', 'image link': 'photo_url',
   'google drive': 'photo_url', 'drive photo': 'photo_url', 'photo_link': 'photo_url',
+  // blood_group
+  'blood_group': 'blood_group', 'blood group': 'blood_group', 'blood grp': 'blood_group',
+  'bloodgroup': 'blood_group', 'blood': 'blood_group', 'bg': 'blood_group', 'blood type': 'blood_group',
+  // dob
+  'dob': 'dob', 'd o b': 'dob', 'date of birth': 'dob', 'birth date': 'dob', 'birthdate': 'dob', 'birthday': 'dob',
+  // year (current study year — kept distinct from "year" which maps to batch)
+  'current year': 'year', 'current_year': 'year', 'study year': 'year', 'year of study': 'year',
+  'studying year': 'year', 'present year': 'year', 'class year': 'year', 'std year': 'year',
 };
 
 function normalizeHeader(raw: string): string {
@@ -184,7 +193,7 @@ async function processPhoto(rawUrl: string, regNumber: string): Promise<string |
 
 // ─── Exported types ───────────────────────────────────────────
 export interface BulkImportResult {
-  mode:     'full_import' | 'photo_update';
+  mode:     'full_import' | 'photo_update' | 'details_update';
   imported: number;
   updated:  number;
   skipped:  number;
@@ -218,16 +227,74 @@ export async function processBulkImport(
   // If ALL rows have register_number + photo_url but NO name/department
   // → Photo-update mode (map by reg number, update Cloudinary photo)
   // Otherwise → Full import mode (create students)
-  const FULL_REQUIRED = ['name', 'register_number', 'enrollment_number', 'section', 'department', 'batch', 'phone', 'parent_phone', 'address'];
-  const hasFullFields = rows.some(r => r.name && r.department && r.batch);
-  const hasPhotoField = rows.some(r => r.photo_url);
-  const hasRegField   = rows.some(r => r.register_number);
+  const hasFullFields  = rows.some(r => r.name && r.department && r.batch);
+  const hasPhotoField  = rows.some(r => r.photo_url);
+  const hasRegField    = rows.some(r => r.register_number);
+  const hasEnrollField = rows.some(r => r.enrollment_number);
+  const hasDetailField = rows.some(r => r.blood_group || r.dob);
 
+  const hasDetailFieldOrYear = rows.some((r) => r.blood_group || r.dob || r.year);
+
+  // Details-update: a partial sheet keyed by reg/enroll number that only carries
+  // blood group / DOB / year (and maybe a photo). Updates existing students in place.
+  if (!hasFullFields && (hasRegField || hasEnrollField) && hasDetailFieldOrYear) {
+    return processDetailsUpdate(rows);
+  }
+
+  // Photo-only update: reg number + photo_url, nothing else.
   if (!hasFullFields && hasRegField && hasPhotoField) {
     return processPhotoUpdate(rows);
   }
 
   return processFullImport(rows);
+}
+
+// ─── MODE 3: Details update (blood group / DOB / photo) by reg or enroll no ──
+async function processDetailsUpdate(rows: Record<string, string>[]): Promise<BulkImportResult> {
+  const result: BulkImportResult = { mode: 'details_update', imported: 0, updated: 0, skipped: 0, errors: [] };
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 2;
+    const regNum = row.register_number?.trim() ?? '';
+    const enrollNum = row.enrollment_number?.trim() ?? '';
+    const code = regNum || enrollNum;
+
+    if (!code) {
+      result.errors.push({ row: rowNum, register_number: '', reason: 'Missing register_number / enrollment_number' });
+      result.skipped++;
+      continue;
+    }
+
+    const existing = await repository.getStudentByCode(code);
+    if (!existing) {
+      result.errors.push({ row: rowNum, register_number: code, reason: `No student found for "${code}"` });
+      result.skipped++;
+      continue;
+    }
+
+    const changes: Record<string, string> = {};
+    const bg = normalizeBloodGroup(row.blood_group);
+    if (bg) changes.blood_group = bg;
+    const dob = parseDob(row.dob);
+    if (dob) changes.dob = dob;
+    if (row.year) changes.year = row.year.trim();
+    if (row.photo_url) {
+      const photoUrl = await processPhoto(row.photo_url, existing.register_number);
+      if (photoUrl) changes.photo_url = photoUrl;
+    }
+
+    if (Object.keys(changes).length === 0) {
+      result.errors.push({ row: rowNum, register_number: code, reason: 'No blood group / DOB / year / photo to update' });
+      result.skipped++;
+      continue;
+    }
+
+    await repository.updateStudent(existing.id, changes);
+    result.updated++;
+  }
+
+  return result;
 }
 
 // ─── MODE 1: Full student import ─────────────────────────────
@@ -266,6 +333,7 @@ async function processFullImport(rows: Record<string, string>[]): Promise<BulkIm
         register_number:   regNum,
         enrollment_number: row.enrollment_number,
         section:           row.section,
+        year:              row.year || undefined,
         department:        row.department,
         batch:             row.batch,
         phone:             row.phone,
@@ -274,6 +342,8 @@ async function processFullImport(rows: Record<string, string>[]): Promise<BulkIm
         college_email:     row.college_email  || undefined,
         personal_email:    row.personal_email || undefined,
         photo_url:         photoUrl ?? undefined,
+        blood_group:       normalizeBloodGroup(row.blood_group),
+        dob:               parseDob(row.dob),
       });
       result.imported++;
     } catch (err: unknown) {

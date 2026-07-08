@@ -4,6 +4,7 @@ export type Student = {
   register_number: string;
   enrollment_number: string;
   section: string;
+  year?: string;
   department: string;
   batch: string;
   phone: string;
@@ -12,8 +13,22 @@ export type Student = {
   college_email?: string;
   personal_email?: string;
   photo_url?: string;
+  blood_group?: string;
+  dob?: string;
   created_at: string;
   updated_at: string;
+};
+
+export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
+
+/** Current academic year values (stored) + their display labels. */
+export const YEAR_OPTIONS = ['1', '2', '3', '4', 'Alumni'] as const;
+export const YEAR_LABELS: Record<string, string> = {
+  '1': 'I Year',
+  '2': 'II Year',
+  '3': 'III Year',
+  '4': 'IV Year',
+  Alumni: 'Alumni',
 };
 
 export type StudentListResponse = {
@@ -97,6 +112,7 @@ export type LateRecord = {
   register_number?: string;
   enrollment_number?: string;
   section?: string;
+  year?: string | null;
   department?: string;
   batch?: string;
 };
@@ -106,16 +122,91 @@ export type LateListResponse = {
   meta: { page: number; limit: number; total: number };
 };
 
+export type LateSummaryRow = {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  year: string | null;
+  batch: string;
+  total: number;
+  morning: number;
+  morning_break: number;
+  lunch: number;
+  evening_break: number;
+  total_minutes: number;
+};
+
 export type AchievementMember = {
   student_id: number;
   name: string;
   register_number: string;
   section: string;
+  year: string | null;
   batch: string;
+};
+
+// ─── Attendance ───────────────────────────────────────────────
+export type RosterStudent = {
+  id: number;
+  name: string;
+  register_number: string;
+  enrollment_number: string;
+  section: string;
+  year: string | null;
+};
+
+export type AttendanceDaySection = {
+  year: string | null;
+  section: string | null;
+  present: number;
+  absent: number;
+  total: number;
+  absentees: { id: number; name: string; register_number: string }[];
+};
+
+export type AttendanceSummaryRow = {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  year: string | null;
+  days: number;
+  present: number;
+  absent: number;
+  percentage: number;
+};
+
+export type StudentAttendanceRow = {
+  att_date: string;
+  status: string;
+  year: string | null;
+  section: string | null;
+};
+
+export type AchievementSummaryRow = {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  year: string | null;
+  total: number;
+  wins: number;
+  participated: number;
+};
+
+export type EventType = 'hackathon' | 'presentation' | 'symposium' | 'other';
+
+export const EVENT_TYPE_LABELS: Record<string, string> = {
+  hackathon: 'Hackathon',
+  presentation: 'Presentation',
+  symposium: 'Symposium',
+  other: 'Other',
 };
 
 export type Achievement = {
   id: number;
+  event_type: string | null;
   title: string;
   venue: string | null;
   duration: string | null;
@@ -130,6 +221,42 @@ export type Achievement = {
 
 export type AchievementListResponse = {
   data: Achievement[];
+  meta: { page: number; limit: number; total: number };
+};
+
+export type PlacementType = 'on_campus' | 'off_campus';
+export type OfferType = 'full_time' | 'internship' | 'internship_ppo';
+
+export const PLACEMENT_TYPE_LABELS: Record<string, string> = {
+  on_campus: 'On-campus',
+  off_campus: 'Off-campus',
+};
+export const OFFER_TYPE_LABELS: Record<string, string> = {
+  full_time: 'Full-time',
+  internship: 'Internship',
+  internship_ppo: 'Internship + PPO',
+};
+
+export type Placement = {
+  id: number;
+  student_id: number;
+  company: string;
+  position: string | null;
+  package: string | null;
+  placement_type: string;
+  offer_type: string | null;
+  location: string | null;
+  placed_date: string | null;
+  created_by: string | null;
+  created_at: string;
+  name?: string;
+  register_number?: string;
+  section?: string;
+  batch?: string;
+};
+
+export type PlacementListResponse = {
+  data: Placement[];
   meta: { page: number; limit: number; total: number };
 };
 

@@ -5,6 +5,11 @@ dist
 coverage
 *.log
 .DS_Store
+
+# Secrets — never commit
+*firebase-adminsdk*.json
+*service-account*.json
+service-account.json
 frontend/node_modules
 frontend/dist
 backend/node_modules

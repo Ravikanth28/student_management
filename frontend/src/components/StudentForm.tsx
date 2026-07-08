@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Student } from '../types';
+import { BLOOD_GROUPS, YEAR_OPTIONS, YEAR_LABELS, type Student } from '../types';
 import { useToast } from './Toast';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -7,10 +7,11 @@ export type StudentDraft = Omit<Student, 'id' | 'created_at' | 'updated_at'>;
 
 const emptyStudent: StudentDraft = {
   name: '', register_number: '', enrollment_number: '', section: '',
-  department: '', batch: '', phone: '', parent_phone: '',
+  year: '', department: '', batch: '', phone: '', parent_phone: '',
   address: '', college_email: '', personal_email: '',
   // photo_url is managed via Cloudinary upload on the student profile page
   photo_url: '',
+  blood_group: '', dob: '',
 };
 
 type FieldMeta = {
@@ -21,6 +22,8 @@ type FieldMeta = {
   placeholder?: string;
   span?: boolean;
   textarea?: boolean;
+  options?: readonly string[];
+  optionLabels?: Record<string, string>;
 };
 
 // Grouped field definitions
@@ -31,6 +34,7 @@ const SECTIONS: { title: string; fields: FieldMeta[] }[] = [
       { key: 'register_number',  label: 'Register Number',    required: true, placeholder: 'e.g. 21CS001' },
       { key: 'enrollment_number', label: 'Enrollment Number', required: true, placeholder: 'e.g. EN21CS001' },
       { key: 'section',          label: 'Section',            required: true, placeholder: 'e.g. A' },
+      { key: 'year',             label: 'Current Year',       options: YEAR_OPTIONS, optionLabels: YEAR_LABELS, placeholder: 'Select year' },
       { key: 'department',       label: 'Department',         required: true, placeholder: 'e.g. Computer Science' },
       { key: 'batch',            label: 'Batch / Year',       required: true, placeholder: 'e.g. 2021–2025' },
     ],
@@ -39,6 +43,8 @@ const SECTIONS: { title: string; fields: FieldMeta[] }[] = [
     title: 'Personal Information',
     fields: [
       { key: 'name', label: 'Full Name', required: true, placeholder: 'Enter student full name' },
+      { key: 'dob',          label: 'Date of Birth',     type: 'date' },
+      { key: 'blood_group',  label: 'Blood Group',       options: BLOOD_GROUPS, placeholder: 'Select blood group' },
       { key: 'phone',        label: 'Phone Number',      required: true, type: 'tel', placeholder: '10-digit mobile number' },
       { key: 'parent_phone', label: 'Parent Phone',      required: true, type: 'tel', placeholder: "Parent's mobile number" },
       { key: 'address',      label: 'Address',           required: true, placeholder: 'Full residential address', textarea: true, span: true },
@@ -129,7 +135,7 @@ export function StudentForm({ initialValue, onSubmit, submitLabel }: Props) {
         <div key={title} className="form-section">
           <div className="form-section-title">{title}</div>
           <div className="form-grid-2">
-            {fields.map(({ key, label, required, type = 'text', placeholder, span, textarea }) => (
+            {fields.map(({ key, label, required, type = 'text', placeholder, span, textarea, options, optionLabels }) => (
               <div
                 key={key}
                 className="form-group"
@@ -139,7 +145,17 @@ export function StudentForm({ initialValue, onSubmit, submitLabel }: Props) {
                   {label}
                   {required ? <span className="required">*</span> : <span className="optional">(optional)</span>}
                 </label>
-                {textarea ? (
+                {options ? (
+                  <select
+                    id={`field-${key}`}
+                    className={`form-control${errors[key] ? ' error' : ''}`}
+                    value={(form[key] as string) ?? ''}
+                    onChange={e => set(key, e.target.value)}
+                  >
+                    <option value="">{placeholder ?? 'Select…'}</option>
+                    {options.map(opt => <option key={opt} value={opt}>{optionLabels?.[opt] ?? opt}</option>)}
+                  </select>
+                ) : textarea ? (
                   <textarea
                     id={`field-${key}`}
                     className={`form-control${errors[key] ? ' error' : ''}`}

@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useToast } from './Toast';
 import { AchievementForm } from './AchievementForm';
+import { PlacementForm } from './PlacementForm';
 import { proxiedImage } from '../lib/img';
 import { PERIOD_SCHEDULE, minutesLate } from '../lib/lateSchedule';
 import { LATE_PERIOD_LABELS, type LatePeriod, type Student } from '../types';
 
 type Props = { student: Student; onClose: () => void };
-type Step = 'choose' | 'late' | 'achievement' | 'late-done';
+type Step = 'choose' | 'late' | 'achievement' | 'placement' | 'late-done';
 
 const PERIODS: LatePeriod[] = ['morning', 'morning_break', 'lunch', 'evening_break'];
 
@@ -27,7 +28,17 @@ export function StudentActionModal({ student, onClose }: Props) {
   const [step, setStep] = useState<Step>('choose');
   const [period, setPeriod] = useState<LatePeriod | null>(null);
   const [time, setTime] = useState(() => new Date().toTimeString().slice(0, 5));
+  // Date of the late record — defaults to today (IST), but can be changed.
+  const [date, setDate] = useState(() => new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
+  // Live period timings (editable in Settings); fall back to the static defaults.
+  const [schedule, setSchedule] = useState<Record<string, string>>(PERIOD_SCHEDULE);
+
+  useEffect(() => {
+    api.get<{ schedule: Record<string, string> }>('/settings/period-schedule')
+      .then((res) => setSchedule(res.data.schedule))
+      .catch(() => { /* keep defaults */ });
+  }, []);
 
   const photo = proxiedImage(student.photo_url);
 
@@ -35,7 +46,7 @@ export function StudentActionModal({ student, onClose }: Props) {
     if (!period) return;
     setSaving(true);
     try {
-      await api.post('/late-records', { student_id: student.id, period, time });
+      await api.post('/late-records', { student_id: student.id, period, time, date });
       success('Marked late', `${student.name} — ${LATE_PERIOD_LABELS[period]} at ${time}`);
       setStep('late-done');
     } catch (err) {
@@ -72,12 +83,15 @@ export function StudentActionModal({ student, onClose }: Props) {
         {step === 'choose' && (
           <>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: 10 }}>What would you like to do?</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '18px 12px', gap: 8 }} onClick={() => setStep('late')}>
-                ⏰<span style={{ fontWeight: 700 }}>Late Comer</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('late')}>
+                ⏰<span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Late Comer</span>
               </button>
-              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '18px 12px', gap: 8 }} onClick={() => setStep('achievement')}>
-                🏆<span style={{ fontWeight: 700 }}>Achievement</span>
+              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('achievement')}>
+                🏆<span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Achievement</span>
+              </button>
+              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('placement')}>
+                💼<span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Placement</span>
               </button>
             </div>
             <div style={{ marginTop: 14, textAlign: 'right' }}>
@@ -100,16 +114,22 @@ export function StudentActionModal({ student, onClose }: Props) {
             <div style={{ marginTop: 14, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                  Date
+                </label>
+                <input type="date" className="form-control" value={date} onChange={(e) => setDate(e.target.value)} style={{ maxWidth: 170 }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
                   Coming (arrival) time
                 </label>
                 <input type="time" className="form-control" value={time} onChange={(e) => setTime(e.target.value)} style={{ maxWidth: 160 }} />
               </div>
               {period && (
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', paddingBottom: 8 }}>
-                  Scheduled <strong>{PERIOD_SCHEDULE[period]}</strong>
+                  Scheduled <strong>{schedule[period]}</strong>
                   {' · '}
-                  <span style={{ color: minutesLate(PERIOD_SCHEDULE[period], time) > 0 ? 'var(--amber)' : 'var(--green)', fontWeight: 700 }}>
-                    {minutesLate(PERIOD_SCHEDULE[period], time)} min late
+                  <span style={{ color: minutesLate(schedule[period], time) > 0 ? 'var(--amber)' : 'var(--green)', fontWeight: 700 }}>
+                    {minutesLate(schedule[period], time)} min late
                   </span>
                 </div>
               )}
@@ -146,6 +166,14 @@ export function StudentActionModal({ student, onClose }: Props) {
               onSuccess={onClose}
               onCancel={() => setStep('choose')}
             />
+          </>
+        )}
+
+        {/* Step: placement */}
+        {step === 'placement' && (
+          <>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 12 }}>Add placement</div>
+            <PlacementForm student={student} onSuccess={onClose} onCancel={() => setStep('choose')} />
           </>
         )}
       </div>

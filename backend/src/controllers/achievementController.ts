@@ -3,6 +3,7 @@ import { HttpError } from '../middleware/error.js';
 import { achievementCreateSchema } from '../validators/activityValidator.js';
 import * as achievementRepo from '../repositories/achievementRepository.js';
 import * as audit from '../services/auditService.js';
+import { notifyAllInBackground } from '../services/notificationService.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -31,7 +32,26 @@ export const createAchievement = asyncWrap(async (req, res) => {
     details: `${input.title} — ${input.result}${input.position ? ` (${input.position})` : ''}, ${member_ids.length} member(s)`,
   });
 
+  notifyAllInBackground(
+    {
+      title: '🏆 New achievement',
+      body: `${input.title} — ${input.result}${input.position ? ` (${input.position})` : ''}, ${member_ids.length} student(s)`,
+      data: { type: 'achievement', id: String(id) },
+    },
+    req.user?.username ?? null,
+  );
+
   return res.status(201).json({ message: 'Achievement added', id });
+});
+
+// GET /api/achievements/summary?year=&section=&q=
+export const achievementSummary = asyncWrap(async (req, res) => {
+  const rows = await achievementRepo.summarizeByStudent({
+    year: req.query.year ? String(req.query.year) : undefined,
+    section: req.query.section ? String(req.query.section) : undefined,
+    q: req.query.q ? String(req.query.q) : undefined,
+  });
+  return res.json({ data: rows });
 });
 
 // GET /api/achievements
@@ -41,6 +61,25 @@ export const listAchievements = asyncWrap(async (req, res) => {
   const q = req.query.q ? String(req.query.q) : undefined;
   const result = await achievementRepo.listAchievements(q, page, limit);
   return res.json(result);
+});
+
+// PUT /api/achievements/:id
+export const updateAchievement = asyncWrap(async (req, res) => {
+  const id = parseId(req.params.id);
+  const parsed = achievementCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid achievement', issues: parsed.error.flatten() });
+  }
+  const { member_ids, ...input } = parsed.data;
+  const ok = await achievementRepo.updateAchievement(id, input, member_ids);
+  if (!ok) throw new HttpError(404, 'Achievement not found');
+  audit.record(req, {
+    action: 'achievement.update',
+    entity: 'achievement',
+    entity_id: String(id),
+    details: `${input.title} — ${input.result}, ${member_ids.length} member(s)`,
+  });
+  return res.json({ message: 'Achievement updated' });
 });
 
 // DELETE /api/achievements/:id

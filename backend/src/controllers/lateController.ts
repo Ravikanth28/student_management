@@ -4,7 +4,9 @@ import { lateCreateSchema } from '../validators/activityValidator.js';
 import * as lateRepo from '../repositories/lateRepository.js';
 import * as studentRepo from '../repositories/studentRepository.js';
 import * as audit from '../services/auditService.js';
-import { PERIOD_SCHEDULE, computeMinutesLate } from '../config/lateSchedule.js';
+import { notifyAllInBackground } from '../services/notificationService.js';
+import { computeMinutesLate } from '../config/lateSchedule.js';
+import { getPeriodSchedule } from '../services/settingsService.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -34,15 +36,16 @@ export const createLateRecord = asyncWrap(async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid late record', issues: parsed.error.flatten() });
   }
-  const { student_id, period, time } = parsed.data;
+  const { student_id, period, time, date: bodyDate } = parsed.data;
 
   const student = await studentRepo.getStudentById(student_id);
   if (!student) throw new HttpError(404, 'Student not found');
 
-  const date = today();
+  const date = bodyDate ?? today();
   // Arrival time (from the device, IST), or server-side IST time as a fallback.
   const lateTime = time ?? new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16);
-  const scheduledTime = PERIOD_SCHEDULE[period] ?? null;
+  const schedule = await getPeriodSchedule();
+  const scheduledTime = schedule[period as keyof typeof schedule] ?? null;
   const minutesLate = scheduledTime ? computeMinutesLate(scheduledTime, lateTime) : null;
 
   try {
@@ -69,6 +72,15 @@ export const createLateRecord = asyncWrap(async (req, res) => {
     details: `${student.name} (${student.register_number}) — ${PERIOD_LABEL[period]} at ${lateTime}${minutesLate != null ? ` (${minutesLate} min late)` : ''}`,
   });
 
+  notifyAllInBackground(
+    {
+      title: '⏰ Late comer marked',
+      body: `${student.name} — ${PERIOD_LABEL[period]} at ${lateTime}${minutesLate != null ? ` (${minutesLate} min late)` : ''}`,
+      data: { type: 'late', studentId: String(student_id) },
+    },
+    req.user?.username ?? null,
+  );
+
   return res.status(201).json({ message: 'Marked late', student, period, scheduledTime, time: lateTime, minutesLate, date });
 });
 
@@ -81,11 +93,25 @@ export const listLateRecords = asyncWrap(async (req, res) => {
     period: req.query.period ? String(req.query.period) : undefined,
     section: req.query.section ? String(req.query.section) : undefined,
     batch: req.query.batch ? String(req.query.batch) : undefined,
+    year: req.query.year ? String(req.query.year) : undefined,
     q: req.query.q ? String(req.query.q) : undefined,
     page,
     limit,
   });
   return res.json(result);
+});
+
+// GET /api/late-records/summary  (per-student totals over a date range)
+export const lateSummary = asyncWrap(async (req, res) => {
+  const rows = await lateRepo.summarize({
+    from: req.query.from ? String(req.query.from) : undefined,
+    to: req.query.to ? String(req.query.to) : undefined,
+    section: req.query.section ? String(req.query.section) : undefined,
+    batch: req.query.batch ? String(req.query.batch) : undefined,
+    year: req.query.year ? String(req.query.year) : undefined,
+    q: req.query.q ? String(req.query.q) : undefined,
+  });
+  return res.json({ data: rows });
 });
 
 // DELETE /api/late-records/:id

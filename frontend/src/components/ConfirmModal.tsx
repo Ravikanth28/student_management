@@ -42,6 +42,7 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
   loading = false,
+  children,
 }: ConfirmModalProps) {
   // Close on backdrop click
   const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -70,6 +71,7 @@ export function ConfirmModal({
         </div>
         <h2 id="modal-title" className="modal-title">{title}</h2>
         <p id="modal-desc" className="modal-desc">{description}</p>
+        {children}
         <div className="modal-actions">
           <button
             className="btn btn-outline"

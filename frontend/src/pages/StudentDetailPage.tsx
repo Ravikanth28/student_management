@@ -7,7 +7,7 @@ import { useToast } from '../components/Toast';
 import { proxiedImage } from '../lib/img';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
-import { LATE_PERIOD_LABELS, type Student, type LateRecord, type Achievement } from '../types';
+import { LATE_PERIOD_LABELS, EVENT_TYPE_LABELS, PLACEMENT_TYPE_LABELS, OFFER_TYPE_LABELS, YEAR_LABELS, type Student, type LateRecord, type Achievement, type Placement } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
 function IconCamera() {
@@ -100,12 +100,15 @@ function Spinner() {
 }
 
 // ─── Field config ────────────────────────────────────────────
-const FIELDS: { key: keyof Student; label: string; icon?: React.ReactNode; span?: boolean }[] = [
+const FIELDS: { key: keyof Student; label: string; icon?: React.ReactNode; span?: boolean; isDate?: boolean; isYear?: boolean }[] = [
   { key: 'register_number',   label: 'Register Number' },
   { key: 'enrollment_number', label: 'Enrollment Number' },
   { key: 'department',        label: 'Department' },
   { key: 'batch',             label: 'Batch' },
   { key: 'section',           label: 'Section' },
+  { key: 'year',              label: 'Current Year', isYear: true },
+  { key: 'dob',               label: 'Date of Birth', isDate: true },
+  { key: 'blood_group',       label: 'Blood Group' },
   { key: 'phone',             label: 'Phone',         icon: <IconPhone /> },
   { key: 'parent_phone',      label: 'Parent Phone',  icon: <IconPhone /> },
   { key: 'college_email',     label: 'College Email', icon: <IconMail /> },
@@ -336,6 +339,7 @@ export function StudentDetailPage({ onLogout }: Props) {
   const [deleting, setDeleting]     = useState(false);
   const [lateRecords, setLateRecords] = useState<LateRecord[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [placements, setPlacements] = useState<Placement[]>([]);
   const [pendingDelete, setPendingDelete] = useState<{ kind: 'late' | 'achievement'; id: number; label: string } | null>(null);
   const [removing, setRemoving] = useState(false);
 
@@ -360,7 +364,8 @@ export function StudentDetailPage({ onLogout }: Props) {
     if (!id) return;
     api.get<{ data: LateRecord[] }>(`/students/${id}/late-records`).then((r) => setLateRecords(r.data.data)).catch(() => {});
     api.get<{ data: Achievement[] }>(`/students/${id}/achievements`).then((r) => setAchievements(r.data.data)).catch(() => {});
-  }, [id]);
+    if (staff) api.get<{ data: Placement[] }>(`/students/${id}/placements`).then((r) => setPlacements(r.data.data)).catch(() => {});
+  }, [id, staff]);
 
   useEffect(() => { loadActivity(); }, [loadActivity]);
 
@@ -462,8 +467,9 @@ export function StudentDetailPage({ onLogout }: Props) {
               </h2>
 
               <div className="profile-info-grid">
-                {FIELDS.map(({ key, label, icon, span }) => {
-                  const value = student[key];
+                {FIELDS.map(({ key, label, icon, span, isDate, isYear }) => {
+                  const raw = student[key];
+                  const value = isDate && raw ? fmtDate(String(raw)) : isYear && raw ? (YEAR_LABELS[String(raw)] ?? String(raw)) : raw;
                   return (
                     <div key={key} className="profile-field" style={span ? { gridColumn: '1 / -1' } : undefined}>
                       <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -541,41 +547,79 @@ export function StudentDetailPage({ onLogout }: Props) {
           {achievements.length === 0 ? (
             <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No achievements yet.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {achievements.map((a) => (
-                <div key={a.id} style={{ paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{a.title}</span>
-                      <span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>
-                        {a.result === 'winner' ? `Winner${a.position ? ` · ${a.position}` : ''}` : 'Participated'}
-                      </span>
-                    </div>
-                    {staff && (
-                      <button
-                        className="btn btn-danger btn-sm"
-                        type="button"
-                        title="Remove this achievement from the student"
-                        style={{ alignSelf: 'flex-start' }}
-                        onClick={() => setPendingDelete({ kind: 'achievement', id: a.id, label: a.title })}
-                      >
-                        <IconTrashPhoto />
-                      </button>
-                    )}
-                  </div>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-2)', marginTop: 3 }}>
-                    {[a.venue, a.duration, a.event_date, a.prize && `Prize: ${a.prize}`].filter(Boolean).join('  ·  ')}
-                  </div>
-                  {a.members.length > 1 && (
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-3)', marginTop: 4 }}>
-                      Team: {a.members.map((m) => m.name).join(', ')}
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr><th>Event Type</th><th>Event Name</th><th>Result</th><th>Position</th><th>Venue</th><th>Duration</th><th>Date</th><th>Prize</th><th>Team</th>{staff && <th>Action</th>}</tr>
+                </thead>
+                <tbody>
+                  {achievements.map((a) => (
+                    <tr key={a.id}>
+                      <td><span className="badge badge-navy">{EVENT_TYPE_LABELS[a.event_type ?? 'other'] ?? a.event_type}</span></td>
+                      <td style={{ fontWeight: 600 }}>{a.title}</td>
+                      <td>
+                        <span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>
+                          {a.result === 'winner' ? 'Winner' : 'Participated'}
+                        </span>
+                      </td>
+                      <td className="td-muted">{a.result === 'winner' ? (a.position ?? '—') : '—'}</td>
+                      <td className="td-muted">{a.venue ?? '—'}</td>
+                      <td className="td-muted">{a.duration ?? '—'}</td>
+                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{a.event_date ? fmtDate(a.event_date) : '—'}</td>
+                      <td className="td-muted">{a.prize ?? '—'}</td>
+                      <td className="td-muted" style={{ maxWidth: 220 }}>{a.members.map((m) => m.name).join(', ')}</td>
+                      {staff && (
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            type="button"
+                            title="Remove this achievement from the student"
+                            onClick={() => setPendingDelete({ kind: 'achievement', id: a.id, label: a.title })}
+                          >
+                            <IconTrashPhoto />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
+
+        {/* Placements (staff only) */}
+        {staff && (
+          <div className="card card-padded" style={{ marginTop: 16 }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12 }}>
+              Placements {placements.length > 0 && <span className="badge badge-green" style={{ marginLeft: 6 }}>{placements.length}</span>}
+            </h3>
+            {placements.length === 0 ? (
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No placements yet.</p>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Location</th><th>Date</th></tr>
+                  </thead>
+                  <tbody>
+                    {placements.map((p) => (
+                      <tr key={p.id}>
+                        <td style={{ fontWeight: 600 }}>{p.company}</td>
+                        <td className="td-muted">{p.position ?? '—'}</td>
+                        <td className="td-muted">{p.package ?? '—'}</td>
+                        <td><span className={`badge ${p.placement_type === 'on_campus' ? 'badge-green' : 'badge-blue'}`}>{PLACEMENT_TYPE_LABELS[p.placement_type] ?? p.placement_type}</span></td>
+                        <td className="td-muted">{p.offer_type ? OFFER_TYPE_LABELS[p.offer_type] ?? p.offer_type : '—'}</td>
+                        <td className="td-muted">{p.location ?? '—'}</td>
+                        <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{p.placed_date ? fmtDate(p.placed_date) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
         </>
       ) : (
         <div className="card card-padded">

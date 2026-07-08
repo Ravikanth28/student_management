@@ -78,6 +78,111 @@
 [data-theme="dark"] .btn-danger:hover:not(:disabled) { background: rgba(220,38,38,0.22); border-color: rgba(248,113,113,0.5); }
 [data-theme="dark"] .btn-outline:hover:not(:disabled) { background: var(--surface-2); border-color: #475569; }
 
+/* ─── Scanner ───────────────────────────────────────────────── */
+.scan-frame {
+  position: absolute;
+  inset: 16% 10%;
+  border: 2px solid rgba(255,255,255,0.85);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 0 0 100vmax rgba(0,0,0,0.28);
+}
+.scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #22d3ee, transparent);
+  box-shadow: 0 0 10px 2px rgba(34,211,238,0.7);
+  animation: scanline-move 2s ease-in-out infinite;
+}
+@keyframes scanline-move {
+  0%   { top: 4%; }
+  50%  { top: 92%; }
+  100% { top: 4%; }
+}
+/* Attendance daily register — a 2×2 grid of year boxes on desktop, 1 col on mobile. */
+.att-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 720px) {
+  .att-grid { grid-template-columns: 1fr; }
+}
+
+.scan-result {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.scan-result:last-child { border-bottom: none; }
+.scan-result:hover { background: var(--surface-2); }
+.scan-result-avatar {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.scan-result-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.scan-result-initial {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-2);
+}
+.scan-result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.scan-result-section {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--brand, #2563eb);
+  background: color-mix(in srgb, var(--brand, #2563eb) 14%, transparent);
+  vertical-align: middle;
+}
+
+.scan-status {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  text-align: center;
+  color: #e2f6ff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
 /* ─── Reset ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; }
 html { font-size: 15px; scroll-behavior: smooth; }
@@ -615,6 +720,8 @@ td {
 .badge-green { background: var(--green-light); color: var(--green); }
 .badge-amber { background: var(--amber-light); color: var(--amber); }
 .badge-gray  { background: var(--surface-2); color: var(--text-2); }
+.badge-red   { background: #fee2e2; color: #b91c1c; }
+[data-theme="dark"] .badge-red { color: #fca5a5; background: rgba(239,68,68,0.18); }
 
 /* ─── Pagination ────────────────────────────────────────────── */
 .pagination {

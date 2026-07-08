@@ -1,4 +1,4 @@
-import type { NextFunction, Request, RequestHandler, Response } from 'express';
+﻿import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { HttpError } from '../middleware/error.js';
 import { studentCreateSchema, studentListQuerySchema, studentSearchSchema, studentUpdateSchema } from '../validators/studentValidator.js';
 import * as service from '../services/studentService.js';
@@ -6,6 +6,7 @@ import * as audit from '../services/auditService.js';
 import * as studentRepo from '../repositories/studentRepository.js';
 import * as lateRepo from '../repositories/lateRepository.js';
 import * as achievementRepo from '../repositories/achievementRepository.js';
+import * as placementRepo from '../repositories/placementRepository.js';
 
 /** Wraps an async route handler so unhandled rejections go to Express error middleware */
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
@@ -34,7 +35,7 @@ export const listStudents = asyncWrap(async (req, res) => {
     department: parsed.data.department,
     batch: parsed.data.batch,
     section: parsed.data.section,
-    year: parsed.data.year,
+    year: parsed.data.year
   });
   return res.json(data);
 });
@@ -69,7 +70,7 @@ export const updateStudent = asyncWrap(async (req, res) => {
     action: 'student.update',
     entity: 'student',
     entity_id: String(student.id),
-    details: `${student.name} (${student.register_number}) — fields: ${Object.keys(parsed.data).join(', ')}`,
+    details: `${student.name} (${student.register_number}) ΓÇö fields: ${Object.keys(parsed.data).join(', ')}`,
   });
   return res.json({ message: 'Student updated', student });
 });
@@ -99,6 +100,29 @@ export const getStats = asyncWrap(async (_req, res) => {
   return res.json(stats);
 });
 
+// GET /api/students/year-counts  (superadmin ΓÇö promotion preview + undo info)
+export const getYearCounts = asyncWrap(async (_req, res) => {
+  const [counts, lastPromotion] = await Promise.all([
+    service.getYearCounts(),
+    service.getLastPromotion(),
+  ]);
+  return res.json({ counts, lastPromotion });
+});
+
+// POST /api/students/promote  (superadmin ΓÇö year rollover)
+export const promoteStudents = asyncWrap(async (req, res) => {
+  const promoted = await service.promoteStudents(req.user?.username ?? null);
+  audit.record(req, { action: 'student.promote', entity: 'student', details: `Year rollover ΓÇö ${promoted} student(s) promoted` });
+  return res.json({ promoted });
+});
+
+// POST /api/students/promote/revert  (superadmin ΓÇö undo last rollover)
+export const revertPromotion = asyncWrap(async (req, res) => {
+  const { reverted } = await service.revertLastPromotion();
+  audit.record(req, { action: 'student.promote.revert', entity: 'student', details: `Reverted rollover ΓÇö ${reverted} student(s) restored` });
+  return res.json({ reverted });
+});
+
 // GET /api/students/lookup?code=<scanned enrollment/register number>
 export const lookupStudent = asyncWrap(async (req, res) => {
   const code = String(req.query.code ?? '').trim();
@@ -120,5 +144,11 @@ export const getStudentLateRecords = asyncWrap(async (req, res) => {
 export const getStudentAchievements = asyncWrap(async (req, res) => {
   const achievements = await achievementRepo.listAchievementsByStudent(parseId(req.params.id));
   return res.json({ data: achievements });
+});
+
+// GET /api/students/:id/placements
+export const getStudentPlacements = asyncWrap(async (req, res) => {
+  const placements = await placementRepo.listByStudent(parseId(req.params.id));
+  return res.json({ data: placements });
 });
 

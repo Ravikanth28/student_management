@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { pool } from '../config/db.js';
 import type { StudentInput, StudentListResult, StudentRecord } from '../types/student.js';
+import { toDateString } from '../lib/studentFields.js';
 
 type StudentRow = RowDataPacket & StudentRecord;
 
@@ -21,7 +22,7 @@ function rowToStudent(row: StudentRow): StudentRecord {
     personal_email: row.personal_email ?? undefined,
     photo_url: row.photo_url ?? undefined,
     blood_group: row.blood_group ?? undefined,
-    dob: row.dob ?? undefined,
+    dob: toDateString(row.dob),
     created_at: row.created_at,
     updated_at: row.updated_at
   };
@@ -70,13 +71,14 @@ export async function getStudentById(id: number): Promise<StudentRecord | null> 
 export async function createStudent(input: StudentInput): Promise<StudentRecord> {
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO students
-      (name, register_number, enrollment_number, section, department, batch, phone, parent_phone, address, college_email, personal_email, photo_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (name, register_number, enrollment_number, section, year, department, batch, phone, parent_phone, address, college_email, personal_email, photo_url, blood_group, dob)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.name,
       input.register_number,
       input.enrollment_number,
       input.section,
+      input.year ?? null,
       input.department,
       input.batch,
       input.phone,
@@ -84,7 +86,9 @@ export async function createStudent(input: StudentInput): Promise<StudentRecord>
       input.address,
       input.college_email ?? null,
       input.personal_email ?? null,
-      input.photo_url ?? null
+      input.photo_url ?? null,
+      input.blood_group ?? null,
+      input.dob ?? null
     ]
   );
 
@@ -118,12 +122,12 @@ export async function searchStudents(term: string, limit = 6): Promise<StudentRe
   const [rows] = await pool.query<StudentRow[]>(
     `SELECT *
      FROM students
-     WHERE name LIKE ? OR register_number LIKE ?
+     WHERE name LIKE ? OR register_number LIKE ? OR enrollment_number LIKE ?
      ORDER BY
-       CASE WHEN register_number LIKE ? THEN 0 ELSE 1 END,
+       CASE WHEN register_number = ? OR enrollment_number = ? THEN 0 ELSE 1 END,
        name ASC
      LIMIT ?`,
-    [like, like, like, limit]
+    [like, like, like, term, term, limit]
   );
 
   return rows.map(rowToStudent);
@@ -147,13 +151,14 @@ export async function getStudentByCode(code: string): Promise<StudentRecord | nu
 }
 
 export interface FilterParams {
-  name?:       string;
-  department?: string;
-  batch?:      string;
-  section?:    string;
-  year?:       string;
-  page?:       number;
-  limit?:      number;
+  name?:        string;
+  department?:  string;
+  batch?:       string;
+  section?:     string;
+  year?:        string;
+  blood_group?: string;
+  page?:        number;
+  limit?:       number;
 }
 
 export async function filterStudents(
@@ -178,6 +183,10 @@ export async function filterStudents(
   if (params.section) {
     conditions.push('section = ?');
     values.push(params.section);
+  }
+  if (params.blood_group) {
+    conditions.push('blood_group = ?');
+    values.push(params.blood_group);
   }
   if (params.year) {
     conditions.push('year = ?');
@@ -204,14 +213,17 @@ export async function filterStudents(
   };
 }
 
-/** Returns distinct department, batch, year & section values for filter dropdowns */
-export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[]; years: string[]; sections: string[] }> {
-  const [[deptRows], [batchRows], [yearRows], [sectionRows]] = await Promise.all([
+/** Returns distinct department, batch, blood-group, year & section values for filter dropdowns */
+export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[]; bloodGroups: string[]; years: string[]; sections: string[] }> {
+  const [[deptRows], [batchRows], [bloodRows], [yearRows], [sectionRows]] = await Promise.all([
     pool.query<Array<{ department: string } & RowDataPacket>>(
       'SELECT DISTINCT department FROM students ORDER BY department ASC'
     ),
     pool.query<Array<{ batch: string } & RowDataPacket>>(
       'SELECT DISTINCT batch FROM students ORDER BY batch DESC'
+    ),
+    pool.query<Array<{ blood_group: string } & RowDataPacket>>(
+      "SELECT DISTINCT blood_group FROM students WHERE blood_group IS NOT NULL AND blood_group <> '' ORDER BY blood_group ASC"
     ),
     pool.query<Array<{ year: string } & RowDataPacket>>(
       "SELECT DISTINCT year FROM students WHERE year IS NOT NULL AND year != '' ORDER BY year ASC"
@@ -223,9 +235,141 @@ export async function getFilterMeta(): Promise<{ departments: string[]; batches:
   return {
     departments: (deptRows as Array<{ department: string } & RowDataPacket>).map(r => r.department),
     batches:     (batchRows as Array<{ batch: string } & RowDataPacket>).map(r => r.batch),
+    bloodGroups: (bloodRows as Array<{ blood_group: string } & RowDataPacket>).map(r => r.blood_group),
     years:       (yearRows as Array<{ year: string } & RowDataPacket>).map(r => r.year),
     sections:    (sectionRows as Array<{ section: string } & RowDataPacket>).map(r => r.section),
   };
+}
+
+/** Students whose date of birth falls on the given month/day (for the birthday widget). */
+export async function getBirthdaysByDay(month: number, day: number): Promise<StudentRecord[]> {
+  const [rows] = await pool.query<StudentRow[]>(
+    `SELECT * FROM students
+     WHERE dob IS NOT NULL AND MONTH(dob) = ? AND DAYOFMONTH(dob) = ?
+     ORDER BY name ASC`,
+    [month, day]
+  );
+  return rows.map(rowToStudent);
+}
+
+/** Current count of students in each year value (for the promotion preview). */
+export async function getYearCounts(): Promise<Record<string, number>> {
+  const [rows] = await pool.query<Array<{ year: string | null; c: number } & RowDataPacket>>(
+    'SELECT year, COUNT(*) AS c FROM students GROUP BY year'
+  );
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.year ?? 'unset'] = Number(r.c);
+  return out;
+}
+
+export interface LastPromotion {
+  id: number;
+  created_by: string | null;
+  promoted_count: number;
+  created_at: string;
+}
+
+/** The most recent promotion that hasn't been reverted (for the undo button). */
+export async function getLastPromotion(): Promise<LastPromotion | null> {
+  const [rows] = await pool.query<Array<LastPromotion & RowDataPacket>>(
+    `SELECT id, created_by, promoted_count, created_at
+       FROM promotion_batches WHERE reverted = 0
+       ORDER BY id DESC LIMIT 1`
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Year rollover: IΓåÆII, IIΓåÆIII, IIIΓåÆIV, IVΓåÆAlumni. Snapshots each changed
+ * student's previous year into promotion_changes so it can be undone precisely
+ * (genuine Alumni are never touched). Returns the number of rows changed.
+ */
+export async function promoteYears(createdBy: string | null): Promise<number> {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [affected] = await conn.query<StudentRow[]>(
+      "SELECT id, year FROM students WHERE year IN ('1','2','3','4')"
+    );
+    if (affected.length === 0) {
+      await conn.commit();
+      return 0;
+    }
+
+    const [batchRes] = await conn.query<ResultSetHeader>(
+      'INSERT INTO promotion_batches (created_by, promoted_count) VALUES (?, ?)',
+      [createdBy, affected.length]
+    );
+    const batchId = batchRes.insertId;
+
+    await conn.query(
+      'INSERT INTO promotion_changes (batch_id, student_id, from_year) VALUES ?',
+      [affected.map((r) => [batchId, r.id, r.year])]
+    );
+
+    await conn.query(
+      `UPDATE students
+         SET year = CASE year
+           WHEN '1' THEN '2'
+           WHEN '2' THEN '3'
+           WHEN '3' THEN '4'
+           WHEN '4' THEN 'Alumni'
+           ELSE year END
+       WHERE year IN ('1','2','3','4')`
+    );
+
+    await conn.commit();
+    return affected.length;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/** Undo the most recent (non-reverted) promotion, restoring each student's prior year. */
+export async function revertLastPromotion(): Promise<{ reverted: number }> {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [batches] = await conn.query<Array<{ id: number } & RowDataPacket>>(
+      'SELECT id FROM promotion_batches WHERE reverted = 0 ORDER BY id DESC LIMIT 1'
+    );
+    const batchId = batches[0]?.id;
+    if (!batchId) {
+      await conn.commit();
+      return { reverted: 0 };
+    }
+
+    const [changes] = await conn.query<Array<{ student_id: number; from_year: string | null } & RowDataPacket>>(
+      'SELECT student_id, from_year FROM promotion_changes WHERE batch_id = ?',
+      [batchId]
+    );
+    for (const c of changes) {
+      await conn.query('UPDATE students SET year = ? WHERE id = ?', [c.from_year, c.student_id]);
+    }
+
+    await conn.query('UPDATE promotion_batches SET reverted = 1, reverted_at = CURRENT_TIMESTAMP WHERE id = ?', [batchId]);
+
+    await conn.commit();
+    return { reverted: changes.length };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/** All students that have a date of birth (used to compute upcoming birthdays). */
+export async function getStudentsWithDob(): Promise<StudentRecord[]> {
+  const [rows] = await pool.query<StudentRow[]>(
+    "SELECT * FROM students WHERE dob IS NOT NULL ORDER BY name ASC"
+  );
+  return rows.map(rowToStudent);
 }
 
 export async function getDashboardStats(): Promise<{
@@ -257,7 +401,6 @@ export async function getDashboardStats(): Promise<{
   };
 }
 
-
 /** Returns distinct sections that exist within a filtered set of students.
  *  Used by the frontend to make the Section dropdown context-aware. */
 export async function getFilteredSections(
@@ -274,16 +417,4 @@ export async function getFilteredSections(
     values
   );
   return rows.map(r => r.section);
-}
-
-/** Returns count of students per year value — used for the Academic Year Promotion panel. */
-export async function getYearStats(): Promise<Record<string, number>> {
-  const [rows] = await pool.query<Array<{ year: string; cnt: number } & RowDataPacket>>(
-    `SELECT COALESCE(year, '') AS year, COUNT(*) AS cnt FROM students GROUP BY year`
-  );
-  const out: Record<string, number> = {};
-  for (const row of rows) {
-    out[row.year || 'No Year'] = Number(row.cnt);
-  }
-  return out;
 }

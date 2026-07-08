@@ -7,6 +7,9 @@ import {
   createStudent,
   deleteStudent,
   getStats,
+  getYearCounts,
+  promoteStudents,
+  revertPromotion,
   getStudentById,
   listStudents,
   searchStudents,
@@ -14,15 +17,16 @@ import {
   lookupStudent,
   getStudentLateRecords,
   getStudentAchievements,
+  getStudentPlacements,
 } from '../controllers/studentController.js';
 import { importStudents, importPhotosFromDrive, getImportProgress, getImportHistory, deleteImportHistory } from '../controllers/importController.js';
 import { uploadStudentPhoto, deleteStudentPhoto } from '../controllers/photoController.js';
-import { filterStudents, exportStudents, getFilterMeta, getFilteredSections, getYearStats } from '../controllers/filterController.js';
+import { filterStudents, exportStudents, getFilterMeta, getFilteredSections, getBirthdays, getUpcomingBirthdays } from '../controllers/filterController.js';
 import { logger } from '../config/logger.js';
 
 /**
  * Multer for bulk import: 15 MB, memory storage, NO fileFilter restriction.
- * XLSX files are ZIP archives — browsers may send them as:
+ * XLSX files are ZIP archives ΓÇö browsers may send them as:
  *   application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
  *   application/zip
  *   application/octet-stream
@@ -56,23 +60,28 @@ studentRoutes.use(requireAuth);
 
 // Staff = superadmin + admin. View-only "user" role can read but not mutate.
 const staff = requireRole('superadmin', 'admin');
+const superadmin = requireRole('superadmin');
 
-// ── Aggregate / special routes (MUST be before /:id) ──────────
+// ΓöÇΓöÇ Aggregate / special routes (MUST be before /:id) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 studentRoutes.get('/stats',   getStats);
+studentRoutes.get('/year-counts',      superadmin, getYearCounts);
+studentRoutes.post('/promote',         superadmin, promoteStudents);
+studentRoutes.post('/promote/revert',  superadmin, revertPromotion);
 studentRoutes.get('/lookup',  staff, lookupStudent);           // scanner
 studentRoutes.get('/search',  searchStudents);
 studentRoutes.get('/filter',  filterStudents);
+studentRoutes.get('/birthdays/upcoming', getUpcomingBirthdays);
+studentRoutes.get('/birthdays', getBirthdays);
 studentRoutes.get('/export',  exportStudents);
 studentRoutes.get('/meta',    getFilterMeta);
 studentRoutes.get('/meta/sections', getFilteredSections);
-studentRoutes.get('/year-stats', staff, getYearStats);
 studentRoutes.post('/import', staff, importUpload, importStudents);
 studentRoutes.post('/import-photos-drive', staff, importPhotosFromDrive);
 studentRoutes.get('/import-history', staff, getImportHistory);
 studentRoutes.delete('/import-history/:id', staff, deleteImportHistory);
 studentRoutes.get('/import-progress/:id', staff, getImportProgress);
 
-// ── CRUD ──────────────────────────────────────────────────────
+// ΓöÇΓöÇ CRUD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 studentRoutes.get('/',         listStudents);
 studentRoutes.post('/',        staff, createStudent);
 studentRoutes.get('/:id',      getStudentById);
@@ -80,7 +89,8 @@ studentRoutes.put('/:id',      staff, updateStudent);
 studentRoutes.delete('/:id',   staff, deleteStudent);
 studentRoutes.get('/:id/late-records',  getStudentLateRecords);
 studentRoutes.get('/:id/achievements',  getStudentAchievements);
+studentRoutes.get('/:id/placements',     staff, getStudentPlacements);
 
-// ── Photo (Cloudinary) ────────────────────────────────────────
+// ΓöÇΓöÇ Photo (Cloudinary) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 studentRoutes.post('/:id/photo',   staff, uploadMiddleware, uploadStudentPhoto);
 studentRoutes.delete('/:id/photo', staff, deleteStudentPhoto);
