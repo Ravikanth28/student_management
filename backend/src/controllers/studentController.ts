@@ -33,7 +33,8 @@ export const listStudents = asyncWrap(async (req, res) => {
     name: parsed.data.q,
     department: parsed.data.department,
     batch: parsed.data.batch,
-    section: parsed.data.section
+    section: parsed.data.section,
+    year: parsed.data.year,
   });
   return res.json(data);
 });

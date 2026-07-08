@@ -3,6 +3,7 @@ export type StudentInput = {
   register_number: string;
   enrollment_number: string;
   section: string;
+  year?: string;
   department: string;
   batch: string;
   phone: string;
@@ -11,6 +12,8 @@ export type StudentInput = {
   college_email?: string;
   personal_email?: string;
   photo_url?: string;
+  blood_group?: string;
+  dob?: string;
 };
 
 export type StudentRecord = StudentInput & {

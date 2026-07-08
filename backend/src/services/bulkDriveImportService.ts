@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 import { pool } from '../config/db.js';
 import { env } from '../config/env.js';
 import { uploadToCloudinary } from '../middleware/upload.js';
+import axios from 'axios';
 
 export const importProgressMap = new Map<string, { current: number, total: number, status: string }>();
 
@@ -119,13 +120,18 @@ export async function processDrivePhotos(folderUrl: string, importId: string) {
     }
 
     try {
-      // 5. Download file from Google Drive as arraybuffer
-      const fileRes = await drive.files.get(
-        { fileId: file.id, alt: 'media' },
-        { responseType: 'arraybuffer' }
+      // 5. Download file from Google Drive as arraybuffer using axios to avoid 403 API Key restrictions
+      const downloadRes = await axios.get<ArrayBuffer>(
+        `https://drive.google.com/uc?export=download&id=${file.id}`,
+        {
+          responseType: 'arraybuffer',
+          timeout: 25000,
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StudentPortal/1.0)' },
+          maxRedirects: 5,
+        }
       );
 
-      const buffer = Buffer.from(fileRes.data as ArrayBuffer);
+      const buffer = Buffer.from(downloadRes.data);
 
       // 6. Upload to Cloudinary using existing function
       const cloudinaryUrl = await uploadToCloudinary(buffer, matchedStudent.enrollment_number || String(matchedStudent.id));
@@ -149,10 +155,16 @@ export async function processDrivePhotos(folderUrl: string, importId: string) {
       });
     } catch (err: any) {
       skipped++;
+      let msg = err.message || 'Error downloading or uploading image.';
+      if (err.response?.status === 403) {
+        msg = 'Access denied (403). Check if the file is fully public.';
+      } else if (err.response?.status === 404) {
+        msg = 'File not found (404).';
+      }
       errors.push({
         row: i + 1,
         register_number: fileName,
-        reason: err.message || 'Error downloading or uploading image.'
+        reason: msg
       });
     }
   }

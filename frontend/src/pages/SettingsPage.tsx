@@ -109,6 +109,9 @@ export function SettingsPage({ onLogout }: Props) {
   const [error, setError] = useState(false);
   const [showClear, setShowClear] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [yearStats, setYearStats] = useState<Record<string, number> | null>(null);
+  const [promoting, setPromoting] = useState(false);
+  const [showPromoteConfirm, setShowPromoteConfirm] = useState(false);
 
   const handleClearCache = async () => {
     setClearing(true);
@@ -123,8 +126,27 @@ export function SettingsPage({ onLogout }: Props) {
       .then(res => { if (active) setStatus(res.data); })
       .catch(() => { if (active) setError(true); })
       .finally(() => { if (active) setLoading(false); });
+    // Fetch year stats for promotion panel
+    api.get<Record<string, number>>('/students/year-stats')
+      .then(res => { if (active) setYearStats(res.data); })
+      .catch(() => {});
     return () => { active = false; };
   }, []);
+
+  const handlePromote = async () => {
+    setPromoting(true);
+    try {
+      await api.post('/students/promote-year');
+      const res = await api.get<Record<string, number>>('/students/year-stats');
+      setYearStats(res.data);
+      success('Promotion complete', 'All students have been moved up one year.');
+    } catch {
+      success('Not available', 'Promotion feature requires backend support.');
+    } finally {
+      setPromoting(false);
+      setShowPromoteConfirm(false);
+    }
+  };
 
   const username = usernameFromToken(token);
   const dbConnected = status?.database.connected ?? false;
@@ -198,6 +220,34 @@ export function SettingsPage({ onLogout }: Props) {
             </div>
           </div>
 
+          {/* ── Academic Year Promotion ── */}
+          <div className="card card-padded">
+            <h3 style={cardTitle}>Academic Year — Promotion</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: 16 }}>
+              Move every student up one year: I → II → III → IV → Alumni. Run this once at the start of a new academic year.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 12, marginBottom: 20 }}>
+              {['I Year', 'II Year', 'III Year', 'IV Year', 'Alumni', 'No Year'].map(label => {
+                const key = label === 'No Year' ? 'No Year' : label;
+                const count = yearStats ? (yearStats[key] ?? 0) : '…';
+                return (
+                  <div key={label} style={{ padding: '12px 14px', background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{count}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              className="btn btn-primary"
+              style={{ minWidth: 200 }}
+              disabled={promoting}
+              onClick={() => setShowPromoteConfirm(true)}
+            >
+              {promoting ? 'Promoting…' : 'Promote all students'}
+            </button>
+          </div>
+
           {/* ── Feature status ── */}
           <div className="card card-padded">
             <h3 style={cardTitle}>Feature Status</h3>
@@ -248,6 +298,17 @@ export function SettingsPage({ onLogout }: Props) {
           </div>
 
         </div>
+      )}
+
+      {showPromoteConfirm && (
+        <ConfirmModal
+          title="Promote all students?"
+          description="This will move every student up one academic year (I → II → III → IV → Alumni). This action cannot be undone. Run this only at the start of a new academic year."
+          confirmLabel="Promote all students"
+          onConfirm={handlePromote}
+          onCancel={() => setShowPromoteConfirm(false)}
+          loading={promoting}
+        />
       )}
 
       {showClear && (

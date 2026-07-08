@@ -11,6 +11,7 @@ function rowToStudent(row: StudentRow): StudentRecord {
     register_number: row.register_number,
     enrollment_number: row.enrollment_number,
     section: row.section,
+    year: row.year ?? undefined,
     department: row.department,
     batch: row.batch,
     phone: row.phone,
@@ -19,6 +20,8 @@ function rowToStudent(row: StudentRow): StudentRecord {
     college_email: row.college_email ?? undefined,
     personal_email: row.personal_email ?? undefined,
     photo_url: row.photo_url ?? undefined,
+    blood_group: row.blood_group ?? undefined,
+    dob: row.dob ?? undefined,
     created_at: row.created_at,
     updated_at: row.updated_at
   };
@@ -148,6 +151,7 @@ export interface FilterParams {
   department?: string;
   batch?:      string;
   section?:    string;
+  year?:       string;
   page?:       number;
   limit?:      number;
 }
@@ -175,6 +179,10 @@ export async function filterStudents(
     conditions.push('section = ?');
     values.push(params.section);
   }
+  if (params.year) {
+    conditions.push('year = ?');
+    values.push(params.year);
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const page  = params.page  ?? 1;
@@ -196,19 +204,27 @@ export async function filterStudents(
   };
 }
 
-/** Returns distinct department & batch values for filter dropdowns */
-export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[] }> {
-  const [[deptRows], [batchRows]] = await Promise.all([
+/** Returns distinct department, batch, year & section values for filter dropdowns */
+export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[]; years: string[]; sections: string[] }> {
+  const [[deptRows], [batchRows], [yearRows], [sectionRows]] = await Promise.all([
     pool.query<Array<{ department: string } & RowDataPacket>>(
       'SELECT DISTINCT department FROM students ORDER BY department ASC'
     ),
     pool.query<Array<{ batch: string } & RowDataPacket>>(
       'SELECT DISTINCT batch FROM students ORDER BY batch DESC'
     ),
+    pool.query<Array<{ year: string } & RowDataPacket>>(
+      "SELECT DISTINCT year FROM students WHERE year IS NOT NULL AND year != '' ORDER BY year ASC"
+    ),
+    pool.query<Array<{ section: string } & RowDataPacket>>(
+      "SELECT DISTINCT section FROM students WHERE section IS NOT NULL AND section != '' ORDER BY section ASC"
+    ),
   ]);
   return {
     departments: (deptRows as Array<{ department: string } & RowDataPacket>).map(r => r.department),
     batches:     (batchRows as Array<{ batch: string } & RowDataPacket>).map(r => r.batch),
+    years:       (yearRows as Array<{ year: string } & RowDataPacket>).map(r => r.year),
+    sections:    (sectionRows as Array<{ section: string } & RowDataPacket>).map(r => r.section),
   };
 }
 
@@ -241,3 +257,33 @@ export async function getDashboardStats(): Promise<{
   };
 }
 
+
+/** Returns distinct sections that exist within a filtered set of students.
+ *  Used by the frontend to make the Section dropdown context-aware. */
+export async function getFilteredSections(
+  params: Pick<FilterParams, 'department' | 'batch' | 'year'>
+): Promise<string[]> {
+  const conditions: string[] = ["section IS NOT NULL", "section != ''"];
+  const values: unknown[] = [];
+  if (params.department) { conditions.push('department = ?'); values.push(params.department); }
+  if (params.batch)      { conditions.push('batch = ?');      values.push(params.batch); }
+  if (params.year)       { conditions.push('year = ?');       values.push(params.year); }
+  const where = `WHERE ${conditions.join(' AND ')}`;
+  const [rows] = await pool.query<Array<{ section: string } & RowDataPacket>>(
+    `SELECT DISTINCT section FROM students ${where} ORDER BY section ASC`,
+    values
+  );
+  return rows.map(r => r.section);
+}
+
+/** Returns count of students per year value — used for the Academic Year Promotion panel. */
+export async function getYearStats(): Promise<Record<string, number>> {
+  const [rows] = await pool.query<Array<{ year: string; cnt: number } & RowDataPacket>>(
+    `SELECT COALESCE(year, '') AS year, COUNT(*) AS cnt FROM students GROUP BY year`
+  );
+  const out: Record<string, number> = {};
+  for (const row of rows) {
+    out[row.year || 'No Year'] = Number(row.cnt);
+  }
+  return out;
+}

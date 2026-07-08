@@ -43,6 +43,7 @@ export const studentListQuerySchema = z.object({
   department: z.string().trim().max(120).optional(),
   batch: z.string().trim().max(40).optional(),
   section: z.string().trim().max(40).optional(),
+  year: z.string().trim().max(40).optional(),
   page: z.preprocess((value) => Number(value ?? 1), z.number().int().min(1)).default(1),
   limit: z.preprocess((value) => Number(value ?? 10), z.number().int().min(1).max(100)).default(10)
 });

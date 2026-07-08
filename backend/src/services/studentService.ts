@@ -95,6 +95,16 @@ export async function filterStudents(
   return repository.filterStudents(params);
 }
 
-export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[] }> {
+export async function getFilterMeta(): Promise<{ departments: string[]; batches: string[]; years: string[]; sections: string[] }> {
   return repository.getFilterMeta();
+}
+
+export async function getFilteredSections(
+  params: { department?: string; batch?: string; year?: string }
+): Promise<string[]> {
+  return repository.getFilteredSections(params);
+}
+
+export async function getYearStats(): Promise<Record<string, number>> {
+  return repository.getYearStats();
 }

@@ -19,6 +19,7 @@ export const filterStudents = asyncWrap(async (req, res) => {
     department: req.query.department ? String(req.query.department) : undefined,
     batch:      req.query.batch      ? String(req.query.batch)      : undefined,
     section:    req.query.section    ? String(req.query.section)    : undefined,
+    year:       req.query.year       ? String(req.query.year)       : undefined,
     page:       parseOptionalInt(req.query.page,  1),
     limit:      parseOptionalInt(req.query.limit, 50),
   });
@@ -30,6 +31,23 @@ export const getFilterMeta = asyncWrap(async (_req, res) => {
   const meta = await service.getFilterMeta();
   return res.json(meta);
 });
+
+// ─── GET /api/students/meta/sections?department=&batch=&year= ─
+export const getFilteredSections = asyncWrap(async (req, res) => {
+  const sections = await service.getFilteredSections({
+    department: req.query.department ? String(req.query.department) : undefined,
+    batch:      req.query.batch      ? String(req.query.batch)      : undefined,
+    year:       req.query.year       ? String(req.query.year)       : undefined,
+  });
+  return res.json({ sections });
+});
+
+// ─── GET /api/students/year-stats ─────────────────────────────
+export const getYearStats = asyncWrap(async (_req, res) => {
+  const stats = await service.getYearStats();
+  return res.json(stats);
+});
+
 
 // ─── GET /api/students/export?format=csv|xlsx&... ────────────
 export const exportStudents = asyncWrap(async (req, res) => {
@@ -44,6 +62,7 @@ export const exportStudents = asyncWrap(async (req, res) => {
     department: req.query.department ? String(req.query.department) : undefined,
     batch:      req.query.batch      ? String(req.query.batch)      : undefined,
     section:    req.query.section    ? String(req.query.section)    : undefined,
+    year:       req.query.year       ? String(req.query.year)       : undefined,
     page:  1,
     limit: 10_000, // practical maximum
   });

@@ -17,7 +17,7 @@ import {
 } from '../controllers/studentController.js';
 import { importStudents, importPhotosFromDrive, getImportProgress, getImportHistory, deleteImportHistory } from '../controllers/importController.js';
 import { uploadStudentPhoto, deleteStudentPhoto } from '../controllers/photoController.js';
-import { filterStudents, exportStudents, getFilterMeta } from '../controllers/filterController.js';
+import { filterStudents, exportStudents, getFilterMeta, getFilteredSections, getYearStats } from '../controllers/filterController.js';
 import { logger } from '../config/logger.js';
 
 /**
@@ -64,6 +64,8 @@ studentRoutes.get('/search',  searchStudents);
 studentRoutes.get('/filter',  filterStudents);
 studentRoutes.get('/export',  exportStudents);
 studentRoutes.get('/meta',    getFilterMeta);
+studentRoutes.get('/meta/sections', getFilteredSections);
+studentRoutes.get('/year-stats', staff, getYearStats);
 studentRoutes.post('/import', staff, importUpload, importStudents);
 studentRoutes.post('/import-photos-drive', staff, importPhotosFromDrive);
 studentRoutes.get('/import-history', staff, getImportHistory);

@@ -89,19 +89,39 @@ export function StudentsPage({ onLogout }: Props) {
   const [department, setDepartment] = useState('');
   const [batch, setBatch]       = useState('');
   const [section, setSection]   = useState('');
+  const [year, setYear]         = useState('');
   const [page, setPage]         = useState(1);
   const [loading, setLoading]   = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [meta, setMeta]         = useState<{ departments: string[]; batches: string[] }>({ departments: [], batches: [] });
+  const [meta, setMeta]         = useState<{ departments: string[]; batches: string[]; years: string[]; sections: string[] }>({ departments: [], batches: [], years: [], sections: [] });
+  const [dynamicSections, setDynamicSections] = useState<string[]>([]);
   const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch filter metadata once
   useEffect(() => {
-    api.get('/students/meta').then(res => setMeta(res.data)).catch(() => {});
+    api.get('/students/meta').then(res => {
+      setMeta(res.data);
+      setDynamicSections(res.data.sections ?? []);
+    }).catch(() => {});
   }, []);
+
+  // Re-fetch sections whenever dept/batch/year filter changes
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (department) params.department = department;
+    if (batch)      params.batch = batch;
+    if (year)       params.year = year;
+    api.get<{ sections: string[] }>('/students/meta/sections', { params })
+      .then(res => {
+        setDynamicSections(res.data.sections ?? []);
+        // Reset section if it's no longer valid in the new filtered set
+        if (section && !res.data.sections.includes(section)) setSection('');
+      })
+      .catch(() => {});
+  }, [department, batch, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch students whenever page or query changes (debounced for query)
   useEffect(() => {
@@ -117,7 +137,8 @@ export function StudentsPage({ onLogout }: Props) {
             q: q.trim() || undefined,
             department: d || undefined,
             batch: b || undefined,
-            section: s || undefined
+            section: s || undefined,
+            year: year || undefined,
           },
         });
         if (active) setData(res.data);
@@ -132,7 +153,7 @@ export function StudentsPage({ onLogout }: Props) {
     debounceRef.current = setTimeout(() => void fetch(page, query, department, batch, section), query ? 300 : 0);
 
     return () => { active = false; };
-  }, [page, query, department, batch, section]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, query, department, batch, section, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleQueryChange = (q: string) => {
     setQuery(q);
@@ -154,7 +175,8 @@ export function StudentsPage({ onLogout }: Props) {
             q: query.trim() || undefined,
             department: department || undefined,
             batch: batch || undefined,
-            section: section || undefined
+            section: section || undefined,
+            year: year || undefined,
         },
       });
       setData(res.data);
@@ -196,12 +218,13 @@ export function StudentsPage({ onLogout }: Props) {
         <div className="card" style={{ padding: '16px 20px', borderLeft: '4px solid var(--blue)', background: 'linear-gradient(to right, rgba(58, 12, 163, 0.03), transparent)' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Active Filters</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {(!department && !batch && !section) ? (
+            {(!department && !batch && !section && !year) ? (
               <span style={{ fontSize: '0.9rem', color: 'var(--text-2)', fontWeight: 500 }}>No filters active</span>
             ) : (
               <>
                 {department && <span className="badge badge-primary">{department}</span>}
                 {batch && <span className="badge badge-blue">{batch}</span>}
+                {year && <span className="badge badge-amber">{year}</span>}
                 {section && <span className="badge badge-gray">Sec {section}</span>}
               </>
             )}
@@ -252,7 +275,19 @@ export function StudentsPage({ onLogout }: Props) {
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
-            
+
+            <select
+              className="form-control"
+              style={{ width: 'auto', minWidth: 140, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+              value={year}
+              onChange={e => { setYear(e.target.value); setSection(''); setPage(1); }}
+            >
+              <option value="">All Years</option>
+              {meta.years.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+
             <select
               className="form-control"
               style={{ width: 'auto', minWidth: 140, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '6px 14px', fontSize: '0.85rem', fontWeight: 500, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
@@ -260,7 +295,7 @@ export function StudentsPage({ onLogout }: Props) {
               onChange={e => { setSection(e.target.value); setPage(1); }}
             >
               <option value="">All Sections</option>
-              {['A', 'B', 'C', 'D', 'E'].map(s => (
+              {dynamicSections.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -294,13 +329,13 @@ export function StudentsPage({ onLogout }: Props) {
         ) : students.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon"><IconUsers /></div>
-            <p className="empty-title">{query || department || batch || section ? 'No results found' : 'No students yet'}</p>
+            <p className="empty-title">{query || department || batch || section || year ? 'No results found' : 'No students yet'}</p>
             <p className="empty-sub">
-              {query || department || batch || section
+              {query || department || batch || section || year
                 ? `No students match your criteria. Try adjusting the search or filters.`
                 : 'Add your first student record to get started.'}
             </p>
-            {staff && (!query && !department && !batch && !section) && (
+            {staff && (!query && !department && !batch && !section && !year) && (
               <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} type="button" onClick={() => navigate('/students/new')}>
                 <IconPlus /> Add First Student
               </button>
