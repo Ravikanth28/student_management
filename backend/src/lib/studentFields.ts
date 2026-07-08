@@ -17,6 +17,18 @@ export function normalizeBloodGroup(raw?: string | null): string | undefined {
   return s.slice(0, 8) || undefined;
 }
 
+/** Normalize year strings like "II Year", "2nd Year" to "1", "2", "3", "4", "Alumni". */
+export function normalizeYear(raw?: string | null): string | undefined {
+  if (!raw) return undefined;
+  const s = String(raw).toUpperCase().trim();
+  if (s === '1' || s === 'I' || s.startsWith('1ST') || s.startsWith('I Y')) return '1';
+  if (s === '2' || s === 'II' || s.startsWith('2ND') || s.startsWith('II Y')) return '2';
+  if (s === '3' || s === 'III' || s.startsWith('3RD') || s.startsWith('III Y')) return '3';
+  if (s === '4' || s === 'IV' || s.startsWith('4TH') || s.startsWith('IV Y')) return '4';
+  if (s.startsWith('ALUM')) return 'Alumni';
+  return s || undefined;
+}
+
 /**
  * Parse a date of birth into "YYYY-MM-DD". Accepts ISO (2007-11-30) and the
  * common spreadsheet form M/D/YY or M/D/YYYY (11/30/07). Two-digit years <= 30

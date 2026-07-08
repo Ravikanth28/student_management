@@ -22,7 +22,7 @@ import * as XLSX from 'xlsx';
 import { cloudinary, cloudinaryEnabled } from '../config/cloudinary.js';
 import * as repository from '../repositories/studentRepository.js';
 import { logger } from '../config/logger.js';
-import { normalizeBloodGroup, parseDob } from '../lib/studentFields.js';
+import { normalizeBloodGroup, parseDob, normalizeYear } from '../lib/studentFields.js';
 
 // ─── Column aliases ───────────────────────────────────────────
 const ALIASES: Record<string, string> = {
@@ -278,7 +278,8 @@ async function processDetailsUpdate(rows: Record<string, string>[]): Promise<Bul
     if (bg) changes.blood_group = bg;
     const dob = parseDob(row.dob);
     if (dob) changes.dob = dob;
-    if (row.year) changes.year = row.year.trim();
+    const normYear = normalizeYear(row.year);
+    if (normYear) changes.year = normYear;
     if (row.photo_url) {
       const photoUrl = await processPhoto(row.photo_url, existing.register_number);
       if (photoUrl) changes.photo_url = photoUrl;
@@ -333,7 +334,7 @@ async function processFullImport(rows: Record<string, string>[]): Promise<BulkIm
         register_number:   regNum,
         enrollment_number: row.enrollment_number,
         section:           row.section,
-        year:              row.year || undefined,
+        year:              normalizeYear(row.year) || undefined,
         department:        row.department,
         batch:             row.batch,
         phone:             row.phone,
