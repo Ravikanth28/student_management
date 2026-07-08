@@ -994,6 +994,11 @@ td {
 .toast-warning { background: var(--amber-light); border-color: #fcd34d; color: #92400e; }
 .toast-info    { background: var(--blue-light); border-color: #93c5fd; color: #1e40af; }
 
+[data-theme="dark"] .toast-success { border-color: #22c55e; color: #86efac; }
+[data-theme="dark"] .toast-error   { border-color: #ef4444; color: #fca5a5; }
+[data-theme="dark"] .toast-warning { border-color: #f59e0b; color: #fcd34d; }
+[data-theme="dark"] .toast-info    { border-color: #3b82f6; color: #93c5fd; }
+
 .toast-icon  { flex-shrink: 0; margin-top: 1px; }
 .toast-body  { flex: 1; }
 .toast-title { font-size: 0.85rem; font-weight: 700; line-height: 1.3; }
