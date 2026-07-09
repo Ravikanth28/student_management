@@ -41,7 +41,7 @@ export function ExportStudentModal({ onClose, filters, studentId }: Props) {
 
   const fetchBlobAndDownload = async (url: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('student-portal-auth');
       const res = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
