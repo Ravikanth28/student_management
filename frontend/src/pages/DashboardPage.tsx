@@ -7,6 +7,7 @@ import { AppUpdateBanner } from '../components/AppUpdateBanner';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
 import type { Student } from '../types';
+import { YEAR_LABELS } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
 function IconUsers() {
@@ -190,7 +191,9 @@ export function DashboardPage({ onLogout }: Props) {
                 </span>
                 <span style={{ textAlign: 'left', lineHeight: 1.2 }}>
                   <span style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text)' }}>{s.name}</span>
-                  <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-2)' }}>{s.department} · Sec {s.section}</span>
+                  <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-2)' }}>
+                    {s.department} {s.year ? `· Year ${YEAR_LABELS[s.year] ?? s.year} ` : ''}· Sec {s.section}
+                  </span>
                 </span>
               </button>
             ))}
