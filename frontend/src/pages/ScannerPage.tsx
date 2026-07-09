@@ -142,8 +142,8 @@ export function ScannerPage({ onLogout }: Props) {
     // Prefer the OS-native barcode detector; keep ZXing as a fallback.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const BD = (window as any).BarcodeDetector;
-    if (BD && !detectorRef.current) {
-      try { detectorRef.current = new BD(); } catch { detectorRef.current = null; }
+    if (BD && !detectorRef.current && engine !== 'fallback') {
+      try { detectorRef.current = new BD({ formats: ['code_128', 'qr_code', 'ean_13', 'code_39'] }); } catch { detectorRef.current = null; }
     }
     if (!detectorRef.current && !readerRef.current) {
       readerRef.current = new BrowserMultiFormatReader(SCAN_HINTS);
@@ -197,6 +197,17 @@ export function ScannerPage({ onLogout }: Props) {
       await track.applyConstraints({ advanced: [{ torch: next }] } as unknown as MediaTrackConstraints);
       setTorchOn(next);
     } catch { /* torch unsupported */ }
+  };
+
+  const toggleEngine = () => {
+    if (engine === 'native') {
+      detectorRef.current = null;
+      setEngine('fallback');
+    } else {
+      setEngine('native');
+      stopScan();
+      void startScan();
+    }
   };
 
   const lookup = async (code: string) => {
@@ -355,11 +366,16 @@ export function ScannerPage({ onLogout }: Props) {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', margin: 0, textAlign: 'center' }}>
-            Line the barcode up inside the box. Tilt slightly to kill glare.
+            Line the barcode up inside the box. <strong>If it's blurry, pull the phone back a few inches!</strong>
           </p>
           {engine && (
-            <span className={`badge ${engine === 'native' ? 'badge-green' : 'badge-amber'}`}>
-              {engine === 'native' ? 'Fast scanner' : 'Basic scanner'}
+            <span 
+              className={`badge ${engine === 'native' ? 'badge-green' : 'badge-amber'}`}
+              onClick={toggleEngine}
+              style={{ cursor: 'pointer' }}
+              title="Tap to switch scanner engine"
+            >
+              {engine === 'native' ? 'Fast scanner (tap to switch)' : 'Basic scanner (tap to switch)'}
             </span>
           )}
           {torchAvailable && (
