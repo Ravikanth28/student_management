@@ -105,11 +105,22 @@ export function ScannerPage({ onLogout }: Props) {
         try {
           let text: string | undefined;
           if (detectorRef.current) {
-            const codes = await detectorRef.current.detect(canvas);
-            text = codes?.[0]?.rawValue;
-          } else if (readerRef.current) {
+            try {
+              const codes = await detectorRef.current.detect(canvas);
+              text = codes?.[0]?.rawValue;
+            } catch (err) {
+              // Native detector threw an error (common on some Android/Samsung devices)
+              // Fall back to ZXing for this and future frames.
+              detectorRef.current = null;
+              if (!readerRef.current) readerRef.current = new BrowserMultiFormatReader(SCAN_HINTS);
+              setEngine('fallback');
+            }
+          }
+          
+          if (!detectorRef.current && readerRef.current) {
             text = readerRef.current.decodeFromCanvas(canvas)?.getText?.();
           }
+          
           if (text) void lookup(text);
         } catch { /* no barcode this frame */ }
       }
