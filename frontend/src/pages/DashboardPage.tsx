@@ -192,7 +192,7 @@ export function DashboardPage({ onLogout }: Props) {
                 <span style={{ textAlign: 'left', lineHeight: 1.2 }}>
                   <span style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text)' }}>{s.name}</span>
                   <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-2)' }}>
-                    {s.department} {s.year ? `· Year ${YEAR_LABELS[s.year] ?? s.year} ` : ''}· Sec {s.section}
+                    {s.department} {s.year ? `${YEAR_LABELS[s.year] ?? s.year} ` : ''}{s.section} section
                   </span>
                 </span>
               </button>
