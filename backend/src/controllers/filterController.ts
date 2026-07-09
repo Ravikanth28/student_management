@@ -1,6 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import * as XLSX from 'xlsx';
 import * as service from '../services/studentService.js';
+import * as studentRepo from '../repositories/studentRepository.js';
 import type { StudentRecord } from '../types/student.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
@@ -63,33 +64,56 @@ export const exportStudents = asyncWrap(async (req, res) => {
     return res.status(400).json({ message: 'format must be csv or xlsx' });
   }
 
-  // Re-use filterStudents but fetch ALL matching rows (no pagination)
-  const result = await service.filterStudents({
+  const options = {
+    includeLate: req.query.includeLate === 'true',
+    includeAchievements: req.query.includeAchievements === 'true',
+    includePlacements: req.query.includePlacements === 'true',
+  };
+
+  const id = req.query.id ? Number(req.query.id) : undefined;
+  
+  const rawRows = await studentRepo.exportStudents({
+    id,
     name:       req.query.name       ? String(req.query.name)       : undefined,
     department: req.query.department ? String(req.query.department) : undefined,
     batch:      req.query.batch      ? String(req.query.batch)      : undefined,
     section:    req.query.section    ? String(req.query.section)    : undefined,
     year:       req.query.year       ? String(req.query.year)       : undefined,
-    page:  1,
-    limit: 10_000, // practical maximum
-  });
+    blood_group: req.query.blood_group ? String(req.query.blood_group) : undefined,
+  }, options);
 
-  const rows = result.data.map((s: StudentRecord) => ({
-    'Name':               s.name,
-    'Register Number':    s.register_number,
-    'Enrollment Number':  s.enrollment_number,
-    'Section':            s.section,
-    'Year':               s.year ?? '',
-    'Department':         s.department,
-    'Batch':              s.batch,
-    'Phone':              s.phone,
-    'Parent Phone':       s.parent_phone,
-    'Address':            s.address,
-    'College Email':      s.college_email    ?? '',
-    'Personal Email':     s.personal_email   ?? '',
-    'Photo URL':          s.photo_url        ?? '',
-    'Added On':           new Date(s.created_at).toLocaleDateString('en-IN'),
-  }));
+  const rows = rawRows.map((s: any) => {
+    const row: any = {
+      'Name':               s.name,
+      'Register Number':    s.register_number,
+      'Enrollment Number':  s.enrollment_number,
+      'Section':            s.section,
+      'Year':               s.year ?? '',
+      'Department':         s.department,
+      'Batch':              s.batch,
+      'Phone':              s.phone,
+      'Parent Phone':       s.parent_phone,
+      'Address':            s.address,
+      'College Email':      s.college_email    ?? '',
+      'Personal Email':     s.personal_email   ?? '',
+      'DOB':                s.dob              ?? '',
+      'Blood Group':        s.blood_group      ?? '',
+    };
+    
+    if (options.includeLate) {
+      row['Total Lates'] = s.late_count ?? 0;
+    }
+    if (options.includeAchievements) {
+      row['Total Achievements'] = s.ach_count ?? 0;
+      row['Total Wins'] = s.win_count ?? 0;
+    }
+    if (options.includePlacements) {
+      row['Placed Companies'] = s.placed_companies ?? '';
+      row['Placed Packages'] = s.placed_packages ?? '';
+    }
+    
+    return row;
+  });
 
   const wb  = XLSX.utils.book_new();
   const ws  = XLSX.utils.json_to_sheet(rows);

@@ -1,4 +1,4 @@
-﻿import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { HttpError } from '../middleware/error.js';
 import { studentCreateSchema, studentListQuerySchema, studentSearchSchema, studentUpdateSchema } from '../validators/studentValidator.js';
 import * as service from '../services/studentService.js';

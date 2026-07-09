@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { ExportStudentModal } from '../components/ExportStudentModal';
 import { Pagination } from '../components/Pagination';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../state/auth';
@@ -97,6 +98,7 @@ export function StudentsPage({ onLogout }: Props) {
   const [meta, setMeta]         = useState<{ departments: string[]; batches: string[]; sections: string[] }>({ departments: [], batches: [], sections: [] });
   const [dynamicSections, setDynamicSections] = useState<string[]>([]);
   const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -194,11 +196,16 @@ export function StudentsPage({ onLogout }: Props) {
       subtitle={data ? `${data.meta.total} total students` : 'Loading...'}
       onLogout={onLogout}
       actions={
-        staff ? (
-          <button className="btn btn-primary" type="button" id="add-student-btn" onClick={() => navigate('/students/new')}>
-            <IconPlus /> Add Student
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button className="btn btn-outline" type="button" onClick={() => setShowExportModal(true)}>
+            Download CSV
           </button>
-        ) : undefined
+          {staff && (
+            <button className="btn btn-primary" type="button" id="add-student-btn" onClick={() => navigate('/students/new')}>
+              <IconPlus /> Add Student
+            </button>
+          )}
+        </div>
       }
     >
       {/* KPI Cards */}
@@ -439,6 +446,20 @@ export function StudentsPage({ onLogout }: Props) {
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
           loading={deleting}
+        />
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <ExportStudentModal
+          onClose={() => setShowExportModal(false)}
+          filters={{
+            name: query,
+            department,
+            batch,
+            section,
+            year
+          }}
         />
       )}
     </Shell>

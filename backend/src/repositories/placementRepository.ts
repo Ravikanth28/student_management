@@ -81,9 +81,40 @@ export async function deletePlacement(id: number): Promise<boolean> {
   return res.affectedRows > 0;
 }
 
-export async function listPlacements(q: string | undefined, page: number, limit: number): Promise<PlacementListResult> {
-  const where = q ? 'WHERE p.company LIKE ? OR s.name LIKE ? OR s.register_number LIKE ?' : '';
-  const params = q ? [`%${q}%`, `%${q}%`, `%${q}%`] : [];
+export interface PlacementFilters {
+  q?: string;
+  year?: string;
+  batch?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export async function listPlacements(f: PlacementFilters, page: number, limit: number): Promise<PlacementListResult> {
+  const conds: string[] = [];
+  const params: unknown[] = [];
+
+  if (f.q) {
+    conds.push('(p.company LIKE ? OR s.name LIKE ? OR s.register_number LIKE ?)');
+    params.push(`%${f.q}%`, `%${f.q}%`, `%${f.q}%`);
+  }
+  if (f.year) {
+    conds.push('s.year = ?');
+    params.push(f.year);
+  }
+  if (f.batch) {
+    conds.push('s.batch = ?');
+    params.push(f.batch);
+  }
+  if (f.fromDate) {
+    conds.push('p.placed_date >= ?');
+    params.push(f.fromDate);
+  }
+  if (f.toDate) {
+    conds.push('p.placed_date <= ?');
+    params.push(f.toDate);
+  }
+
+  const where = conds.length > 0 ? `WHERE ${conds.join(' AND ')}` : '';
   const offset = (page - 1) * limit;
 
   const [rows] = await pool.query<Array<Placement & RowDataPacket>>(

@@ -114,9 +114,39 @@ async function attachMembers(achievements: Array<Achievement & RowDataPacket>): 
   return achievements.map((a) => normalize(a, byAchievement.get(Number(a.id)) ?? []));
 }
 
-export async function listAchievements(q: string | undefined, page: number, limit: number): Promise<AchievementListResult> {
-  const where = q ? 'WHERE title LIKE ? OR venue LIKE ?' : '';
-  const params = q ? [`%${q}%`, `%${q}%`] : [];
+export interface AchievementFilters {
+  q?: string;
+  year?: string;
+  batch?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export async function listAchievements(f: AchievementFilters, page: number, limit: number): Promise<AchievementListResult> {
+  const conds: string[] = [];
+  const params: unknown[] = [];
+
+  if (f.q) {
+    conds.push('(title LIKE ? OR venue LIKE ?)');
+    params.push(`%${f.q}%`, `%${f.q}%`);
+  }
+  if (f.fromDate) {
+    conds.push('event_date >= ?');
+    params.push(f.fromDate);
+  }
+  if (f.toDate) {
+    conds.push('event_date <= ?');
+    params.push(f.toDate);
+  }
+  
+  if (f.year || f.batch) {
+    let subConds = [];
+    if (f.year) { subConds.push('s.year = ?'); params.push(f.year); }
+    if (f.batch) { subConds.push('s.batch = ?'); params.push(f.batch); }
+    conds.push(`EXISTS (SELECT 1 FROM achievement_members am JOIN students s ON s.id = am.student_id WHERE am.achievement_id = achievements.id AND ${subConds.join(' AND ')})`);
+  }
+
+  const where = conds.length > 0 ? `WHERE ${conds.join(' AND ')}` : '';
   const offset = (page - 1) * limit;
 
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
@@ -148,11 +178,14 @@ export interface AchievementSummaryRow {
 }
 
 /** Per-student achievement totals (wins vs participated), most achievements first. */
-export async function summarizeByStudent(f: { year?: string; section?: string; q?: string }): Promise<AchievementSummaryRow[]> {
+export async function summarizeByStudent(f: { year?: string; section?: string; batch?: string; fromDate?: string; toDate?: string; q?: string }): Promise<AchievementSummaryRow[]> {
   const conds: string[] = [];
   const vals: unknown[] = [];
   if (f.year) { conds.push('s.year = ?'); vals.push(f.year); }
   if (f.section) { conds.push('s.section = ?'); vals.push(f.section); }
+  if (f.batch) { conds.push('s.batch = ?'); vals.push(f.batch); }
+  if (f.fromDate) { conds.push('a.event_date >= ?'); vals.push(f.fromDate); }
+  if (f.toDate) { conds.push('a.event_date <= ?'); vals.push(f.toDate); }
   if (f.q) { conds.push('(s.name LIKE ? OR s.register_number LIKE ?)'); vals.push(`%${f.q}%`, `%${f.q}%`); }
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 

@@ -49,6 +49,9 @@ export const achievementSummary = asyncWrap(async (req, res) => {
   const rows = await achievementRepo.summarizeByStudent({
     year: req.query.year ? String(req.query.year) : undefined,
     section: req.query.section ? String(req.query.section) : undefined,
+    batch: req.query.batch ? String(req.query.batch) : undefined,
+    fromDate: req.query.fromDate ? String(req.query.fromDate) : undefined,
+    toDate: req.query.toDate ? String(req.query.toDate) : undefined,
     q: req.query.q ? String(req.query.q) : undefined,
   });
   return res.json({ data: rows });
@@ -57,9 +60,15 @@ export const achievementSummary = asyncWrap(async (req, res) => {
 // GET /api/achievements
 export const listAchievements = asyncWrap(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
-  const q = req.query.q ? String(req.query.q) : undefined;
-  const result = await achievementRepo.listAchievements(q, page, limit);
+  const limit = Math.min(10000, Math.max(1, Number(req.query.limit) || 20)); // Allow large limit for export
+  const f = {
+    q: req.query.q ? String(req.query.q) : undefined,
+    year: req.query.year ? String(req.query.year) : undefined,
+    batch: req.query.batch ? String(req.query.batch) : undefined,
+    fromDate: req.query.fromDate ? String(req.query.fromDate) : undefined,
+    toDate: req.query.toDate ? String(req.query.toDate) : undefined,
+  };
+  const result = await achievementRepo.listAchievements(f, page, limit);
   return res.json(result);
 });
 

@@ -418,3 +418,83 @@ export async function getFilteredSections(
   );
   return rows.map(r => r.section);
 }
+
+export async function exportStudents(
+  params: FilterParams & { id?: number },
+  options: { includeLate?: boolean; includeAchievements?: boolean; includePlacements?: boolean }
+): Promise<any[]> {
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+
+  if (params.id) {
+    conditions.push('id = ?');
+    values.push(params.id);
+  }
+  if (params.name) {
+    conditions.push('(name LIKE ? OR register_number LIKE ? OR enrollment_number LIKE ?)');
+    const like = `%${params.name}%`;
+    values.push(like, like, like);
+  }
+  if (params.department) { conditions.push('department = ?'); values.push(params.department); }
+  if (params.batch) { conditions.push('batch = ?'); values.push(params.batch); }
+  if (params.section) { conditions.push('section = ?'); values.push(params.section); }
+  if (params.blood_group) { conditions.push('blood_group = ?'); values.push(params.blood_group); }
+  if (params.year) { conditions.push('year = ?'); values.push(params.year); }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const [rows] = await pool.query<StudentRow[]>(
+    `SELECT * FROM students ${where} ORDER BY register_number ASC`,
+    values
+  );
+
+  if (rows.length === 0) return [];
+
+  const studentIds = rows.map(r => r.id);
+  const students = rows.map(rowToStudent) as any[];
+
+  // Fetch optional data
+  const dataMap = new Map<number, any>();
+  for (const s of students) dataMap.set(s.id, { ...s });
+
+  if (options.includeLate) {
+    const [lateRows] = await pool.query<Array<{ student_id: number; late_count: number } & RowDataPacket>>(
+      `SELECT student_id, COUNT(*) as late_count FROM late_records WHERE student_id IN (?) GROUP BY student_id`,
+      [studentIds]
+    );
+    for (const r of lateRows) {
+      if (dataMap.has(r.student_id)) dataMap.get(r.student_id)!.late_count = Number(r.late_count);
+    }
+  }
+
+  if (options.includeAchievements) {
+    const [achRows] = await pool.query<Array<{ student_id: number; ach_count: number; win_count: number } & RowDataPacket>>(
+      `SELECT am.student_id, COUNT(*) as ach_count, SUM(IF(a.result = 'winner', 1, 0)) as win_count 
+       FROM achievement_members am JOIN achievements a ON a.id = am.achievement_id 
+       WHERE am.student_id IN (?) GROUP BY am.student_id`,
+      [studentIds]
+    );
+    for (const r of achRows) {
+      if (dataMap.has(r.student_id)) {
+        dataMap.get(r.student_id)!.ach_count = Number(r.ach_count);
+        dataMap.get(r.student_id)!.win_count = Number(r.win_count);
+      }
+    }
+  }
+
+  if (options.includePlacements) {
+    const [placeRows] = await pool.query<Array<{ student_id: number; companies: string; packages: string } & RowDataPacket>>(
+      `SELECT student_id, GROUP_CONCAT(company SEPARATOR ', ') as companies, GROUP_CONCAT(IFNULL(package, '') SEPARATOR ', ') as packages 
+       FROM placements WHERE student_id IN (?) GROUP BY student_id`,
+      [studentIds]
+    );
+    for (const r of placeRows) {
+      if (dataMap.has(r.student_id)) {
+        dataMap.get(r.student_id)!.placed_companies = r.companies;
+        dataMap.get(r.student_id)!.placed_packages = r.packages;
+      }
+    }
+  }
+
+  return Array.from(dataMap.values());
+}

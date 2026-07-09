@@ -18,6 +18,7 @@ import { deviceRoutes } from './routes/deviceRoutes.js';
 import { settingsRoutes } from './routes/settingsRoutes.js';
 import { attendanceRoutes } from './routes/attendanceRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
+import { apiAuditLogger } from './middleware/auditLogger.js';
 
 export const app = express();
 
@@ -68,6 +69,9 @@ const authLimiter = rateLimit({
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'student-management-api' });
 });
+
+// Audit log all state-mutating requests (POST, PUT, DELETE) across all /api routes
+app.use('/api', apiAuditLogger);
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/students', studentRoutes);

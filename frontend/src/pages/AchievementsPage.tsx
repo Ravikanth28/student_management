@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { Pagination } from '../components/Pagination';
@@ -24,6 +26,10 @@ export function AchievementsPage({ onLogout }: Props) {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [q, setQ] = useState('');
+  const [rYear, setRYear] = useState('');
+  const [rBatch, setRBatch] = useState('');
+  const [rFrom, setRFrom] = useState('');
+  const [rTo, setRTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Achievement | null>(null);
@@ -35,7 +41,17 @@ export function AchievementsPage({ onLogout }: Props) {
   const fetchRows = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<AchievementListResponse>('/achievements', { params: { page, limit: LIMIT, q: q || undefined } });
+      const res = await api.get<AchievementListResponse>('/achievements', { 
+        params: { 
+          page, 
+          limit: LIMIT, 
+          q: q || undefined,
+          year: rYear || undefined,
+          batch: rBatch || undefined,
+          fromDate: rFrom || undefined,
+          toDate: rTo || undefined
+        } 
+      });
       setRows(res.data.data);
       setTotal(res.data.meta.total);
     } catch {
@@ -43,22 +59,188 @@ export function AchievementsPage({ onLogout }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [page, q]);
+  }, [page, q, rYear, rBatch, rFrom, rTo]);
 
   useEffect(() => { if (view === 'records') void fetchRows(); }, [view, fetchRows]);
 
   // ── Summary view ──
   const [summary, setSummary] = useState<AchievementSummaryRow[]>([]);
   const [sQ, setSQ] = useState('');
+  const [sYear, setSYear] = useState('');
+  const [sBatch, setSBatch] = useState('');
+  const [sFrom, setSFrom] = useState('');
+  const [sTo, setSTo] = useState('');
   const [sLoading, setSLoading] = useState(false);
+
   const fetchSummary = useCallback(async () => {
     setSLoading(true);
     try {
-      const res = await api.get<{ data: AchievementSummaryRow[] }>('/achievements/summary', { params: { q: sQ || undefined } });
+      const res = await api.get<{ data: AchievementSummaryRow[] }>('/achievements/summary', { 
+        params: { 
+          q: sQ || undefined,
+          year: sYear || undefined,
+          batch: sBatch || undefined,
+          fromDate: sFrom || undefined,
+          toDate: sTo || undefined
+        } 
+      });
       setSummary(res.data.data);
     } catch { setSummary([]); } finally { setSLoading(false); }
-  }, [sQ]);
+  }, [sQ, sYear, sBatch, sFrom, sTo]);
+
   useEffect(() => { if (view === 'summary') void fetchSummary(); }, [view, fetchSummary]);
+
+  const exportCSV = () => {
+    const headers = ['Rank', 'Name', 'Register No.', 'Year', 'Section', 'Total', 'Wins', 'Participated'];
+    const csvRows = [headers.join(',')];
+    
+    summary.forEach((r, i) => {
+      const row = [
+        i + 1,
+        `"${r.name.replace(/"/g, '""')}"`,
+        r.register_number,
+        r.year ? (YEAR_LABELS[r.year] ?? r.year) : '-',
+        r.section,
+        r.total,
+        r.wins,
+        r.participated
+      ];
+      csvRows.push(row.join(','));
+    });
+    
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Achievements_Summary.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    const title = 'Achievements Summary';
+    doc.setFontSize(16);
+    doc.text(title, 14, 15);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const filters = [];
+    if (sYear) filters.push(`Year: ${YEAR_LABELS[sYear] ?? sYear}`);
+    if (sBatch) filters.push(`Batch: ${sBatch}`);
+    if (sFrom || sTo) filters.push(`Date: ${sFrom || '...'} to ${sTo || '...'}`);
+    if (sQ) filters.push(`Search: ${sQ}`);
+    
+    if (filters.length > 0) {
+      doc.text(`Filters applied: ${filters.join(' | ')}`, 14, 22);
+    }
+    
+    autoTable(doc, {
+      startY: filters.length > 0 ? 26 : 22,
+      head: [['#', 'Name', 'Register No.', 'Year', 'Sec', 'Total', 'Wins', 'Participated']],
+      body: summary.map((r, i) => [
+        i + 1,
+        r.name,
+        r.register_number,
+        r.year ? (YEAR_LABELS[r.year] ?? r.year) : '-',
+        r.section,
+        r.total,
+        r.wins,
+        r.participated
+      ]),
+      headStyles: { fillColor: [30, 41, 59] }, // slate-800
+    });
+    
+    doc.save('Achievements_Summary.pdf');
+  };
+
+  const fetchAllRecordsForExport = async () => {
+    try {
+      const res = await api.get<AchievementListResponse>('/achievements', { 
+        params: { limit: 10000, q: q || undefined, year: rYear || undefined, batch: rBatch || undefined, fromDate: rFrom || undefined, toDate: rTo || undefined } 
+      });
+      return res.data.data;
+    } catch {
+      toastError('Export failed', 'Could not fetch records.');
+      return [];
+    }
+  };
+
+  const exportRecordsCSV = async () => {
+    const allRows = await fetchAllRecordsForExport();
+    if (!allRows.length) return;
+    
+    const headers = ['Event Type', 'Event Name', 'Result', 'Position', 'Venue', 'Duration', 'Date', 'Prize', 'Members'];
+    const csvRows = [headers.join(',')];
+    
+    allRows.forEach((a) => {
+      const membersStr = a.members.map(m => `${m.name} (${m.register_number})`).join(' | ');
+      const row = [
+        EVENT_TYPE_LABELS[a.event_type ?? 'other'] ?? a.event_type,
+        `"${a.title.replace(/"/g, '""')}"`,
+        a.result === 'winner' ? 'Winner' : 'Participated',
+        `"${(a.position ?? '').replace(/"/g, '""')}"`,
+        `"${(a.venue ?? '').replace(/"/g, '""')}"`,
+        `"${(a.duration ?? '').replace(/"/g, '""')}"`,
+        fmtDate(a.event_date),
+        `"${(a.prize ?? '').replace(/"/g, '""')}"`,
+        `"${membersStr.replace(/"/g, '""')}"`
+      ];
+      csvRows.push(row.join(','));
+    });
+    
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Achievements_Records.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportRecordsPDF = async () => {
+    const allRows = await fetchAllRecordsForExport();
+    if (!allRows.length) return;
+    
+    const doc = new jsPDF('landscape');
+    const title = 'Achievements Records';
+    doc.setFontSize(16);
+    doc.text(title, 14, 15);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const filters = [];
+    if (rYear) filters.push(`Year: ${YEAR_LABELS[rYear] ?? rYear}`);
+    if (rBatch) filters.push(`Batch: ${rBatch}`);
+    if (rFrom || rTo) filters.push(`Date: ${rFrom || '...'} to ${rTo || '...'}`);
+    if (q) filters.push(`Search: ${q}`);
+    
+    if (filters.length > 0) {
+      doc.text(`Filters applied: ${filters.join(' | ')}`, 14, 22);
+    }
+    
+    autoTable(doc, {
+      startY: filters.length > 0 ? 26 : 22,
+      head: [['Type', 'Event Name', 'Result', 'Pos', 'Venue', 'Date', 'Members']],
+      body: allRows.map((a) => {
+        const membersStr = a.members.map(m => m.name).join(', ');
+        return [
+          EVENT_TYPE_LABELS[a.event_type ?? 'other'] ?? (a.event_type || ''),
+          a.title,
+          a.result === 'winner' ? 'Winner' : 'Participated',
+          a.position ?? '-',
+          a.venue ?? '-',
+          fmtDate(a.event_date),
+          membersStr
+        ];
+      }),
+      headStyles: { fillColor: [30, 41, 59] },
+      styles: { fontSize: 8 },
+      columnStyles: { 6: { cellWidth: 80 } }
+    });
+    
+    doc.save('Achievements_Records.pdf');
+  };
 
   // ── Per-student "View" popup ──
   const [viewStudent, setViewStudent] = useState<Student | null>(null);
@@ -108,8 +290,25 @@ export function AchievementsPage({ onLogout }: Props) {
     >
       {view === 'summary' ? (
         <div className="card">
-          <div className="toolbar">
+          <div className="toolbar" style={{ flexWrap: 'wrap', gap: 12 }}>
             <input className="form-control" style={{ height: 40, flex: 1, minWidth: 180 }} placeholder="Search name / number…" value={sQ} onChange={(e) => setSQ(e.target.value)} />
+            <select className="form-control" style={{ height: 40, width: 120 }} value={sYear} onChange={(e) => setSYear(e.target.value)}>
+              <option value="">All Years</option>
+              <option value="I">I Year</option>
+              <option value="II">II Year</option>
+              <option value="III">III Year</option>
+              <option value="IV">IV Year</option>
+            </select>
+            <input className="form-control" style={{ height: 40, width: 120 }} placeholder="Batch (e.g. 2021-2025)" value={sBatch} onChange={(e) => setSBatch(e.target.value)} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input type="date" className="form-control" style={{ height: 40, width: 130 }} value={sFrom} onChange={(e) => setSFrom(e.target.value)} title="From Date" />
+              <span style={{ color: 'var(--text-3)' }}>to</span>
+              <input type="date" className="form-control" style={{ height: 40, width: 130 }} value={sTo} onChange={(e) => setSTo(e.target.value)} title="To Date" />
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+              <button className="btn btn-outline" style={{ height: 40 }} onClick={exportCSV}>CSV</button>
+              <button className="btn btn-outline" style={{ height: 40 }} onClick={exportPDF}>PDF</button>
+            </div>
           </div>
           {sLoading ? (
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 40, borderRadius: 8 }} />)}</div>
@@ -140,8 +339,25 @@ export function AchievementsPage({ onLogout }: Props) {
         </div>
       ) : (
       <div className="card">
-        <div className="toolbar">
+        <div className="toolbar" style={{ flexWrap: 'wrap', gap: 12 }}>
           <input className="form-control" style={{ height: 40, flex: 1, minWidth: 180 }} placeholder="Search title / venue…" value={q} onChange={(e) => { setPage(1); setQ(e.target.value); }} />
+          <select className="form-control" style={{ height: 40, width: 120 }} value={rYear} onChange={(e) => { setPage(1); setRYear(e.target.value); }}>
+            <option value="">All Years</option>
+            <option value="I">I Year</option>
+            <option value="II">II Year</option>
+            <option value="III">III Year</option>
+            <option value="IV">IV Year</option>
+          </select>
+          <input className="form-control" style={{ height: 40, width: 120 }} placeholder="Batch" value={rBatch} onChange={(e) => { setPage(1); setRBatch(e.target.value); }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="date" className="form-control" style={{ height: 40, width: 130 }} value={rFrom} onChange={(e) => { setPage(1); setRFrom(e.target.value); }} title="From Date" />
+            <span style={{ color: 'var(--text-3)' }}>to</span>
+            <input type="date" className="form-control" style={{ height: 40, width: 130 }} value={rTo} onChange={(e) => { setPage(1); setRTo(e.target.value); }} title="To Date" />
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+            <button className="btn btn-outline" style={{ height: 40 }} onClick={exportRecordsCSV}>CSV</button>
+            <button className="btn btn-outline" style={{ height: 40 }} onClick={exportRecordsPDF}>PDF</button>
+          </div>
         </div>
 
         {loading ? (

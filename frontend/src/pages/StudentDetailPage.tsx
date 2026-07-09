@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { ExportStudentModal } from '../components/ExportStudentModal';
 import { useToast } from '../components/Toast';
 import { proxiedImage } from '../lib/img';
 import { useAuth } from '../state/auth';
@@ -342,6 +343,7 @@ export function StudentDetailPage({ onLogout }: Props) {
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [pendingDelete, setPendingDelete] = useState<{ kind: 'late' | 'achievement'; id: number; label: string } | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -416,6 +418,9 @@ export function StudentDetailPage({ onLogout }: Props) {
           <>
             <button className="btn btn-outline" type="button" onClick={() => navigate(-1)}>
               <IconArrowLeft /> Back
+            </button>
+            <button className="btn btn-outline" type="button" onClick={() => setShowExportModal(true)}>
+              Download Profile
             </button>
             {staff && (
               <>
@@ -650,6 +655,14 @@ export function StudentDetailPage({ onLogout }: Props) {
           onConfirm={handleActivityDelete}
           onCancel={() => setPendingDelete(null)}
           loading={removing}
+        />
+      )}
+
+      {showExportModal && student && (
+        <ExportStudentModal
+          onClose={() => setShowExportModal(false)}
+          filters={{}}
+          studentId={student.id}
         />
       )}
     </Shell>

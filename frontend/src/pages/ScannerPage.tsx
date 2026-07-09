@@ -139,10 +139,12 @@ export function ScannerPage({ onLogout }: Props) {
       return;
     }
 
+    const savedEngine = localStorage.getItem('scanner_pref');
+    
     // Prefer the OS-native barcode detector; keep ZXing as a fallback.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const BD = (window as any).BarcodeDetector;
-    if (BD && !detectorRef.current && engine !== 'fallback') {
+    if (BD && !detectorRef.current && engine !== 'fallback' && savedEngine !== 'fallback') {
       try { detectorRef.current = new BD({ formats: ['code_128', 'qr_code', 'ean_13', 'code_39'] }); } catch { detectorRef.current = null; }
     }
     if (!detectorRef.current && !readerRef.current) {
@@ -202,8 +204,10 @@ export function ScannerPage({ onLogout }: Props) {
   const toggleEngine = () => {
     if (engine === 'native') {
       detectorRef.current = null;
+      localStorage.setItem('scanner_pref', 'fallback');
       setEngine('fallback');
     } else {
+      localStorage.setItem('scanner_pref', 'native');
       setEngine('native');
       stopScan();
       void startScan();
@@ -211,7 +215,17 @@ export function ScannerPage({ onLogout }: Props) {
   };
 
   const lookup = async (code: string) => {
-    const value = code.trim();
+    let value = code.trim();
+    
+    // Some Android native scanners (and specific hardware scanners) prepend an AIM Symbology Identifier.
+    // AIM identifiers are exactly 3 chars: "]", a letter, and a modifier (digit or letter). Examples: ]C1, ]Q0, ]E0.
+    // If the scanned code starts with an AIM identifier, strip it off so we get just the actual data.
+    if (value.startsWith(']') && value.length > 3) {
+      if (/^\][a-zA-Z][0-9a-zA-Z]/.test(value)) {
+        value = value.substring(3);
+      }
+    }
+
     if (!value || lockRef.current) return;
     if (rapidMode && markedRef.current.has(value)) return; // already handled this session
     lockRef.current = true;

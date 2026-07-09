@@ -17,7 +17,9 @@ services:
       cd frontend && npm install --include=dev && npm run build &&
       cd ../backend && npm install --include=dev && npm run build &&
       rm -rf dist/public && cp -r ../frontend/dist dist/public
-    startCommand: cd backend && npm start
+    startCommand: >-
+      (while true; do sleep 120; curl -s $RENDER_EXTERNAL_URL/health > /dev/null || true; done &) &&
+      cd backend && npm start
     healthCheckPath: /health
     autoDeploy: true
     envVars:
