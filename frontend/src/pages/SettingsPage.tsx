@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
@@ -222,9 +222,9 @@ function PromotionCard() {
 
   return (
     <div className="card card-padded">
-      <h3 style={cardTitle}>Academic Year ΓÇö Promotion</h3>
+      <h3 style={cardTitle}>Academic Year &mdash; Promotion</h3>
       <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginTop: -8, marginBottom: 16 }}>
-        Move every student up one year: I ΓåÆ II ΓåÆ III ΓåÆ IV ΓåÆ Alumni. Run this once at the start of a new academic year.
+        Move every student up one year: I &rarr; II &rarr; III &rarr; IV &rarr; Alumni. Run this once at the start of a new academic year.
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         {[...YEAR_OPTIONS, 'unset'].map((y) => (
@@ -368,9 +368,9 @@ export function SettingsPage({ onLogout }: Props) {
               </span>
             </div>
             <div style={gridStyle}>
-              <Field label="Environment" value={<span className={`badge ${status?.environment === 'production' ? 'badge-green' : 'badge-amber'}`}>{status?.environment ?? 'ΓÇö'}</span>} />
-              <Field label="Version" value={`v${status?.version ?? 'ΓÇö'}`} />
-              <Field label="Uptime" value={status ? formatUptime(status.uptimeSeconds) : 'ΓÇö'} />
+              <Field label="Environment" value={<span className={`badge ${status?.environment === 'production' ? 'badge-green' : 'badge-amber'}`}>{status?.environment ?? '-'}</span>} />
+              <Field label="Version" value={`v${status?.version ?? '-'}`} />
+              <Field label="Uptime" value={status ? formatUptime(status.uptimeSeconds) : '-'} />
               <Field label="Database" value={<StatusPill on={dbConnected} onLabel="Connected" offLabel="Offline" />} />
             </div>
           </div>
@@ -428,7 +428,7 @@ export function SettingsPage({ onLogout }: Props) {
             <div style={gridStyle}>
               <Field label="Role" value={<span className="badge badge-navy">admin</span>} />
               <Field label="Auth Method" value={status?.auth.method ?? 'JWT + bcrypt'} />
-              <Field label="Session Expiry" value={status?.auth.jwtExpiresIn ?? 'ΓÇö'} />
+              <Field label="Session Expiry" value={status?.auth.jwtExpiresIn ?? '-'} />
             </div>
           </div>
 
@@ -439,7 +439,7 @@ export function SettingsPage({ onLogout }: Props) {
               <Field label="Backend" value={status?.backend ?? 'Node.js + Express'} />
               <Field label="Frontend" value={status?.frontend ?? 'React + Vite'} />
               <Field label="Database" value={status?.database.driver ?? 'TiDB Cloud (MySQL)'} />
-              <Field label="Server Time" value={status ? new Date(status.serverTime).toLocaleString('en-IN') : 'ΓÇö'} />
+              <Field label="Server Time" value={status ? new Date(status.serverTime).toLocaleString('en-IN') : '-'} />
             </div>
           </div>
 

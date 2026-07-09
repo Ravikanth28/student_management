@@ -374,7 +374,7 @@ export function StudentsPage({ onLogout }: Props) {
                       </td>
                       <td className="td-muted td-nowrap">{student.register_number}</td>
                       <td className="td-muted td-nowrap">{student.enrollment_number}</td>
-                      <td className="td-nowrap">{student.year ? (YEAR_LABELS[student.year] ?? student.year) : 'ΓÇö'}</td>
+                      <td className="td-nowrap">{student.year ? (YEAR_LABELS[student.year] ?? student.year) : '-'}</td>
                       <td className="td-nowrap"><span className="badge badge-purple">{student.section}</span></td>
                       <td className="td-nowrap"><span className="badge badge-blue">{student.department}</span></td>
                       <td className="td-nowrap"><span className="badge badge-gray">{student.batch}</span></td>
