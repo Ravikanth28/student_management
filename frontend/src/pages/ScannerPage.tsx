@@ -122,6 +122,12 @@ export function ScannerPage({ onLogout }: Props) {
     setNotFound(null);
     if (!videoRef.current) return;
 
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setScanning(false);
+      setCameraError('Camera access is not supported. Please ensure you are using a secure connection (HTTPS) and a modern browser.');
+      return;
+    }
+
     // Prefer the OS-native barcode detector; keep ZXing as a fallback.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const BD = (window as any).BarcodeDetector;
@@ -133,15 +139,26 @@ export function ScannerPage({ onLogout }: Props) {
     }
     setEngine(detectorRef.current ? 'native' : 'fallback');
 
-    const video = {
-      facingMode: { ideal: 'environment' },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      advanced: [{ focusMode: 'continuous' }],
-    } as unknown as MediaTrackConstraints;
-
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video });
+      try {
+        const video1 = {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          advanced: [{ focusMode: 'continuous' }],
+        } as unknown as MediaTrackConstraints;
+        stream = await navigator.mediaDevices.getUserMedia({ video: video1 });
+      } catch (err1) {
+        // Fallback to basic environment camera if high-res or advanced constraints fail
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        } catch (err2) {
+          // Final fallback: just get any video camera available
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+      }
+
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
@@ -154,7 +171,8 @@ export function ScannerPage({ onLogout }: Props) {
       runningRef.current = true;
       setScanning(true);
       void decodeLoop();
-    } catch {
+    } catch (err) {
+      console.error('Camera access error:', err);
       setScanning(false);
       setCameraError('Could not access the camera. Allow camera access and press "Restart camera", or use manual entry below.');
     }
