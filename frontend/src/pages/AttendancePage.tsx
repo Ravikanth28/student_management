@@ -41,6 +41,7 @@ export function AttendancePage({ onLogout }: Props) {
   const [sumYear, setSumYear] = useState('');
   const [threshold, setThreshold] = useState(75);
   const [summary, setSummary] = useState<AttendanceSummaryRow[]>([]);
+  const filteredSummary = useMemo(() => summary.filter((r) => r.absent > 0), [summary]);
 
   // ── Per-student "View" popup ──
   const [viewStudent, setViewStudent] = useState<Student | null>(null);
@@ -285,8 +286,8 @@ export function AttendancePage({ onLogout }: Props) {
               <input type="number" className="form-control" value={threshold} min={0} max={100} onChange={(e) => setThreshold(Number(e.target.value))} style={{ maxWidth: 110 }} />
             </div>
           </div>
-          {summary.length === 0 ? (
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>No attendance data for these filters.</p>
+          {filteredSummary.length === 0 ? (
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>No marked records found for these filters.</p>
           ) : (
             <div className="table-container">
               <table>
@@ -294,7 +295,7 @@ export function AttendancePage({ onLogout }: Props) {
                   <tr><th>Name</th><th>Register No.</th><th>Year</th><th>Sec</th><th>Days</th><th>Present</th><th>Absent</th><th>%</th><th></th><th></th></tr>
                 </thead>
                 <tbody>
-                  {summary.map((r) => {
+                  {filteredSummary.map((r) => {
                     const low = r.percentage < threshold;
                     return (
                       <tr key={r.student_id} style={low ? { background: 'var(--amber-light)' } : undefined}>
