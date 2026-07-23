@@ -312,7 +312,7 @@ function PhotoPanel({ student, onPhotoUpdate }: { student: Student; onPhotoUpdat
       {/* Register Number card below photo */}
       <div style={{ marginTop: 12, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
         <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-3)', marginBottom: 4 }}>Student ID</div>
-        <div style={{ fontWeight: 700, color: 'var(--navy)', fontFamily: 'monospace', fontSize: '0.95rem' }}>{student.register_number}</div>
+        <div style={{ fontWeight: 700, color: 'var(--text)', fontFamily: 'monospace', fontSize: '0.95rem' }}>{student.register_number}</div>
       </div>
     </div>
   );

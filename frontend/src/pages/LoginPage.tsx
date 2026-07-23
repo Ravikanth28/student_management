@@ -107,129 +107,131 @@ export function LoginPage() {
 
   return (
     <div className="auth-wrapper">
-      {/* Left Branding Panel */}
-      <aside className="auth-panel-left" aria-hidden="true">
-        <div className="auth-logo">
-          <IconShield />
-        </div>
-        <div>
-          <h2 className="auth-brand-title">Student Management<br />Portal</h2>
-          <p className="auth-brand-sub">Secure college administration<br />system for managing student records.</p>
-        </div>
-        <ul className="auth-features" role="list">
-          {FEATURES.map(f => (
-            <li key={f} className="auth-feature">
-              <IconCheck />
-              {f}
-            </li>
-          ))}
-        </ul>
-      </aside>
-
-      {/* Right Login Panel */}
-      <section className="auth-panel-right">
-        <div className="auth-card">
-          {/* Card logo (mobile) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-            <div style={{
-              width: 48, height: 48, borderRadius: 12,
-              background: 'var(--navy)', display: 'grid', placeItems: 'center', color: '#fff'
-            }}>
-              <IconShield />
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text)' }}>Student Portal</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>College Administration</div>
-            </div>
+      <div className="auth-container">
+        {/* Left Branding Panel */}
+        <aside className="auth-panel-left" aria-hidden="true">
+          <div className="auth-logo">
+            <IconShield />
           </div>
+          <div>
+            <h2 className="auth-brand-title">Student Management<br />Portal</h2>
+            <p className="auth-brand-sub">Secure college administration<br />system for managing student records.</p>
+          </div>
+          <ul className="auth-features" role="list">
+            {FEATURES.map(f => (
+              <li key={f} className="auth-feature">
+                <IconCheck />
+                {f}
+              </li>
+            ))}
+          </ul>
+        </aside>
 
-          <h1 className="auth-title">Admin Sign In</h1>
-          <p className="auth-sub">Enter your credentials to access the portal.</p>
-
-          <form className="auth-form" onSubmit={handleSubmit} noValidate>
-            {/* Username */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="login-username">
-                <IconUser /> Username <span className="required">*</span>
-              </label>
-              <input
-                id="login-username"
-                type="text"
-                name="username"
-                autoComplete="username"
-                autoFocus
-                className={`form-control${fieldErrors.username ? ' error' : ''}`}
-                placeholder="Enter your username"
-                value={username}
-                onChange={e => { setUsername(e.target.value); setFieldErrors(prev => ({ ...prev, username: undefined })); }}
-              />
-              {fieldErrors.username ? <span className="form-error">{fieldErrors.username}</span> : null}
-            </div>
-
-            {/* Password */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="login-password">
-                <IconLock /> Password <span className="required">*</span>
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  autoComplete="current-password"
-                  className={`form-control${fieldErrors.password ? ' error' : ''}`}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={e => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); }}
-                  style={{ paddingRight: 40 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(prev => !prev)}
-                  style={{
-                    position: 'absolute',
-                    right: 10,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-2)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 4,
-                  }}
-                  title={showPassword ? 'Hide password' : 'Show password'}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <IconEyeOff /> : <IconEye />}
-                </button>
+        {/* Right Login Panel */}
+        <section className="auth-panel-right">
+          <div className="auth-card">
+            {/* Card logo (mobile) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: 'var(--blue-light)', display: 'grid', placeItems: 'center', color: 'var(--blue)'
+              }}>
+                <IconShield />
               </div>
-              {fieldErrors.password ? <span className="form-error">{fieldErrors.password}</span> : null}
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text)' }}>Student Portal</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>College Administration</div>
+              </div>
             </div>
 
-            <button
-              id="login-submit"
-              type="submit"
-              className="btn btn-navy btn-lg"
-              style={{ width: '100%', marginTop: 4 }}
-              disabled={loading}
-            >
-              {loading ? <Spinner /> : null}
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
+            <h1 className="auth-title">Admin Sign In</h1>
+            <p className="auth-sub">Enter your credentials to access the portal.</p>
 
-          <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 24, textAlign: 'center' }}>
-            Access restricted to authorized administrators only.
-          </p>
+            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+              {/* Username */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="login-username">
+                  <IconUser /> Username <span className="required">*</span>
+                </label>
+                <input
+                  id="login-username"
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  autoFocus
+                  className={`form-control${fieldErrors.username ? ' error' : ''}`}
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={e => { setUsername(e.target.value); setFieldErrors(prev => ({ ...prev, username: undefined })); }}
+                />
+                {fieldErrors.username ? <span className="form-error">{fieldErrors.username}</span> : null}
+              </div>
 
-          <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <GetAppLink />
+              {/* Password */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="login-password">
+                  <IconLock /> Password <span className="required">*</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    autoComplete="current-password"
+                    className={`form-control${fieldErrors.password ? ' error' : ''}`}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={e => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); }}
+                    style={{ paddingRight: 40 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-2)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 4,
+                    }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                  </button>
+                </div>
+                {fieldErrors.password ? <span className="form-error">{fieldErrors.password}</span> : null}
+              </div>
+
+              <button
+                id="login-submit"
+                type="submit"
+                className="btn btn-primary btn-lg"
+                style={{ width: '100%', marginTop: 4 }}
+                disabled={loading}
+              >
+                {loading ? <Spinner /> : null}
+                {loading ? 'Signing in...' : 'Sign In'}
+              </button>
+            </form>
+
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 24, textAlign: 'center' }}>
+              Access restricted to authorized administrators only.
+            </p>
+
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <GetAppLink />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }

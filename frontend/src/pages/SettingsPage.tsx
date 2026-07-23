@@ -400,7 +400,7 @@ export function SettingsPage({ onLogout }: Props) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {featureRows.map(f => (
                 <div key={f.title} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--surface-2)', color: 'var(--navy)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--surface-2)', color: 'var(--text)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                     {f.icon}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>

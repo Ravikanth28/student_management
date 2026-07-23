@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../state/auth';
 import { useTheme } from '../state/theme';
+import { InstallAppModal } from './InstallApp';
 import type { Role } from '../types';
 
 function roleLabel(r: Role): string {
@@ -222,10 +223,19 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
 ];
 
 
+function IconPhone() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="2" width="14" height="20" rx="2" ry="2" /><line x1="12" y1="18" x2="12" y2="18" />
+    </svg>
+  );
+}
+
 // ─── Sidebar Content ─────────────────────────────────────────
 function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?: () => void }) {
   const { role, displayName } = useAuth();
   const { theme, toggle } = useTheme();
+  const [showAppModal, setShowAppModal] = useState(false);
   const items = NAV_ITEMS.filter((i) => role && i.roles.includes(role));
 
   return (
@@ -284,11 +294,16 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
             </button>
           </div>
         )}
+        <button className="logout-btn" type="button" onClick={() => setShowAppModal(true)} style={{ marginBottom: 6 }}>
+          <IconPhone />
+          Mobile App (APK)
+        </button>
         <button className="logout-btn" type="button" onClick={onLogout} id="logout-button">
           <IconLogout />
           Sign Out
         </button>
       </div>
+      {showAppModal && <InstallAppModal onClose={() => setShowAppModal(false)} />}
     </>
   );
 }

@@ -248,17 +248,19 @@ export async function ensureSchema(): Promise<void> {
 }
 
 export async function seedSuperadmin(): Promise<void> {
-  const hash = env.ADMIN_PASSWORD_HASH
+  const adminHash = env.ADMIN_PASSWORD_HASH
     ? env.ADMIN_PASSWORD_HASH
     : env.ADMIN_PASSWORD
       ? bcrypt.hashSync(env.ADMIN_PASSWORD, 12)
       : bcrypt.hashSync('Admin@123456', 12);
 
+  const crHash = bcrypt.hashSync('Cr@12345', 12);
+
   const defaultUsers = [
-    { username: 'superadmin', name: 'Super Administrator', role: 'superadmin' },
-    { username: 'admin', name: 'System Admin', role: 'admin' },
-    { username: 'cr', name: 'Class Representative', role: 'cr' },
-    { username: 'user', name: 'View-Only User', role: 'user' },
+    { username: 'superadmin', name: 'Super Administrator', role: 'superadmin', hash: adminHash },
+    { username: 'admin', name: 'System Admin', role: 'admin', hash: adminHash },
+    { username: 'cr', name: 'Class Representative', role: 'cr', hash: crHash },
+    { username: 'user', name: 'View-Only User', role: 'user', hash: adminHash },
   ];
 
   for (const u of defaultUsers) {
@@ -266,7 +268,7 @@ export async function seedSuperadmin(): Promise<void> {
       `INSERT INTO users (username, name, password_hash, role, created_by)
        VALUES (?, ?, ?, ?, 'system')
        ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role)`,
-      [u.username, u.name, hash, u.role]
+      [u.username, u.name, u.hash, u.role]
     );
   }
   logger.info('Seeded/verified default role accounts (superadmin, admin, cr, user).');

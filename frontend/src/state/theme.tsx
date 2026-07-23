@@ -6,7 +6,7 @@ const KEY = 'student-portal-theme';
 function getInitial(): Theme {
   const saved = localStorage.getItem(KEY);
   if (saved === 'light' || saved === 'dark') return saved;
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return 'light';
 }
 
 // Apply immediately at module load to avoid a flash of the wrong theme.
