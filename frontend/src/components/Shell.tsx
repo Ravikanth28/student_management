@@ -5,11 +5,12 @@ import { useTheme } from '../state/theme';
 import type { Role } from '../types';
 
 function roleLabel(r: Role): string {
-  return r === 'superadmin' ? 'Super Admin' : r === 'admin' ? 'Admin' : 'User';
+  return r === 'superadmin' ? 'Super Admin' : r === 'admin' ? 'Admin' : r === 'cr' ? 'Class Rep' : 'User';
 }
 const ROLE_COLORS: Record<Role, { bg: string; fg: string; dot: string }> = {
   superadmin: { bg: 'rgba(129,140,248,0.16)', fg: '#c7d2fe', dot: '#818cf8' },
   admin:      { bg: 'rgba(96,165,250,0.16)',  fg: '#bfdbfe', dot: '#60a5fa' },
+  cr:         { bg: 'rgba(52,211,153,0.16)',  fg: '#a7f3d0', dot: '#34d399' },
   user:       { bg: 'rgba(255,255,255,0.10)', fg: 'rgba(255,255,255,0.78)', dot: 'rgba(255,255,255,0.6)' },
 };
 function rolePill(r: Role): CSSProperties {
@@ -203,20 +204,21 @@ function IconMoon() {
 
 // ─── Nav Items ───────────────────────────────────────────────
 const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; roles: Role[] }> = [
-  { to: '/dashboard',    label: 'Dashboard',        Icon: IconGrid,          roles: ['superadmin', 'admin', 'user'] },
-  { to: '/students',     label: 'Student Records',  Icon: IconUsers,         roles: ['superadmin', 'admin', 'user'] },
-  { to: '/blood-groups', label: 'Blood Groups',     Icon: IconDroplet,       roles: ['superadmin', 'admin', 'user'] },
-  { to: '/students/new', label: 'Add Student',      Icon: IconPlus,          roles: ['superadmin', 'admin'] },
-  { to: '/scanner',      label: 'Scanner',          Icon: IconScan,          roles: ['superadmin', 'admin'] },
-  { to: '/attendance',   label: 'Attendance',       Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
-  { to: '/late-comers',  label: 'Late Comers',      Icon: IconClock,         roles: ['superadmin', 'admin'] },
-  { to: '/disciplinary', label: 'Disciplinary',     Icon: IconAlertTriangle, roles: ['superadmin', 'admin'] },
-  { to: '/achievements', label: 'Achievements',     Icon: IconTrophy,        roles: ['superadmin', 'admin'] },
-  { to: '/placements',   label: 'Placements',       Icon: IconBriefcase,     roles: ['superadmin', 'admin'] },
-  { to: '/import',       label: 'Bulk Import',      Icon: IconUploadNav,     roles: ['superadmin', 'admin'] },
-  { to: '/users',        label: 'Users',            Icon: IconUsersCog,      roles: ['superadmin'] },
-  { to: '/audit',        label: 'Audit Log',        Icon: IconActivity,      roles: ['superadmin'] },
-  { to: '/settings',     label: 'Settings',         Icon: IconSettings,      roles: ['superadmin'] },
+  { to: '/dashboard',     label: 'Dashboard',        Icon: IconGrid,          roles: ['superadmin', 'admin', 'user'] },
+  { to: '/students',      label: 'Student Records',  Icon: IconUsers,         roles: ['superadmin', 'admin', 'user'] },
+  { to: '/blood-groups',  label: 'Blood Groups',     Icon: IconDroplet,       roles: ['superadmin', 'admin', 'user'] },
+  { to: '/students/new',  label: 'Add Student',      Icon: IconPlus,          roles: ['superadmin', 'admin'] },
+  { to: '/scanner',       label: 'Scanner',          Icon: IconScan,          roles: ['superadmin', 'admin'] },
+  { to: '/attendance',    label: 'Attendance',       Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
+  { to: '/cr-attendance', label: 'Mark Absentees',   Icon: IconClipboard,     roles: ['cr'] },
+  { to: '/late-comers',   label: 'Late Comers',      Icon: IconClock,         roles: ['superadmin', 'admin'] },
+  { to: '/disciplinary',  label: 'Disciplinary',     Icon: IconAlertTriangle, roles: ['superadmin', 'admin'] },
+  { to: '/achievements',  label: 'Achievements',     Icon: IconTrophy,        roles: ['superadmin', 'admin'] },
+  { to: '/placements',    label: 'Placements',       Icon: IconBriefcase,     roles: ['superadmin', 'admin'] },
+  { to: '/import',        label: 'Bulk Import',      Icon: IconUploadNav,     roles: ['superadmin', 'admin'] },
+  { to: '/users',         label: 'Users',            Icon: IconUsersCog,      roles: ['superadmin'] },
+  { to: '/audit',         label: 'Audit Log',        Icon: IconActivity,      roles: ['superadmin'] },
+  { to: '/settings',      label: 'Settings',         Icon: IconSettings,      roles: ['superadmin'] },
 ];
 
 

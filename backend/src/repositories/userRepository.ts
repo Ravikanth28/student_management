@@ -1,7 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { pool } from '../config/db.js';
 
-export type Role = 'superadmin' | 'admin' | 'user';
+export type Role = 'superadmin' | 'admin' | 'user' | 'cr';
 
 export interface UserRecord {
   id: number;

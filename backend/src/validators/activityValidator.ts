@@ -60,3 +60,13 @@ export const disciplineCreateSchema = z.object({
     z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD').optional()
   ),
 });
+
+export const crAttendanceSubmitSchema = z.object({
+  year: z.string().trim().min(1, 'Year is required'),
+  section: z.string().trim().min(1, 'Section is required'),
+  att_date: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'att_date must be YYYY-MM-DD').optional()
+  ),
+  absent_student_ids: z.array(z.coerce.number().int().positive()),
+});

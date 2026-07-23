@@ -161,3 +161,39 @@ export async function summarize(params: {
     percentage: Number(r.percentage),
   }));
 }
+
+export interface AttendanceRangeRow {
+  att_date: string;
+  student_id: number;
+  name: string;
+  register_number: string;
+  enrollment_number: string;
+  year: string | null;
+  section: string | null;
+  marked_by: string | null;
+}
+
+/** Detailed absentee list over a date range for Admin/Superadmin export. */
+export async function getRangeReport(params: {
+  from?: string; to?: string; year?: string; section?: string;
+}): Promise<AttendanceRangeRow[]> {
+  const cond: string[] = ["a.status = 'absent'"];
+  const vals: unknown[] = [];
+  if (params.from) { cond.push('a.att_date >= ?'); vals.push(params.from); }
+  if (params.to) { cond.push('a.att_date <= ?'); vals.push(params.to); }
+  if (params.year) { cond.push('a.year = ?'); vals.push(params.year); }
+  if (params.section) { cond.push('a.section = ?'); vals.push(params.section); }
+  const where = `WHERE ${cond.join(' AND ')}`;
+
+  const [rows] = await pool.query<Array<AttendanceRangeRow & RowDataPacket>>(
+    `SELECT DATE_FORMAT(a.att_date, '%Y-%m-%d') AS att_date, a.student_id, s.name, s.register_number, s.enrollment_number, a.year, a.section, a.marked_by
+       FROM attendance a JOIN students s ON s.id = a.student_id
+       ${where}
+       ORDER BY a.att_date DESC, a.year ASC, a.section ASC, s.name ASC`,
+    vals,
+  );
+  return rows.map((r) => ({
+    ...r,
+    student_id: Number(r.student_id),
+  }));
+}

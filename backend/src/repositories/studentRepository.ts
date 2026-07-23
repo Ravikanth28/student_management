@@ -117,17 +117,32 @@ export async function deleteStudent(id: number): Promise<boolean> {
   return result.affectedRows > 0;
 }
 
-export async function searchStudents(term: string, limit = 6): Promise<StudentRecord[]> {
+export async function searchStudents(term: string, limit = 6, year?: string, section?: string): Promise<StudentRecord[]> {
+  const conds: string[] = ['(name LIKE ? OR register_number LIKE ? OR enrollment_number LIKE ?)'];
   const like = `%${term}%`;
+  const vals: unknown[] = [like, like, like];
+
+  if (year) {
+    conds.push('year = ?');
+    vals.push(year);
+  }
+  if (section) {
+    const cleanSec = section.replace(/^sec\s+/i, '').trim();
+    conds.push('(section = ? OR section = ?)');
+    vals.push(cleanSec, `Sec ${cleanSec}`);
+  }
+
+  vals.push(term, term, limit);
+
   const [rows] = await pool.query<StudentRow[]>(
     `SELECT *
      FROM students
-     WHERE name LIKE ? OR register_number LIKE ? OR enrollment_number LIKE ?
+     WHERE ${conds.join(' AND ')}
      ORDER BY
        CASE WHEN register_number = ? OR enrollment_number = ? THEN 0 ELSE 1 END,
        name ASC
      LIMIT ?`,
-    [like, like, like, term, term, limit]
+    vals
   );
 
   return rows.map(rowToStudent);

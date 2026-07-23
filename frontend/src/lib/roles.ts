@@ -2,6 +2,7 @@ import type { Role } from '../types';
 
 export const isStaff = (r?: Role | null): boolean => r === 'superadmin' || r === 'admin';
 export const isSuperadmin = (r?: Role | null): boolean => r === 'superadmin';
+export const isCR = (r?: Role | null): boolean => r === 'cr';
 
 /** Roles allowed to open each route/nav path. */
 export const PATH_ROLES: Record<string, Role[]> = {
@@ -12,6 +13,7 @@ export const PATH_ROLES: Record<string, Role[]> = {
   '/students/:id/edit': ['superadmin', 'admin'],
   '/scanner':       ['superadmin', 'admin'],
   '/attendance':    ['superadmin', 'admin'],
+  '/cr-attendance': ['cr'],
   '/late-comers':   ['superadmin', 'admin'],
   '/disciplinary':  ['superadmin', 'admin'],
   '/achievements':  ['superadmin', 'admin'],

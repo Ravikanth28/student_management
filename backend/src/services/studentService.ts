@@ -79,8 +79,8 @@ export async function deleteStudent(id: number): Promise<void> {
   }
 }
 
-export async function searchStudents(q: string): Promise<StudentRecord[]> {
-  return repository.searchStudents(q.trim(), 8);
+export async function searchStudents(q: string, limit = 10, year?: string, section?: string): Promise<StudentRecord[]> {
+  return repository.searchStudents(q.trim(), limit, year, section);
 }
 
 /** Returns aggregate stats for the dashboard. */

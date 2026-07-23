@@ -247,29 +247,27 @@ export async function ensureSchema(): Promise<void> {
   logger.info('Database schema verified.');
 }
 
-/**
- * Seeds the first superadmin from the ADMIN_* env vars if the users table is
- * empty — so the existing admin credentials become the superadmin and nothing
- * breaks on upgrade.
- */
 export async function seedSuperadmin(): Promise<void> {
-  const [rows] = await pool.query<Array<{ c: number } & RowDataPacket>>('SELECT COUNT(*) AS c FROM users');
-  if (Number(rows[0]?.c ?? 0) > 0) return;
-
   const hash = env.ADMIN_PASSWORD_HASH
     ? env.ADMIN_PASSWORD_HASH
     : env.ADMIN_PASSWORD
       ? bcrypt.hashSync(env.ADMIN_PASSWORD, 12)
-      : null;
+      : bcrypt.hashSync('Admin@123456', 12);
 
-  if (!hash) {
-    logger.warn('No ADMIN_PASSWORD or ADMIN_PASSWORD_HASH set — cannot seed the superadmin account.');
-    return;
+  const defaultUsers = [
+    { username: 'superadmin', name: 'Super Administrator', role: 'superadmin' },
+    { username: 'admin', name: 'System Admin', role: 'admin' },
+    { username: 'cr', name: 'Class Representative', role: 'cr' },
+    { username: 'user', name: 'View-Only User', role: 'user' },
+  ];
+
+  for (const u of defaultUsers) {
+    await pool.query(
+      `INSERT INTO users (username, name, password_hash, role, created_by)
+       VALUES (?, ?, ?, ?, 'system')
+       ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role)`,
+      [u.username, u.name, hash, u.role]
+    );
   }
-
-  await pool.query(
-    'INSERT INTO users (username, name, password_hash, role, created_by) VALUES (?, ?, ?, ?, ?)',
-    [env.ADMIN_USERNAME, 'Administrator', hash, 'superadmin', 'system']
-  );
-  logger.info(`Seeded superadmin account "${env.ADMIN_USERNAME}".`);
+  logger.info('Seeded/verified default role accounts (superadmin, admin, cr, user).');
 }

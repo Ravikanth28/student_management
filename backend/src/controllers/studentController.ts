@@ -92,7 +92,7 @@ export const searchStudents = asyncWrap(async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid search query', issues: parsed.error.flatten() });
   }
-  const students = await service.searchStudents(parsed.data.q);
+  const students = await service.searchStudents(parsed.data.q, parsed.data.limit, parsed.data.year, parsed.data.section);
   return res.json({ data: students, query: parsed.data.q });
 });
 

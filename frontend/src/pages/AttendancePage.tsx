@@ -1,12 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
+import * as XLSX from 'xlsx';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { StudentActivityModal } from '../components/StudentActivityModal';
 import { useToast } from '../components/Toast';
-import { YEAR_OPTIONS, YEAR_LABELS, type RosterStudent, type AttendanceDaySection, type AttendanceSummaryRow, type StudentAttendanceRow, type Student } from '../types';
+import { YEAR_OPTIONS, YEAR_LABELS, type RosterStudent, type AttendanceDaySection, type AttendanceSummaryRow, type StudentAttendanceRow, type AttendanceRangeRow, type Student } from '../types';
 
 type Props = { onLogout: () => void };
+
+function IconFileSpreadsheet() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9v10"/></svg>;
+}
+function IconDownload() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+}
+function IconCalendar() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+}
+function IconUser() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+}
 
 const SECTIONS = ['A', 'B', 'C', 'D', 'E'];
 const todayIST = () => new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -17,7 +31,18 @@ const tokenKey = (s: string) => s.toUpperCase().split(/[^A-Z0-9]+/).filter(Boole
 
 export function AttendancePage({ onLogout }: Props) {
   const { success, error: toastError } = useToast();
-  const [tab, setTab] = useState<'mark' | 'summary'>('mark');
+  const [tab, setTab] = useState<'mark' | 'summary' | 'export'>('mark');
+
+  // Export state
+  const [exportFrom, setExportFrom] = useState(todayIST);
+  const [exportTo, setExportTo] = useState(todayIST);
+  const [exportYear, setExportYear] = useState('');
+  const [exportSection, setExportSection] = useState('');
+  const [exporting, setExporting] = useState(false);
+
+  // Date-wise log state
+  const [dateLog, setDateLog] = useState<AttendanceRangeRow[]>([]);
+  const [loadingDateLog, setLoadingDateLog] = useState(false);
 
   // ── Marking state ──
   const [year, setYear] = useState('');
@@ -35,7 +60,7 @@ export function AttendancePage({ onLogout }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<{ year: string; section: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // ── Summary ──
+  // ── Summary filters ──
   const [sumFrom, setSumFrom] = useState('');
   const [sumTo, setSumTo] = useState('');
   const [sumYear, setSumYear] = useState('');
@@ -43,26 +68,11 @@ export function AttendancePage({ onLogout }: Props) {
   const [summary, setSummary] = useState<AttendanceSummaryRow[]>([]);
   const filteredSummary = useMemo(() => summary.filter((r) => r.absent > 0), [summary]);
 
-  // ── Per-student "View" popup ──
+  // ── Student Activity Modal state ──
+  const [viewOpen, setViewOpen] = useState(false);
   const [viewStudent, setViewStudent] = useState<Student | null>(null);
   const [viewRows, setViewRows] = useState<StudentAttendanceRow[]>([]);
-  const [viewOpen, setViewOpen] = useState(false);
   const [viewLoading, setViewLoading] = useState(false);
-
-  const openView = async (studentId: number) => {
-    setViewOpen(true); setViewLoading(true); setViewStudent(null); setViewRows([]);
-    try {
-      const [s, rows] = await Promise.all([
-        api.get<Student>(`/students/${studentId}`),
-        api.get<{ data: StudentAttendanceRow[] }>(`/attendance/student/${studentId}`),
-      ]);
-      setViewStudent(s.data);
-      setViewRows(rows.data.data);
-    } catch { /* ignore */ } finally { setViewLoading(false); }
-  };
-  const vPresent = viewRows.filter((r) => r.status === 'present').length;
-  const vAbsent = viewRows.filter((r) => r.status === 'absent').length;
-  const vPct = viewRows.length ? Math.round((1000 * vPresent) / viewRows.length) / 10 : 0;
 
   // Load roster when year + section chosen.
   useEffect(() => {
@@ -76,10 +86,21 @@ export function AttendancePage({ onLogout }: Props) {
     .then((r) => setDay(r.data.data)).catch(() => setDay([]));
   useEffect(() => { void loadDay(); /* eslint-disable-next-line */ }, [date]);
 
-  const loadSummary = () => api.get<{ data: AttendanceSummaryRow[] }>('/attendance/summary', {
-    params: { from: sumFrom || undefined, to: sumTo || undefined, year: sumYear || undefined },
-  }).then((r) => setSummary(r.data.data)).catch(() => setSummary([]));
-  useEffect(() => { if (tab === 'summary') void loadSummary(); /* eslint-disable-next-line */ }, [tab, sumFrom, sumTo, sumYear]);
+  const loadDateLog = useCallback(() => {
+    setLoadingDateLog(true);
+    api.get<{ data: AttendanceRangeRow[] }>('/attendance/range', {
+      params: { from: sumFrom || undefined, to: sumTo || undefined, year: sumYear || undefined },
+    })
+      .then((r) => setDateLog(r.data.data))
+      .catch(() => setDateLog([]))
+      .finally(() => setLoadingDateLog(false));
+  }, [sumFrom, sumTo, sumYear]);
+
+  useEffect(() => {
+    if (tab === 'summary') {
+      void loadDateLog();
+    }
+  }, [tab, sumFrom, sumTo, sumYear, loadDateLog]);
 
   const openPreview = () => {
     if (!year || !section) { toastError('Pick a class', 'Select the year and section first.'); return; }
@@ -160,12 +181,60 @@ export function AttendancePage({ onLogout }: Props) {
     [roster, absentIds],
   );
 
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const res = await api.get<{ data: AttendanceRangeRow[] }>('/attendance/range', {
+        params: {
+          from: exportFrom || undefined,
+          to: exportTo || undefined,
+          year: exportYear || undefined,
+          section: exportSection || undefined,
+        },
+      });
+
+      if (res.data.data.length === 0) {
+        toastError('No data found', 'No absentee records found for the selected date range and class filters.');
+        return;
+      }
+
+      const rows = res.data.data.map((r, idx) => ({
+        'S.No': idx + 1,
+        'Date': r.att_date,
+        'Student Name': r.name,
+        'Register Number': r.register_number,
+        'Enrollment Number': r.enrollment_number,
+        'Year': YEAR_LABELS[r.year ?? ''] ?? r.year ?? '—',
+        'Section': r.section ?? '—',
+        'Marked By': r.marked_by ?? 'System / CR',
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Absentees Report');
+
+      const fileName = `Absentees_Report_${exportFrom || 'all'}_to_${exportTo || 'all'}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      success('Excel exported', `Downloaded ${rows.length} absentee record(s) into ${fileName}.`);
+    } catch {
+      toastError('Export failed', 'Could not generate Excel report.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const vPresent = viewRows.filter((r) => r.status === 'present').length;
+  const vAbsent = viewRows.filter((r) => r.status === 'absent').length;
+  const vPct = viewRows.length ? Math.round((1000 * vPresent) / viewRows.length) / 10 : 0;
+
   return (
-    <Shell title="Daily Attendance" subtitle="Mark absentees, view the daily register, and track attendance %" onLogout={onLogout}>
+    <Shell title="Daily Attendance" subtitle="Mark absentees, view daily registers, and export absentee Excel reports" onLogout={onLogout}>
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button className={`btn ${tab === 'mark' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('mark')}>Mark & Register</button>
+        <button className={`btn ${tab === 'mark' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('mark')}>Mark & Daily Register</button>
         <button className={`btn ${tab === 'summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('summary')}>Summary</button>
+        <button className={`btn ${tab === 'export' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('export')}>Export Excel Report</button>
       </div>
 
       {tab === 'mark' && (
@@ -271,51 +340,103 @@ export function AttendancePage({ onLogout }: Props) {
 
       {tab === 'summary' && (
         <div className="card card-padded">
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 14 }}>
-            <div><label className="form-label">From</label><input type="date" className="form-control" value={sumFrom} onChange={(e) => setSumFrom(e.target.value)} style={{ maxWidth: 160 }} /></div>
-            <div><label className="form-label">To</label><input type="date" className="form-control" value={sumTo} onChange={(e) => setSumTo(e.target.value)} style={{ maxWidth: 160 }} /></div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+            <div><label className="form-label">From Date</label><input type="date" className="form-control" value={sumFrom} onChange={(e) => setSumFrom(e.target.value)} style={{ maxWidth: 160 }} /></div>
+            <div><label className="form-label">To Date</label><input type="date" className="form-control" value={sumTo} onChange={(e) => setSumTo(e.target.value)} style={{ maxWidth: 160 }} /></div>
             <div>
-              <label className="form-label">Year</label>
+              <label className="form-label">Year Filter</label>
               <select className="form-control" value={sumYear} onChange={(e) => setSumYear(e.target.value)} style={{ minWidth: 120 }}>
                 <option value="">All years</option>
                 {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
               </select>
             </div>
-            <div>
-              <label className="form-label">Defaulter below %</label>
-              <input type="number" className="form-control" value={threshold} min={0} max={100} onChange={(e) => setThreshold(Number(e.target.value))} style={{ maxWidth: 110 }} />
-            </div>
           </div>
-          {filteredSummary.length === 0 ? (
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>No marked records found for these filters.</p>
+
+          {loadingDateLog ? (
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)' }}>Loading date-wise log...</div>
+          ) : dateLog.length === 0 ? (
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', fontStyle: 'italic' }}>No absentee records found for the selected date range and class filters.</p>
           ) : (
             <div className="table-container">
               <table>
                 <thead>
-                  <tr><th>Name</th><th>Register No.</th><th>Year</th><th>Sec</th><th>Days</th><th>Present</th><th>Absent</th><th>%</th><th></th><th></th></tr>
+                  <tr>
+                    <th>Date</th>
+                    <th>Student Name</th>
+                    <th>Register No.</th>
+                    <th>Year</th>
+                    <th>Sec</th>
+                    <th>Marked By</th>
+                  </tr>
                 </thead>
                 <tbody>
-                  {filteredSummary.map((r) => {
-                    const low = r.percentage < threshold;
-                    return (
-                      <tr key={r.student_id} style={low ? { background: 'var(--amber-light)' } : undefined}>
-                        <td style={{ fontWeight: 600 }}>{r.name}</td>
-                        <td className="td-muted">{r.register_number}</td>
-                        <td>{r.year ? (YEAR_LABELS[r.year] ?? r.year) : '—'}</td>
-                        <td>{r.section}</td>
-                        <td>{r.days}</td>
-                        <td>{r.present}</td>
-                        <td>{r.absent}</td>
-                        <td style={{ fontWeight: 700, color: low ? 'var(--amber)' : 'var(--green)' }}>{r.percentage}%</td>
-                        <td>{low ? <span className="badge badge-red">Defaulter</span> : null}</td>
-                        <td style={{ textAlign: 'right' }}><button className="btn btn-outline btn-sm" type="button" onClick={() => void openView(r.student_id)}>View</button></td>
-                      </tr>
-                    );
-                  })}
+                  {dateLog.map((r, idx) => (
+                    <tr key={`${r.att_date}-${r.student_id}-${idx}`}>
+                      <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{r.att_date}</td>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td className="td-muted">{r.register_number}</td>
+                      <td><span className="badge badge-purple">{r.year ? (YEAR_LABELS[r.year] ?? r.year) : '—'}</span></td>
+                      <td><span className="badge badge-green">Sec {r.section}</span></td>
+                      <td className="td-muted" style={{ fontSize: '0.78rem' }}>{r.marked_by || 'system'}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {tab === 'export' && (
+        <div className="card card-padded" style={{ maxWidth: 800 }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+            <IconFileSpreadsheet /> Export Absentees Excel Report
+          </h3>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-2)', marginBottom: 18 }}>
+            Select date range (inclusive) and optional class filters to download an Excel (.xlsx) file of absentees marked by Class Representatives (CRs) and Administrators.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
+            <div>
+              <label className="form-label">From Date *</label>
+              <input type="date" className="form-control" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">To Date *</label>
+              <input type="date" className="form-control" value={exportTo} onChange={(e) => setExportTo(e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">Year Filter</label>
+              <select className="form-control" value={exportYear} onChange={(e) => setExportYear(e.target.value)}>
+                <option value="">All Years</option>
+                {YEAR_OPTIONS.map((y) => (
+                  <option key={y} value={y}>{YEAR_LABELS[y]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Section Filter</label>
+              <select className="form-control" value={exportSection} onChange={(e) => setExportSection(e.target.value)}>
+                <option value="">All Sections</option>
+                {SECTIONS.map((s) => (
+                  <option key={s} value={s}>Sec {s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'right', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-lg"
+              disabled={exporting}
+              onClick={handleExportExcel}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <IconDownload />
+              <span>{exporting ? 'Generating Excel…' : 'Download Excel (.xlsx) Report'}</span>
+            </button>
+          </div>
         </div>
       )}
 

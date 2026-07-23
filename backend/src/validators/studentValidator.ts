@@ -1,4 +1,4 @@
-﻿import { z } from 'zod';
+import { z } from 'zod';
 
 const optionalText = z.preprocess(
   (value) => (value === '' ? undefined : value),
@@ -53,7 +53,10 @@ export const studentUpdateSchema = studentCreateSchema.partial().refine((value) 
 });
 
 export const studentSearchSchema = z.object({
-  q: z.string().trim().min(1).max(120)
+  q: z.string().trim().min(1).max(120),
+  year: z.string().trim().max(16).optional(),
+  section: z.string().trim().max(40).optional(),
+  limit: z.preprocess((v) => Number(v ?? 10), z.number().int().min(1).max(100)).default(10),
 });
 
 export const studentListQuerySchema = z.object({

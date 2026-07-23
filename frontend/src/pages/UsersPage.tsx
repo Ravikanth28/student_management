@@ -11,6 +11,7 @@ type Props = { onLogout: () => void };
 const ROLE_BADGE: Record<Role, string> = {
   superadmin: 'badge-navy',
   admin: 'badge-blue',
+  cr: 'badge-green',
   user: 'badge-gray',
 };
 
@@ -127,6 +128,7 @@ export function UsersPage({ onLogout }: Props) {
             <label style={label}>Role</label>
             <select className="form-control" value={role} onChange={(e) => setRole(e.target.value as Role)}>
               <option value="user">User (view only)</option>
+              <option value="cr">CR (Class Representative)</option>
               <option value="admin">Admin</option>
               <option value="superadmin">Superadmin</option>
             </select>
@@ -185,6 +187,7 @@ export function UsersPage({ onLogout }: Props) {
                 <label style={label}>Role</label>
                 <select className="form-control" value={eRole} onChange={(e) => setERole(e.target.value as Role)}>
                   <option value="user">User (view only)</option>
+                  <option value="cr">CR (Class Representative)</option>
                   <option value="admin">Admin</option>
                   <option value="superadmin">Superadmin</option>
                 </select>

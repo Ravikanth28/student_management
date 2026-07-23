@@ -40,7 +40,7 @@ export type StudentListResponse = {
   };
 };
 
-export type Role = 'superadmin' | 'admin' | 'user';
+export type Role = 'superadmin' | 'admin' | 'user' | 'cr';
 
 export type LoginResponse = {
   token: string;
@@ -306,4 +306,15 @@ export type DisciplineSummaryRow = {
   batch: string;
   total: number;
   reasons: string;
+};
+
+export type AttendanceRangeRow = {
+  att_date: string;
+  student_id: number;
+  name: string;
+  register_number: string;
+  enrollment_number: string;
+  year: string | null;
+  section: string | null;
+  marked_by: string | null;
 };
