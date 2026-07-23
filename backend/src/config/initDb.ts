@@ -85,6 +85,23 @@ export async function ensureSchema(): Promise<void> {
     }
   }
 
+  // Discipline records table.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS discipline_records (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      student_id BIGINT UNSIGNED NOT NULL,
+      reason VARCHAR(255) NOT NULL,
+      details TEXT NULL,
+      record_date DATE NOT NULL,
+      record_time VARCHAR(8) NULL,
+      marked_by VARCHAR(120) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_disc_student (student_id),
+      KEY idx_disc_date (record_date)
+    )
+  `);
+
   // Achievements (may belong to a team of students via achievement_members).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS achievements (

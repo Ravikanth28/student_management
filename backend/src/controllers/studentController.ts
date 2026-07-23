@@ -7,6 +7,7 @@ import * as studentRepo from '../repositories/studentRepository.js';
 import * as lateRepo from '../repositories/lateRepository.js';
 import * as achievementRepo from '../repositories/achievementRepository.js';
 import * as placementRepo from '../repositories/placementRepository.js';
+import * as disciplineRepo from '../repositories/disciplineRepository.js';
 
 /** Wraps an async route handler so unhandled rejections go to Express error middleware */
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
@@ -150,5 +151,11 @@ export const getStudentAchievements = asyncWrap(async (req, res) => {
 export const getStudentPlacements = asyncWrap(async (req, res) => {
   const placements = await placementRepo.listByStudent(parseId(req.params.id));
   return res.json({ data: placements });
+});
+
+// GET /api/students/:id/discipline-records
+export const getStudentDisciplineRecords = asyncWrap(async (req, res) => {
+  const records = await disciplineRepo.listDisciplineByStudent(parseId(req.params.id));
+  return res.json({ data: records });
 });
 

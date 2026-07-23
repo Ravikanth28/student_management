@@ -63,6 +63,20 @@ CREATE TABLE IF NOT EXISTS late_records (
   KEY idx_late_date (late_date)
 );
 
+CREATE TABLE IF NOT EXISTS discipline_records (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  student_id BIGINT UNSIGNED NOT NULL,
+  reason VARCHAR(255) NOT NULL,
+  details TEXT NULL,
+  record_date DATE NOT NULL,
+  record_time VARCHAR(8) NULL,
+  marked_by VARCHAR(120) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_disc_student (student_id),
+  KEY idx_disc_date (record_date)
+);
+
 CREATE TABLE IF NOT EXISTS achievements (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   event_type VARCHAR(40) NULL,

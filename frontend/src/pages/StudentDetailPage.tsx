@@ -8,7 +8,7 @@ import { useToast } from '../components/Toast';
 import { proxiedImage } from '../lib/img';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
-import { LATE_PERIOD_LABELS, EVENT_TYPE_LABELS, PLACEMENT_TYPE_LABELS, OFFER_TYPE_LABELS, YEAR_LABELS, type Student, type LateRecord, type Achievement, type Placement } from '../types';
+import { LATE_PERIOD_LABELS, EVENT_TYPE_LABELS, PLACEMENT_TYPE_LABELS, OFFER_TYPE_LABELS, YEAR_LABELS, type Student, type LateRecord, type Achievement, type Placement, type DisciplineRecord } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
 function IconCamera() {
@@ -339,9 +339,10 @@ export function StudentDetailPage({ onLogout }: Props) {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting]     = useState(false);
   const [lateRecords, setLateRecords] = useState<LateRecord[]>([]);
+  const [disciplineRecords, setDisciplineRecords] = useState<DisciplineRecord[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
-  const [pendingDelete, setPendingDelete] = useState<{ kind: 'late' | 'achievement'; id: number; label: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'late' | 'achievement' | 'discipline'; id: number; label: string } | null>(null);
   const [removing, setRemoving] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
@@ -365,6 +366,7 @@ export function StudentDetailPage({ onLogout }: Props) {
   const loadActivity = useCallback(() => {
     if (!id) return;
     api.get<{ data: LateRecord[] }>(`/students/${id}/late-records`).then((r) => setLateRecords(r.data.data)).catch(() => {});
+    if (staff) api.get<{ data: DisciplineRecord[] }>(`/students/${id}/discipline-records`).then((r) => setDisciplineRecords(r.data.data)).catch(() => {});
     api.get<{ data: Achievement[] }>(`/students/${id}/achievements`).then((r) => setAchievements(r.data.data)).catch(() => {});
     if (staff) api.get<{ data: Placement[] }>(`/students/${id}/placements`).then((r) => setPlacements(r.data.data)).catch(() => {});
   }, [id, staff]);
@@ -378,6 +380,9 @@ export function StudentDetailPage({ onLogout }: Props) {
       if (pendingDelete.kind === 'late') {
         await api.delete(`/late-records/${pendingDelete.id}`);
         success('Removed', 'Late record deleted.');
+      } else if (pendingDelete.kind === 'discipline') {
+        await api.delete(`/discipline-records/${pendingDelete.id}`);
+        success('Removed', 'Discipline record deleted.');
       } else {
         await api.delete(`/achievements/${pendingDelete.id}/members/${student.id}`);
         success('Removed', 'Achievement removed from this student.');
@@ -543,6 +548,47 @@ export function StudentDetailPage({ onLogout }: Props) {
             </div>
           )}
         </div>
+
+        {/* Disciplinary Records (staff only) */}
+        {staff && (
+          <div className="card card-padded" style={{ marginTop: 16 }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12 }}>
+              Disciplinary Records {disciplineRecords.length > 0 && <span className="badge badge-amber" style={{ marginLeft: 6 }}>{disciplineRecords.length}</span>}
+            </h3>
+            {disciplineRecords.length === 0 ? (
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No disciplinary issues recorded.</p>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr><th>Date</th><th>Time</th><th>Issue / Reason</th><th>Remarks</th><th>Marked By</th><th>Action</th></tr>
+                  </thead>
+                  <tbody>
+                    {disciplineRecords.map((d) => (
+                      <tr key={d.id}>
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{fmtDate(d.record_date)}</td>
+                        <td className="td-muted">{d.record_time ?? '—'}</td>
+                        <td><span className="badge badge-amber">⚠️ {d.reason}</span></td>
+                        <td className="td-muted">{d.details || '—'}</td>
+                        <td className="td-muted">{d.marked_by ?? 'system'}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            type="button"
+                            title="Delete discipline record"
+                            onClick={() => setPendingDelete({ kind: 'discipline', id: d.id, label: d.reason })}
+                          >
+                            <IconTrashPhoto />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Achievements */}
         <div className="card card-padded" style={{ marginTop: 16 }}>

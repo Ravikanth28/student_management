@@ -46,3 +46,17 @@ const placementCore = {
 
 export const placementCreateSchema = z.object({ student_id: z.coerce.number().int().positive(), ...placementCore });
 export const placementUpdateSchema = z.object(placementCore);
+
+export const disciplineCreateSchema = z.object({
+  student_id: z.coerce.number().int().positive(),
+  reason: z.string().trim().min(1, 'Reason is required').max(255),
+  details: optionalText(1000),
+  time: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.string().regex(/^\d{2}:\d{2}$/, 'time must be HH:MM').optional()
+  ),
+  date: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD').optional()
+  ),
+});

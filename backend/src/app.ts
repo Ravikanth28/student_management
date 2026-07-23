@@ -17,6 +17,7 @@ import { placementRoutes } from './routes/placementRoutes.js';
 import { deviceRoutes } from './routes/deviceRoutes.js';
 import { settingsRoutes } from './routes/settingsRoutes.js';
 import { attendanceRoutes } from './routes/attendanceRoutes.js';
+import { disciplineRoutes } from './routes/disciplineRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { apiAuditLogger } from './middleware/auditLogger.js';
 
@@ -84,6 +85,7 @@ app.use('/api/placements', placementRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/discipline-records', disciplineRoutes);
 
 // ── Single-service deployment: serve the built frontend ──
 // In production the web app is built into backend/dist/public. When that folder

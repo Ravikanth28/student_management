@@ -266,3 +266,44 @@ export const LATE_PERIOD_LABELS: Record<string, string> = {
   lunch: 'Lunch',
   evening_break: 'Evening break',
 };
+
+export const DISCIPLINE_REASONS = [
+  'Improper Haircut',
+  'Improper Uniform',
+  'Not clean-shaven',
+  'Others',
+] as const;
+
+export type DisciplineRecord = {
+  id: number;
+  student_id: number;
+  reason: string;
+  details: string | null;
+  record_date: string;
+  record_time: string | null;
+  marked_by: string | null;
+  created_at: string;
+  name?: string;
+  register_number?: string;
+  enrollment_number?: string;
+  section?: string;
+  year?: string | null;
+  department?: string;
+  batch?: string;
+};
+
+export type DisciplineListResponse = {
+  data: DisciplineRecord[];
+  meta: { page: number; limit: number; total: number };
+};
+
+export type DisciplineSummaryRow = {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  year: string | null;
+  batch: string;
+  total: number;
+  reasons: string;
+};
