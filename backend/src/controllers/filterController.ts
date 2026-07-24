@@ -65,6 +65,8 @@ export const exportStudents = asyncWrap(async (req, res) => {
   }
 
   const options = {
+    includeDetails: req.query.includeDetails === 'true',
+    includeAbsence: req.query.includeAbsence === 'true',
     includeLate: req.query.includeLate === 'true',
     includeAchievements: req.query.includeAchievements === 'true',
     includePlacements: req.query.includePlacements === 'true',
@@ -86,20 +88,26 @@ export const exportStudents = asyncWrap(async (req, res) => {
     const row: any = {
       'Name':               s.name,
       'Register Number':    s.register_number,
-      'Enrollment Number':  s.enrollment_number,
       'Section':            s.section,
-      'Year':               s.year ?? '',
-      'Department':         s.department,
-      'Batch':              s.batch,
-      'Phone':              s.phone,
-      'Parent Phone':       s.parent_phone,
-      'Address':            s.address,
-      'College Email':      s.college_email    ?? '',
-      'Personal Email':     s.personal_email   ?? '',
-      'DOB':                s.dob              ?? '',
-      'Blood Group':        s.blood_group      ?? '',
     };
+
+    if (options.includeDetails) {
+      row['Enrollment Number'] = s.enrollment_number;
+      row['Year']              = s.year ?? '';
+      row['Department']        = s.department;
+      row['Batch']             = s.batch;
+      row['Phone']             = s.phone;
+      row['Parent Phone']      = s.parent_phone;
+      row['Address']           = s.address;
+      row['College Email']     = s.college_email    ?? '';
+      row['Personal Email']    = s.personal_email   ?? '';
+      row['DOB']               = s.dob              ?? '';
+      row['Blood Group']       = s.blood_group      ?? '';
+    }
     
+    if (options.includeAbsence) {
+      row['Total Absences'] = s.absence_count ?? 0;
+    }
     if (options.includeLate) {
       row['Total Lates'] = s.late_count ?? 0;
     }

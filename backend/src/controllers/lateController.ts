@@ -44,7 +44,7 @@ export const createLateRecord = asyncWrap(async (req, res) => {
   const date = bodyDate ?? today();
   // Arrival time (from the device, IST), or server-side IST time as a fallback.
   const lateTime = time ?? new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16);
-  const schedule = await getPeriodSchedule();
+  const schedule = await getPeriodSchedule(student.year);
   const scheduledTime = schedule[period as keyof typeof schedule] ?? null;
   const minutesLate = scheduledTime ? computeMinutesLate(scheduledTime, lateTime) : null;
 
@@ -121,4 +121,11 @@ export const deleteLateRecord = asyncWrap(async (req, res) => {
   if (!ok) throw new HttpError(404, 'Late record not found');
   audit.record(req, { action: 'late.delete', entity: 'late_record', entity_id: String(id) });
   return res.status(204).send();
+});
+
+// DELETE /api/late-records  (delete all late records)
+export const deleteAllLateRecords = asyncWrap(async (req, res) => {
+  const count = await lateRepo.deleteAllLate();
+  audit.record(req, { action: 'late.delete_all', entity: 'late_records', details: `Cleared all ${count} late record(s)` });
+  return res.json({ message: `Deleted all ${count} late record(s)`, deleted: count });
 });

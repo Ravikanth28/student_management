@@ -203,15 +203,23 @@ function IconMoon() {
   );
 }
 
+function IconMegaphone() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11l18-5v12L3 13v-2z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+    </svg>
+  );
+}
+
 // ─── Nav Items ───────────────────────────────────────────────
 const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; roles: Role[] }> = [
   { to: '/dashboard',     label: 'Dashboard',        Icon: IconGrid,          roles: ['superadmin', 'admin', 'user'] },
   { to: '/students',      label: 'Student Records',  Icon: IconUsers,         roles: ['superadmin', 'admin', 'user'] },
   { to: '/blood-groups',  label: 'Blood Groups',     Icon: IconDroplet,       roles: ['superadmin', 'admin', 'user'] },
-  { to: '/students/new',  label: 'Add Student',      Icon: IconPlus,          roles: ['superadmin', 'admin'] },
   { to: '/scanner',       label: 'Scanner',          Icon: IconScan,          roles: ['superadmin', 'admin'] },
   { to: '/attendance',    label: 'Attendance',       Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
   { to: '/cr-attendance', label: 'Mark Absentees',   Icon: IconClipboard,     roles: ['cr'] },
+  { to: '/circulars',     label: 'Circulars',        Icon: IconMegaphone,     roles: ['superadmin', 'admin', 'cr'] },
   { to: '/late-comers',   label: 'Late Comers',      Icon: IconClock,         roles: ['superadmin', 'admin'] },
   { to: '/disciplinary',  label: 'Disciplinary',     Icon: IconAlertTriangle, roles: ['superadmin', 'admin'] },
   { to: '/achievements',  label: 'Achievements',     Icon: IconTrophy,        roles: ['superadmin', 'admin'] },

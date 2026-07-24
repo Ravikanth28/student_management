@@ -3,6 +3,8 @@ import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { Pagination } from '../components/Pagination';
 import { StudentActivityModal } from '../components/StudentActivityModal';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { useToast } from '../components/Toast';
 import { LATE_PERIOD_LABELS, YEAR_OPTIONS, YEAR_LABELS, type LateListResponse, type LateRecord, type LateSummaryRow, type Student } from '../types';
 
 const yearLabel = (y?: string | null) => (y ? (YEAR_LABELS[y] ?? y) : '—');
@@ -28,6 +30,7 @@ function download(name: string, csv: string) {
 const cell = (c: unknown) => `"${String(c ?? '').replace(/"/g, '""')}"`;
 
 export function LateComersPage({ onLogout }: Props) {
+  const { success, error: toastError } = useToast();
   const [view, setView] = useState<'records' | 'summary'>('records');
 
   // ── Records view ──
@@ -40,6 +43,12 @@ export function LateComersPage({ onLogout }: Props) {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
+
+  // ── Delete / Clear All state ──
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState(false);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -71,6 +80,34 @@ export function LateComersPage({ onLogout }: Props) {
   }, [sFrom, sTo, sYear, sQ]);
 
   useEffect(() => { if (view === 'records') void fetchRows(); else void fetchSummary(); }, [view, fetchRows, fetchSummary]);
+
+  const clearAllRecords = async () => {
+    setClearing(true);
+    try {
+      const res = await api.delete<{ message: string; deleted: number }>('/late-records/all');
+      success('Late records deleted', `Successfully cleared all ${res.data.deleted ?? ''} late record(s).`);
+      setShowClearConfirm(false);
+      if (view === 'records') void fetchRows(); else void fetchSummary();
+    } catch {
+      toastError('Clear failed', 'Could not delete late records.');
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const deleteSingleRecord = async (id: number) => {
+    setDeletingId(true);
+    try {
+      await api.delete(`/late-records/${id}`);
+      success('Record deleted', 'Late record removed.');
+      setDeleteTargetId(null);
+      if (view === 'records') void fetchRows(); else void fetchSummary();
+    } catch {
+      toastError('Delete failed', 'Could not delete late record.');
+    } finally {
+      setDeletingId(false);
+    }
+  };
 
   // ── Per-student "View" popup ──
   const [viewStudent, setViewStudent] = useState<Student | null>(null);
@@ -122,6 +159,7 @@ export function LateComersPage({ onLogout }: Props) {
           {toggleBtn('records', 'Records')}
           {toggleBtn('summary', 'Summary')}
           <button className="btn btn-outline" onClick={() => (view === 'records' ? void exportRecords() : exportSummary())}>Export CSV</button>
+          <button className="btn btn-outline" type="button" onClick={() => setShowClearConfirm(true)} style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}>Clear All Records</button>
         </>
       }
     >
@@ -148,7 +186,7 @@ export function LateComersPage({ onLogout }: Props) {
           ) : (
             <div className="table-container">
               <table>
-                <thead><tr><th>Date</th><th>Period</th><th>Scheduled</th><th>Arrival</th><th>Late</th><th>Name</th><th>Register No.</th><th>Year</th><th>Section</th><th>Batch</th></tr></thead>
+                <thead><tr><th>Date</th><th>Period</th><th>Scheduled</th><th>Arrival</th><th>Late</th><th>Name</th><th>Register No.</th><th>Year</th><th>Section</th><th>Batch</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id}>
@@ -162,6 +200,16 @@ export function LateComersPage({ onLogout }: Props) {
                       <td>{yearLabel(r.year)}</td>
                       <td>{r.section}</td>
                       <td className="td-muted">{r.batch}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          type="button"
+                          style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                          onClick={() => setDeleteTargetId(r.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -251,6 +299,28 @@ export function LateComersPage({ onLogout }: Props) {
             </div>
           )}
         </StudentActivityModal>
+      )}
+
+      {showClearConfirm && (
+        <ConfirmModal
+          title="Delete all late records?"
+          description="Are you sure you want to delete ALL late comer records? This action cannot be undone."
+          confirmLabel="Delete All Records"
+          onConfirm={clearAllRecords}
+          onCancel={() => setShowClearConfirm(false)}
+          loading={clearing}
+        />
+      )}
+
+      {deleteTargetId && (
+        <ConfirmModal
+          title="Delete this late record?"
+          description="Are you sure you want to remove this late record?"
+          confirmLabel="Delete Record"
+          onConfirm={() => deleteSingleRecord(deleteTargetId)}
+          onCancel={() => setDeleteTargetId(null)}
+          loading={deletingId}
+        />
       )}
     </Shell>
   );

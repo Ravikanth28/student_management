@@ -436,7 +436,7 @@ export async function getFilteredSections(
 
 export async function exportStudents(
   params: FilterParams & { id?: number },
-  options: { includeLate?: boolean; includeAchievements?: boolean; includePlacements?: boolean }
+  options: { includeAbsence?: boolean; includeLate?: boolean; includeAchievements?: boolean; includePlacements?: boolean }
 ): Promise<any[]> {
   const conditions: string[] = [];
   const values: unknown[] = [];
@@ -471,6 +471,16 @@ export async function exportStudents(
   // Fetch optional data
   const dataMap = new Map<number, any>();
   for (const s of students) dataMap.set(s.id, { ...s });
+
+  if (options.includeAbsence) {
+    const [absRows] = await pool.query<Array<{ student_id: number; abs_count: number } & RowDataPacket>>(
+      `SELECT student_id, COUNT(*) as abs_count FROM attendance WHERE status = 'absent' AND student_id IN (?) GROUP BY student_id`,
+      [studentIds]
+    );
+    for (const r of absRows) {
+      if (dataMap.has(r.student_id)) dataMap.get(r.student_id)!.absence_count = Number(r.abs_count);
+    }
+  }
 
   if (options.includeLate) {
     const [lateRows] = await pool.query<Array<{ student_id: number; late_count: number } & RowDataPacket>>(

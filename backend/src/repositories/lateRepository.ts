@@ -53,6 +53,11 @@ export async function deleteLate(id: number): Promise<boolean> {
   return result.affectedRows > 0;
 }
 
+export async function deleteAllLate(): Promise<number> {
+  const [result] = await pool.query<ResultSetHeader>('DELETE FROM late_records');
+  return result.affectedRows;
+}
+
 export async function listLateByStudent(studentId: number): Promise<LateRecord[]> {
   const [rows] = await pool.query<Array<LateRecord & RowDataPacket>>(
     `SELECT id, student_id, period, scheduled_time, late_time, minutes_late,

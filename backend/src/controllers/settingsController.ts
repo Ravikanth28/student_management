@@ -8,15 +8,16 @@ function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Prom
 
 // GET /api/settings/period-schedule
 export const getPeriodSchedule = asyncWrap(async (_req, res) => {
-  res.json({ schedule: await settings.getPeriodSchedule() });
+  const all = await settings.getAllPeriodSchedules();
+  res.json({ ...all, schedule: all.default });
 });
 
 // PUT /api/settings/period-schedule  (superadmin)
 export const updatePeriodSchedule = asyncWrap(async (req, res) => {
   try {
-    const schedule = await settings.setPeriodSchedule(req.body ?? {});
-    audit.record(req, { action: 'settings.period_schedule', entity: 'settings', details: JSON.stringify(schedule) });
-    res.json({ schedule });
+    const all = await settings.setAllPeriodSchedules(req.body ?? {});
+    audit.record(req, { action: 'settings.period_schedule', entity: 'settings', details: JSON.stringify(all) });
+    res.json({ ...all, schedule: all.default });
   } catch (err) {
     return res.status(400).json({ message: (err as Error).message });
   }

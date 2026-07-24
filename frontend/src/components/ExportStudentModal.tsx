@@ -8,6 +8,8 @@ type Props = {
 };
 
 export function ExportStudentModal({ onClose, filters, studentId }: Props) {
+  const [includeDetails, setIncludeDetails] = useState(false);
+  const [includeAbsence, setIncludeAbsence] = useState(false);
   const [includeLate, setIncludeLate] = useState(false);
   const [includeAchievements, setIncludeAchievements] = useState(false);
   const [includePlacements, setIncludePlacements] = useState(false);
@@ -26,6 +28,8 @@ export function ExportStudentModal({ onClose, filters, studentId }: Props) {
       if (filters.year) params.set('year', filters.year);
     }
     
+    if (includeDetails) params.set('includeDetails', 'true');
+    if (includeAbsence) params.set('includeAbsence', 'true');
     if (includeLate) params.set('includeLate', 'true');
     if (includeAchievements) params.set('includeAchievements', 'true');
     if (includePlacements) params.set('includePlacements', 'true');
@@ -68,10 +72,20 @@ export function ExportStudentModal({ onClose, filters, studentId }: Props) {
       <div style={{ width: '100%', maxWidth: 460, background: 'var(--surface)', borderRadius: 'var(--radius-xl)', padding: 'clamp(18px, 4vw, 28px)', boxShadow: 'var(--shadow-lg)' }}>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: 8 }}>Export Student Data</h2>
         <p style={{ color: 'var(--text-3)', marginBottom: 20, fontSize: '0.9rem' }}>
-          Select which additional records you want to include in the CSV export.
+          Select which additional records you want to include in the CSV export (Name, Register No & Section are included by default).
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '12px', background: 'var(--bg-2)', borderRadius: 8, border: '1px dashed var(--border)' }}>
+            <input type="checkbox" checked={includeDetails} onChange={e => setIncludeDetails(e.target.checked)} style={{ width: 18, height: 18 }} />
+            <span style={{ fontWeight: 700, color: 'var(--text)' }}>Include Full Student Details (Dept, Batch, Contact, etc.)</span>
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '12px', background: 'var(--bg-2)', borderRadius: 8 }}>
+            <input type="checkbox" checked={includeAbsence} onChange={e => setIncludeAbsence(e.target.checked)} style={{ width: 18, height: 18 }} />
+            <span style={{ fontWeight: 600 }}>Include Absence Records</span>
+          </label>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '12px', background: 'var(--bg-2)', borderRadius: 8 }}>
             <input type="checkbox" checked={includeLate} onChange={e => setIncludeLate(e.target.checked)} style={{ width: 18, height: 18 }} />
             <span style={{ fontWeight: 600 }}>Include Late Records</span>

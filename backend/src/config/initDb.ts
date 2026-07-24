@@ -199,13 +199,28 @@ export async function ensureSchema(): Promise<void> {
     )
   `);
 
-  // Key/value application settings (e.g. editable period timings).
+  // System settings (key-value store, e.g. period schedules).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS app_settings (
-      name VARCHAR(64) NOT NULL,
-      value TEXT NULL,
+      s_key VARCHAR(64) NOT NULL,
+      s_val TEXT NOT NULL,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (name)
+      PRIMARY KEY (s_key)
+    )
+  `);
+
+  // Circulars / Announcements table.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS circulars (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      title VARCHAR(255) NOT NULL,
+      content TEXT NOT NULL,
+      target_audience VARCHAR(100) NOT NULL DEFAULT 'ALL',
+      priority VARCHAR(20) NOT NULL DEFAULT 'Normal',
+      created_by VARCHAR(120) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_circ_created_at (created_at)
     )
   `);
 
@@ -248,28 +263,26 @@ export async function ensureSchema(): Promise<void> {
 }
 
 export async function seedSuperadmin(): Promise<void> {
-  const adminHash = env.ADMIN_PASSWORD_HASH
-    ? env.ADMIN_PASSWORD_HASH
-    : env.ADMIN_PASSWORD
-      ? bcrypt.hashSync(env.ADMIN_PASSWORD, 12)
-      : bcrypt.hashSync('Admin@123456', 12);
-
-  const crHash = bcrypt.hashSync('Cr@12345', 12);
+  const superadminHash = bcrypt.hashSync('Hodaids@smvec', 12);
+  const adminHash = bcrypt.hashSync('Staffaids@smvec', 12);
+  const crHash = bcrypt.hashSync('Cr@aids123', 12);
+  const viewerHash = bcrypt.hashSync('viewer@aids123', 12);
 
   const defaultUsers = [
-    { username: 'superadmin', name: 'Super Administrator', role: 'superadmin', hash: adminHash },
+    { username: 'superadmin', name: 'Super Administrator', role: 'superadmin', hash: superadminHash },
     { username: 'admin', name: 'System Admin', role: 'admin', hash: adminHash },
     { username: 'cr', name: 'Class Representative', role: 'cr', hash: crHash },
-    { username: 'user', name: 'View-Only User', role: 'user', hash: adminHash },
+    { username: 'viewer', name: 'Viewer User', role: 'user', hash: viewerHash },
+    { username: 'user', name: 'View-Only User', role: 'user', hash: viewerHash },
   ];
 
   for (const u of defaultUsers) {
     await pool.query(
       `INSERT INTO users (username, name, password_hash, role, created_by)
        VALUES (?, ?, ?, ?, 'system')
-       ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role)`,
+       ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role), password_hash = VALUES(password_hash)`,
       [u.username, u.name, u.hash, u.role]
     );
   }
-  logger.info('Seeded/verified default role accounts (superadmin, admin, cr, user).');
+  logger.info('Seeded/verified default role accounts (superadmin, admin, cr, viewer, user).');
 }

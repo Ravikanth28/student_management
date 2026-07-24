@@ -15,13 +15,41 @@ const ROLE_BADGE: Record<Role, string> = {
   user: 'badge-gray',
 };
 
+const SYSTEM_PASSWORDS: Record<string, string> = {
+  superadmin: 'Hodaids@smvec',
+  admin: 'Staffaids@smvec',
+  cr: 'Cr@aids123',
+  viewer: 'viewer@aids123',
+  user: 'viewer@aids123',
+};
+
 const label: React.CSSProperties = { fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' };
+
+function IconEye({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function IconEyeOff({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
 
 export function UsersPage({ onLogout }: Props) {
   const { username: me } = useAuth();
   const { success, error: toastError } = useToast();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Track password visibility per user ID
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
 
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
@@ -37,6 +65,10 @@ export function UsersPage({ onLogout }: Props) {
   const [eRole, setERole] = useState<Role>('user');
   const [ePassword, setEPassword] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+
+  const togglePasswordVisibility = (userId: number) => {
+    setVisiblePasswords((prev) => ({ ...prev, [userId]: !prev[userId] }));
+  };
 
   const openEdit = (u: AppUser) => { setEditUser(u); setEName(u.name ?? ''); setERole(u.role); setEPassword(''); };
 
@@ -107,7 +139,7 @@ export function UsersPage({ onLogout }: Props) {
   };
 
   return (
-    <Shell title="Users" subtitle="Create and manage login accounts and roles" onLogout={onLogout}>
+    <Shell title="Users & Access Management" subtitle="Create, view, and manage user accounts and system passwords" onLogout={onLogout}>
       {/* Create user */}
       <div className="card card-padded" style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 14 }}>Create a login</h3>
@@ -149,24 +181,65 @@ export function UsersPage({ onLogout }: Props) {
           <div className="table-container">
             <table>
               <thead>
-                <tr><th>Name</th><th>Username</th><th>Role</th><th>Created by</th><th>Created</th><th></th></tr>
+                <tr>
+                  <th>Name</th>
+                  <th>Username</th>
+                  <th>Role</th>
+                  <th>Password</th>
+                  <th>Created by</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td style={{ fontWeight: 600 }}>{u.name ?? '—'}{u.username === me && <span className="td-muted"> (you)</span>}</td>
-                    <td className="td-muted">{u.username}</td>
-                    <td><span className={`badge ${ROLE_BADGE[u.role]}`} style={{ textTransform: 'capitalize' }}>{u.role}</span></td>
-                    <td className="td-muted">{u.created_by ?? '—'}</td>
-                    <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{new Date(u.created_at).toLocaleDateString('en-IN')}</td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => openEdit(u)}>Edit</button>
-                      {u.username !== me && (
-                        <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(u)}>Delete</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {users.map((u) => {
+                  const pass = SYSTEM_PASSWORDS[u.username] || '••••••••';
+                  const isVisible = !!visiblePasswords[u.id];
+
+                  return (
+                    <tr key={u.id}>
+                      <td style={{ fontWeight: 600 }}>
+                        {u.name ?? '—'}
+                        {u.username === me && <span className="td-muted"> (you)</span>}
+                      </td>
+                      <td className="td-muted">{u.username}</td>
+                      <td>
+                        <span className={`badge ${ROLE_BADGE[u.role]}`} style={{ textTransform: 'capitalize' }}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <code style={{ fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 600, color: isVisible ? 'var(--text)' : 'var(--text-3)' }}>
+                            {isVisible ? pass : '••••••••'}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => togglePasswordVisibility(u.id)}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--text-2)', cursor: 'pointer', padding: 2, display: 'grid', placeItems: 'center' }}
+                            title={isVisible ? 'Hide password' : 'Show password'}
+                          >
+                            {isVisible ? <IconEyeOff /> : <IconEye />}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="td-muted">{u.created_by ?? '—'}</td>
+                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>
+                        {new Date(u.created_at).toLocaleDateString('en-IN')}
+                      </td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => openEdit(u)}>
+                          Edit / Reset Pass
+                        </button>
+                        {u.username !== me && (
+                          <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(u)}>
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

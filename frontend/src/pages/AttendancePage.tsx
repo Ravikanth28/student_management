@@ -184,7 +184,7 @@ export function AttendancePage({ onLogout }: Props) {
   const handleExportExcel = async () => {
     setExporting(true);
     try {
-      const res = await api.get<{ data: AttendanceRangeRow[] }>('/attendance/range', {
+      const res = await api.get<{ data: AttendanceSummaryRow[] }>('/attendance/summary', {
         params: {
           from: exportFrom || undefined,
           to: exportTo || undefined,
@@ -193,20 +193,21 @@ export function AttendancePage({ onLogout }: Props) {
         },
       });
 
-      if (res.data.data.length === 0) {
+      // Filter for students with total leaves > 0 in this range
+      const absenteesOnly = res.data.data.filter((r) => r.absent > 0);
+
+      if (absenteesOnly.length === 0) {
         toastError('No data found', 'No absentee records found for the selected date range and class filters.');
         return;
       }
 
-      const rows = res.data.data.map((r, idx) => ({
+      const rows = absenteesOnly.map((r, idx) => ({
         'S.No': idx + 1,
-        'Date': r.att_date,
         'Student Name': r.name,
-        'Register Number': r.register_number,
-        'Enrollment Number': r.enrollment_number,
-        'Year': YEAR_LABELS[r.year ?? ''] ?? r.year ?? '—',
         'Section': r.section ?? '—',
-        'Marked By': r.marked_by ?? 'System / CR',
+        'Register Number': r.register_number,
+        'Year': YEAR_LABELS[r.year ?? ''] ?? r.year ?? '—',
+        'Total Number of Leave': r.absent,
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -216,7 +217,7 @@ export function AttendancePage({ onLogout }: Props) {
       const fileName = `Absentees_Report_${exportFrom || 'all'}_to_${exportTo || 'all'}.xlsx`;
       XLSX.writeFile(workbook, fileName);
 
-      success('Excel exported', `Downloaded ${rows.length} absentee record(s) into ${fileName}.`);
+      success('Excel exported', `Downloaded leave report for ${rows.length} student(s) into ${fileName}.`);
     } catch {
       toastError('Export failed', 'Could not generate Excel report.');
     } finally {
@@ -234,7 +235,7 @@ export function AttendancePage({ onLogout }: Props) {
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button className={`btn ${tab === 'mark' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('mark')}>Mark & Daily Register</button>
         <button className={`btn ${tab === 'summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('summary')}>Summary</button>
-        <button className={`btn ${tab === 'export' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('export')}>Export Excel Report</button>
+        <button className={`btn ${tab === 'export' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('export')}>Export Report</button>
       </div>
 
       {tab === 'mark' && (
@@ -393,7 +394,7 @@ export function AttendancePage({ onLogout }: Props) {
             <IconFileSpreadsheet /> Export Absentees Excel Report
           </h3>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-2)', marginBottom: 18 }}>
-            Select date range (inclusive) and optional class filters to download an Excel (.xlsx) file of absentees marked by Class Representatives (CRs) and Administrators.
+            Select date range (inclusive) and optional class filters to download an Excel (.xlsx) file of absentees with total leave counts.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>

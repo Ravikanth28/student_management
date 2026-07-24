@@ -61,16 +61,23 @@ export function StudentActionModal({ student, onClose }: Props) {
   const [schedule, setSchedule] = useState<Record<string, string>>(PERIOD_SCHEDULE);
 
   const [discReason, setDiscReason] = useState<string>('Improper Haircut');
+  const [discCategory, setDiscCategory] = useState<'grooming' | 'late' | 'other' | null>(null);
   const [discCustomReason, setDiscCustomReason] = useState<string>('');
   const [discDetails, setDiscDetails] = useState<string>('');
   const [discDate, setDiscDate] = useState(() => new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [discTime, setDiscTime] = useState(() => new Date().toTimeString().slice(0, 5));
 
   useEffect(() => {
-    api.get<{ schedule: Record<string, string> }>('/settings/period-schedule')
-      .then((res) => setSchedule(res.data.schedule))
+    api.get<{ schedule: Record<string, string>; default?: Record<string, string>; year1?: Record<string, string> }>('/settings/period-schedule')
+      .then((res) => {
+        const isYear1 = student?.year === '1' || student?.year === 'I' || student?.year === '1st';
+        const activeSched = isYear1
+          ? (res.data.year1 || res.data.schedule || PERIOD_SCHEDULE)
+          : (res.data.default || res.data.schedule || PERIOD_SCHEDULE);
+        setSchedule(activeSched);
+      })
       .catch(() => { /* keep defaults */ });
-  }, []);
+  }, [student?.year]);
 
   const markLate = async () => {
     if (!period) return;
@@ -138,18 +145,15 @@ export function StudentActionModal({ student, onClose }: Props) {
         {step === 'choose' && (
           <>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: 10 }}>What would you like to do?</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
-              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('late')}>
-                <IconClock /><span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Late Comer</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '18px 8px', gap: 8 }} onClick={() => setStep('discipline')}>
+                <IconAlertTriangle /><span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Discipline</span>
               </button>
-              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('discipline')}>
-                <IconAlertTriangle /><span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Discipline</span>
+              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '18px 8px', gap: 8 }} onClick={() => setStep('achievement')}>
+                <IconTrophy /><span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Achievement</span>
               </button>
-              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('achievement')}>
-                <IconTrophy /><span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Achievement</span>
-              </button>
-              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '16px 8px', gap: 6 }} onClick={() => setStep('placement')}>
-                <IconBriefcase /><span style={{ fontWeight: 700, fontSize: '0.8rem' }}>Placement</span>
+              <button className="btn btn-outline btn-lg" style={{ flexDirection: 'column', height: 'auto', padding: '18px 8px', gap: 8 }} onClick={() => setStep('placement')}>
+                <IconBriefcase /><span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Placement</span>
               </button>
             </div>
             <div style={{ marginTop: 14, textAlign: 'right' }}>
@@ -161,9 +165,10 @@ export function StudentActionModal({ student, onClose }: Props) {
         {/* Step: late */}
         {step === 'late' && (
           <>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 10 }}>Mark late for which period?</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 10 }}>Record Discipline — Late Comer</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: 12 }}>Select period and arrival time for late entry:</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {PERIODS.map((p) => (
+              {PERIODS.filter((p) => !((student?.year === '1' || student?.year === 'I' || student?.year === '1st') && p === 'evening_break')).map((p) => (
                 <button key={p} className={`btn ${period === p ? 'btn-primary' : 'btn-outline'}`} onClick={() => setPeriod(p)}>
                   {LATE_PERIOD_LABELS[p]}
                 </button>
@@ -193,7 +198,7 @@ export function StudentActionModal({ student, onClose }: Props) {
               )}
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-              <button className="btn btn-outline" onClick={() => { setStep('choose'); setPeriod(null); }} disabled={saving}>Back</button>
+              <button className="btn btn-outline" onClick={() => { setStep('discipline'); setPeriod(null); }} disabled={saving}>Back</button>
               <button className="btn btn-primary" onClick={markLate} disabled={!period || saving}>{saving ? 'Marking…' : 'Mark late'}</button>
             </div>
           </>
@@ -209,7 +214,7 @@ export function StudentActionModal({ student, onClose }: Props) {
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={() => navigate(`/students/${student.id}`)}>View student record</button>
-              <button className="btn btn-outline" onClick={onClose}>Scan next</button>
+              <button className="btn btn-outline" onClick={onClose}>Done</button>
             </div>
           </div>
         )}
@@ -217,78 +222,192 @@ export function StudentActionModal({ student, onClose }: Props) {
         {/* Step: discipline */}
         {step === 'discipline' && (
           <>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 12 }}>Record Discipline Issue</div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, display: 'block' }}>
-                Select Issue / Violation
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {DISCIPLINE_REASONS.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    className={`btn ${discReason === r ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setDiscReason(r)}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                  >
-                    {r === 'Improper Haircut' && <IconScissors />}
-                    {r === 'Not clean-shaven' && <IconUserX />}
-                    {r === 'Improper Uniform' && <IconShirt />}
-                    {r === 'Others' && <IconFileText />}
-                    <span>{r}</span>
-                  </button>
-                ))}
-              </div>
+            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text)', marginBottom: 12 }}>
+              Record Discipline Violation
             </div>
 
-            {discReason === 'Others' && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
-                  Specify Reason / Issue *
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="e.g. ID Card missing, improper footwear..."
-                  value={discCustomReason}
-                  onChange={(e) => setDiscCustomReason(e.target.value)}
-                  autoFocus
-                />
-              </div>
+            {/* Sub-step 1: Category Selection */}
+            {!discCategory && (
+              <>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: 14 }}>
+                  Select the type of violation to record:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-lg"
+                    style={{ flexDirection: 'column', height: 'auto', padding: '20px 10px', gap: 10, borderColor: 'var(--border)' }}
+                    onClick={() => { setDiscCategory('grooming'); setDiscReason('Improper Haircut'); }}
+                  >
+                    <div style={{ color: 'var(--blue)' }}><IconScissors /></div>
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Grooming</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-lg"
+                    style={{ flexDirection: 'column', height: 'auto', padding: '20px 10px', gap: 10, borderColor: 'var(--border)' }}
+                    onClick={() => { setDiscCategory('late'); setPeriod(null); }}
+                  >
+                    <div style={{ color: 'var(--amber)' }}><IconClock /></div>
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Late Comer</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-lg"
+                    style={{ flexDirection: 'column', height: 'auto', padding: '20px 10px', gap: 10, borderColor: 'var(--border)' }}
+                    onClick={() => { setDiscCategory('other'); setDiscReason('Others'); }}
+                  >
+                    <div style={{ color: 'var(--red)' }}><IconFileText /></div>
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Other Violation</span>
+                  </button>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+                  <button className="btn btn-outline btn-sm" onClick={() => setStep('choose')}>
+                    Back
+                  </button>
+                </div>
+              </>
             )}
 
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
-                Remarks / Additional Details (Optional)
-              </label>
-              <textarea
-                className="form-control"
-                rows={2}
-                placeholder="Enter any extra details or action taken..."
-                value={discDetails}
-                onChange={(e) => setDiscDetails(e.target.value)}
-              />
-            </div>
+            {/* Sub-step 2a: Grooming Process */}
+            {discCategory === 'grooming' && (
+              <>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--blue)', marginBottom: 12 }}>
+                  💈 Grooming Violation Details
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, display: 'block' }}>
+                    Select Grooming Issue *
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {[
+                      { key: 'Improper Haircut', Icon: IconScissors },
+                      { key: 'Improper Uniform', Icon: IconShirt },
+                      { key: 'Not clean-shaven', Icon: IconUserX },
+                    ].map(({ key, Icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`btn ${discReason === key ? 'btn-primary' : 'btn-outline'}`}
+                        onClick={() => setDiscReason(key)}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.8rem' }}
+                      >
+                        <Icon />
+                        <span>{key}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
-                  Date
-                </label>
-                <input type="date" className="form-control" value={discDate} onChange={(e) => setDiscDate(e.target.value)} style={{ maxWidth: 170 }} />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
-                  Time
-                </label>
-                <input type="time" className="form-control" value={discTime} onChange={(e) => setDiscTime(e.target.value)} style={{ maxWidth: 160 }} />
-              </div>
-            </div>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                      Date
+                    </label>
+                    <input type="date" className="form-control" value={discDate} onChange={(e) => setDiscDate(e.target.value)} style={{ maxWidth: 170 }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                      Time
+                    </label>
+                    <input type="time" className="form-control" value={discTime} onChange={(e) => setDiscTime(e.target.value)} style={{ maxWidth: 160 }} />
+                  </div>
+                </div>
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-              <button className="btn btn-outline" onClick={() => setStep('choose')} disabled={saving}>Back</button>
-              <button className="btn btn-primary" onClick={markDiscipline} disabled={saving}>{saving ? 'Saving…' : 'Save Discipline Record'}</button>
-            </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+                  <button className="btn btn-outline" onClick={() => setDiscCategory(null)} disabled={saving}>Back</button>
+                  <button className="btn btn-primary" onClick={markDiscipline} disabled={saving}>{saving ? 'Saving…' : 'Save Grooming Record'}</button>
+                </div>
+              </>
+            )}
+
+            {/* Sub-step 2b: Late Comer Process */}
+            {discCategory === 'late' && (
+              <>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--amber)', marginBottom: 10 }}>
+                  ⏰ Late Comer Entry
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginBottom: 12 }}>Select period and arrival time:</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {PERIODS.map((p) => (
+                    <button key={p} className={`btn ${period === p ? 'btn-primary' : 'btn-outline'}`} onClick={() => setPeriod(p)}>
+                      {LATE_PERIOD_LABELS[p]}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ marginTop: 14, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                      Date
+                    </label>
+                    <input type="date" className="form-control" value={date} onChange={(e) => setDate(e.target.value)} style={{ maxWidth: 170 }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                      Coming (arrival) time
+                    </label>
+                    <input type="time" className="form-control" value={time} onChange={(e) => setTime(e.target.value)} style={{ maxWidth: 160 }} />
+                  </div>
+                  {period && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', paddingBottom: 8 }}>
+                      Scheduled <strong>{schedule[period]}</strong>
+                      {' · '}
+                      <span style={{ color: minutesLate(schedule[period], time) > 0 ? 'var(--amber)' : 'var(--green)', fontWeight: 700 }}>
+                        {minutesLate(schedule[period], time)} min late
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+                  <button className="btn btn-outline" onClick={() => { setDiscCategory(null); setPeriod(null); }} disabled={saving}>Back</button>
+                  <button className="btn btn-primary" onClick={markLate} disabled={!period || saving}>{saving ? 'Marking…' : 'Mark Late'}</button>
+                </div>
+              </>
+            )}
+
+            {/* Sub-step 2c: Other Violation Process */}
+            {discCategory === 'other' && (
+              <>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--red)', marginBottom: 12 }}>
+                  ⚠️ Other Discipline Violation
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                    Specify Violation / Reason *
+                  </label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. ID Card missing, improper footwear..."
+                    value={discCustomReason}
+                    onChange={(e) => setDiscCustomReason(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                      Date
+                    </label>
+                    <input type="date" className="form-control" value={discDate} onChange={(e) => setDiscDate(e.target.value)} style={{ maxWidth: 170 }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-2)', marginBottom: 4, display: 'block' }}>
+                      Time
+                    </label>
+                    <input type="time" className="form-control" value={discTime} onChange={(e) => setDiscTime(e.target.value)} style={{ maxWidth: 160 }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+                  <button className="btn btn-outline" onClick={() => setDiscCategory(null)} disabled={saving}>Back</button>
+                  <button className="btn btn-primary" onClick={markDiscipline} disabled={!discCustomReason.trim() || saving}>{saving ? 'Saving…' : 'Save Discipline Record'}</button>
+                </div>
+              </>
+            )}
           </>
         )}
 

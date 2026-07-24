@@ -108,15 +108,21 @@ const PERIOD_FIELDS: { key: string; label: string; hint: string }[] = [
   { key: 'evening_break', label: 'Back from evening break', hint: 'Break end time' },
 ];
 
+const PERIOD_FIELDS_YEAR1 = PERIOD_FIELDS.filter((f) => f.key !== 'evening_break');
+
 function ClassTimingsCard() {
   const { success, error: toastError } = useToast();
-  const [sched, setSched] = useState<Record<string, string>>({});
+  const [defaultSched, setDefaultSched] = useState<Record<string, string>>({});
+  const [year1Sched, setYear1Sched] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get<{ schedule: Record<string, string> }>('/settings/period-schedule')
-      .then((r) => setSched(r.data.schedule))
+    api.get<{ schedule: Record<string, string>; default?: Record<string, string>; year1?: Record<string, string> }>('/settings/period-schedule')
+      .then((r) => {
+        setDefaultSched(r.data.default || r.data.schedule || {});
+        setYear1Sched(r.data.year1 || r.data.schedule || {});
+      })
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, []);
@@ -124,9 +130,13 @@ function ClassTimingsCard() {
   const save = async () => {
     setSaving(true);
     try {
-      const r = await api.put<{ schedule: Record<string, string> }>('/settings/period-schedule', sched);
-      setSched(r.data.schedule);
-      success('Timings saved', 'Late-minutes are now calculated from these times.');
+      const r = await api.put<{ default: Record<string, string>; year1: Record<string, string> }>('/settings/period-schedule', {
+        default: defaultSched,
+        year1: year1Sched,
+      });
+      setDefaultSched(r.data.default);
+      setYear1Sched(r.data.year1);
+      success('Timings saved', 'Late-minutes for 1st Year and 2nd-4th Year are now updated.');
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toastError('Could not save', msg ?? 'Please check the times and try again.');
@@ -138,28 +148,61 @@ function ClassTimingsCard() {
   return (
     <div className="card card-padded">
       <h3 style={cardTitle}>Class Timings</h3>
-      <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginTop: -8, marginBottom: 16 }}>
-        These "on-time" cut-offs drive the late-comer minutes calculation.
+      <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginTop: -8, marginBottom: 20 }}>
+        These "on-time" cut-offs drive the late-comer minutes calculation. Configure distinct timings for 2nd, 3rd, 4th Year and 1st Year.
       </p>
-      <div style={gridStyle}>
-        {PERIOD_FIELDS.map((f) => (
-          <div key={f.key}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 4 }}>{f.label}</div>
-            <input
-              type="time"
-              className="form-control"
-              value={sched[f.key] ?? ''}
-              disabled={!loaded}
-              onChange={(e) => setSched((s) => ({ ...s, [f.key]: e.target.value }))}
-              style={{ maxWidth: 160 }}
-            />
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: 4 }}>{f.hint}</div>
-          </div>
-        ))}
+
+      {/* 2nd, 3rd & 4th Year Section */}
+      <div style={{ marginBottom: 20, padding: '16px', borderRadius: 'var(--radius-lg)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="badge badge-purple">II, III, IV Year</span>
+          <span>2nd, 3rd & 4th Year Class Timings</span>
+        </div>
+        <div style={gridStyle}>
+          {PERIOD_FIELDS.map((f) => (
+            <div key={`default-${f.key}`}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 4 }}>{f.label}</div>
+              <input
+                type="time"
+                className="form-control"
+                value={defaultSched[f.key] ?? ''}
+                disabled={!loaded}
+                onChange={(e) => setDefaultSched((s) => ({ ...s, [f.key]: e.target.value }))}
+                style={{ maxWidth: 160 }}
+              />
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: 4 }}>{f.hint}</div>
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* 1st Year Section */}
+      <div style={{ marginBottom: 20, padding: '16px', borderRadius: 'var(--radius-lg)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="badge badge-green">I Year</span>
+          <span>1st Year Class Timings (No Evening Break)</span>
+        </div>
+        <div style={gridStyle}>
+          {PERIOD_FIELDS_YEAR1.map((f) => (
+            <div key={`year1-${f.key}`}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 4 }}>{f.label}</div>
+              <input
+                type="time"
+                className="form-control"
+                value={year1Sched[f.key] ?? ''}
+                disabled={!loaded}
+                onChange={(e) => setYear1Sched((s) => ({ ...s, [f.key]: e.target.value }))}
+                style={{ maxWidth: 160 }}
+              />
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: 4 }}>{f.hint}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div style={{ marginTop: 16, textAlign: 'right' }}>
-        <button className="btn btn-primary" type="button" onClick={save} disabled={saving || !loaded}>
-          {saving ? 'SavingΓÇª' : 'Save timings'}
+        <button className="btn btn-primary btn-lg" type="button" onClick={save} disabled={saving || !loaded}>
+          {saving ? 'Saving…' : 'Save timings'}
         </button>
       </div>
     </div>

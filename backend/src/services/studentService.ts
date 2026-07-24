@@ -10,7 +10,7 @@ function clean(value?: string) {
 function normalizeInput(input: Partial<StudentInput>): Partial<StudentInput> {
   const normalized: Partial<StudentInput> = {};
 
-  if (input.name !== undefined) normalized.name = clean(input.name) ?? '';
+  if (input.name !== undefined) normalized.name = clean(input.name)?.toUpperCase() ?? '';
   if (input.register_number !== undefined) normalized.register_number = clean(input.register_number) ?? '';
   if (input.enrollment_number !== undefined) normalized.enrollment_number = clean(input.enrollment_number) ?? '';
   if (input.section !== undefined) normalized.section = clean(input.section) ?? '';

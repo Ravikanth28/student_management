@@ -330,7 +330,7 @@ async function processFullImport(rows: Record<string, string>[]): Promise<BulkIm
 
     try {
       await repository.createStudent({
-        name:              row.name,
+        name:              row.name ? row.name.trim().toUpperCase() : '',
         register_number:   regNum,
         enrollment_number: row.enrollment_number,
         section:           row.section,
