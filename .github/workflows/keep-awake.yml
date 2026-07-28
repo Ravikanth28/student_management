@@ -1,16 +1,20 @@
 name: Keep Render awake
 
-# Pings the deployed backend every ~10 minutes so the free Render instance
-# doesn't spin down (avoids the ~50s cold start). GitHub cron is best-effort
-# and may run a little late. Runs only on the default branch.
+# Pings the deployed backend every 5 minutes so the free Render instance
+# never spins down due to inactivity (Render suspends after 15 min idle).
+# GitHub cron is best-effort; pinging more frequently compensates for delays.
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping /health
-        run: curl -sS -m 30 https://student-portal-7udb.onrender.com/health || true
+      - name: Ping /health (keep Render free tier alive)
+        run: |
+          echo "Pinging Render service..."
+          curl -sS -m 30 -w "\nHTTP Status: %{http_code}\n" \
+            https://student-portal-7udb.onrender.com/health || true
+          echo "Ping complete."
