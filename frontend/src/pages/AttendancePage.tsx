@@ -417,8 +417,6 @@ export function AttendancePage({ onLogout }: Props) {
                 }}
               />
             </div>
-            <div><label className="form-label">From Date</label><input type="date" className="form-control" value={sumFrom} onChange={(e) => setSumFrom(e.target.value)} style={{ maxWidth: 160 }} /></div>
-            <div><label className="form-label">To Date</label><input type="date" className="form-control" value={sumTo} onChange={(e) => setSumTo(e.target.value)} style={{ maxWidth: 160 }} /></div>
             <div>
               <label className="form-label">Year Filter</label>
               <select className="form-control" value={sumYear} onChange={(e) => setSumYear(e.target.value)} style={{ minWidth: 120 }}>
