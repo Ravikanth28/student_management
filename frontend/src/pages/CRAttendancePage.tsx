@@ -327,40 +327,6 @@ export function CRAttendancePage({ onLogout }: Props) {
           </div>
         </div>
 
-        {/* Today's Saved Absentees Report for this Class */}
-        <div className="card card-padded">
-          <h2 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: 12 }}>
-            3. Absentees Marked Today ({YEAR_LABELS[year] ?? year} - Sec {section})
-          </h2>
-          {loadingToday ? (
-            <div className="skeleton" style={{ height: 40, borderRadius: 8 }} />
-          ) : todayAbsentees.length === 0 ? (
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>No absentees marked today for this class.</p>
-          ) : (
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Student Name</th>
-                    <th>Register Number</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {todayAbsentees.map((st, idx) => (
-                    <tr key={st.id}>
-                      <td>{idx + 1}</td>
-                      <td style={{ fontWeight: 700 }}>{st.name}</td>
-                      <td style={{ fontFamily: 'monospace' }}>{st.register_number}</td>
-                      <td><span className="badge badge-red">Absent</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Submission Confirmation Modal */}
