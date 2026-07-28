@@ -259,6 +259,27 @@ export async function ensureSchema(): Promise<void> {
     if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
   }
 
+  // CR Activity Log — tracks every CR absentee submission with device info.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cr_activity_log (
+      id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      submitted_at TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      att_date     DATE            NOT NULL,
+      year         VARCHAR(16)     NOT NULL,
+      section      VARCHAR(10)     NOT NULL,
+      absent_count INT             NOT NULL DEFAULT 0,
+      absent_names TEXT            NULL,
+      ip_address   VARCHAR(64)     NULL,
+      user_agent   TEXT            NULL,
+      browser      VARCHAR(100)    NULL,
+      os           VARCHAR(100)    NULL,
+      device_type  VARCHAR(50)     NULL,
+      PRIMARY KEY (id),
+      KEY idx_cr_activity_submitted_at (submitted_at),
+      KEY idx_cr_activity_year_section (year, section)
+    )
+  `);
+
   logger.info('Database schema verified.');
 }
 

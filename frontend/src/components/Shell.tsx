@@ -211,6 +211,14 @@ function IconMegaphone() {
   );
 }
 
+function IconMonitor() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  );
+}
+
 // ─── Nav Items ───────────────────────────────────────────────
 const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; roles: Role[] }> = [
   { to: '/dashboard',     label: 'Dashboard',        Icon: IconGrid,          roles: ['superadmin', 'admin', 'user'] },
@@ -227,6 +235,7 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
   { to: '/import',        label: 'Bulk Import',      Icon: IconUploadNav,     roles: ['superadmin', 'admin'] },
   { to: '/users',         label: 'Users',            Icon: IconUsersCog,      roles: ['superadmin'] },
   { to: '/audit',         label: 'Audit Log',        Icon: IconActivity,      roles: ['superadmin'] },
+  { to: '/cr-activity',    label: 'CR Activity Log',  Icon: IconMonitor,       roles: ['superadmin'] },
   { to: '/settings',      label: 'Settings',         Icon: IconSettings,      roles: ['superadmin'] },
 ];
 

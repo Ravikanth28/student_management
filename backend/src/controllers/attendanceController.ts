@@ -1,6 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { HttpError } from '../middleware/error.js';
 import * as attendanceRepo from '../repositories/attendanceRepository.js';
+import * as crActivityRepo from '../repositories/crActivityRepository.js';
 import * as audit from '../services/auditService.js';
 import { notifyAllInBackground } from '../services/notificationService.js';
 
@@ -119,6 +120,16 @@ export const submitCRAttendance = asyncWrap(async (req, res) => {
     entity: 'attendance',
     details: `CR ${req.user?.username ?? 'system'} submitted absentees for ${date} — Year ${year} Sec ${section}: ${result.absent} absent, ${result.present} present`,
   });
+
+  // Fire-and-forget: log CR device info (never blocks the response)
+  void crActivityRepo.insertCRActivity({
+    att_date: date,
+    year,
+    section,
+    absentIds: absentStudentIds,
+    ip: (req.ip ?? '').replace('::ffff:', '') || null,
+    userAgent: req.headers['user-agent'] ?? null,
+  }).catch(() => { /* swallow — logging must never break the submit */ });
 
   notifyAllInBackground(
     {

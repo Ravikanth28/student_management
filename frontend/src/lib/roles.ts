@@ -21,6 +21,7 @@ export const PATH_ROLES: Record<string, Role[]> = {
   '/placements':    ['superadmin', 'admin'],
   '/import':        ['superadmin', 'admin'],
   '/audit':         ['superadmin'],
+  '/cr-activity':    ['superadmin'],
   '/settings':      ['superadmin'],
   '/users':         ['superadmin'],
 };

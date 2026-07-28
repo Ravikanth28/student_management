@@ -19,6 +19,7 @@ import { settingsRoutes } from './routes/settingsRoutes.js';
 import { attendanceRoutes } from './routes/attendanceRoutes.js';
 import { disciplineRoutes } from './routes/disciplineRoutes.js';
 import circularRoutes from './routes/circularRoutes.js';
+import { crActivityRoutes } from './routes/crActivityRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { apiAuditLogger } from './middleware/auditLogger.js';
 
@@ -88,6 +89,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/discipline-records', disciplineRoutes);
 app.use('/api/circulars', circularRoutes);
+app.use('/api/cr-activity', crActivityRoutes);
 
 // ── Single-service deployment: serve the built frontend ──
 // In production the web app is built into backend/dist/public. When that folder
