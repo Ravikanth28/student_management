@@ -52,3 +52,13 @@ export async function deleteCircular(req: Request, res: Response): Promise<void>
     res.status(500).json({ message: 'Failed to delete circular' });
   }
 }
+
+export async function clearAllCirculars(req: Request, res: Response): Promise<void> {
+  try {
+    const count = await circularService.removeAllCirculars();
+    res.json({ message: `Cleared ${count} circular(s)`, count });
+  } catch (err) {
+    logger.error('Failed to clear all circulars:', err);
+    res.status(500).json({ message: 'Failed to clear circulars' });
+  }
+}

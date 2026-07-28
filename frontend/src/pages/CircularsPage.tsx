@@ -136,6 +136,17 @@ export function CircularsPage({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL circulars? This action cannot be undone.')) return;
+    try {
+      await api.delete('/circulars');
+      success('Cleared', 'All circulars have been deleted.');
+      fetchCirculars();
+    } catch {
+      toastError('Error', 'Failed to clear circulars.');
+    }
+  };
+
   const getPriorityBadgeClass = (p: string) => {
     if (p === 'Urgent') return 'badge badge-red';
     if (p === 'Important') return 'badge badge-amber';
@@ -149,9 +160,16 @@ export function CircularsPage({ onLogout }: { onLogout: () => void }) {
       onLogout={onLogout}
       actions={
         canBroadcast ? (
-          <button type="button" className="btn btn-primary" onClick={() => setShowModal(true)}>
-            <IconPlus /> Broadcast Circular
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {role === 'superadmin' && circulars.length > 0 && (
+              <button type="button" className="btn btn-outline" style={{ borderColor: 'var(--red)', color: 'var(--red)' }} onClick={handleClearAll}>
+                <IconTrash /> Clear All
+              </button>
+            )}
+            <button type="button" className="btn btn-primary" onClick={() => setShowModal(true)}>
+              <IconPlus /> Broadcast Circular
+            </button>
+          </div>
         ) : null
       }
     >

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { createAchievement, listAchievements, achievementSummary, updateAchievement, deleteAchievement, removeAchievementMember } from '../controllers/achievementController.js';
+import { createAchievement, listAchievements, achievementSummary, updateAchievement, deleteAchievement, removeAchievementMember, clearAllAchievements } from '../controllers/achievementController.js';
 
 export const achievementRoutes = Router();
 achievementRoutes.use(requireAuth, requireRole('superadmin', 'admin'));
@@ -11,3 +11,5 @@ achievementRoutes.get('/', listAchievements);
 achievementRoutes.put('/:id', updateAchievement);
 achievementRoutes.delete('/:id/members/:studentId', removeAchievementMember);
 achievementRoutes.delete('/:id', deleteAchievement);
+// Clear ALL achievements
+achievementRoutes.delete('/', clearAllAchievements);

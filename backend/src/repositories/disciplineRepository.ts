@@ -209,13 +209,18 @@ export async function summarizeDiscipline(f: {
 
 function normalize(row: DisciplineRecord & RowDataPacket): DisciplineRecord {
   return {
-    ...row,
-    id: Number(row.id),
-    student_id: Number(row.student_id),
+    id: row.id,
+    student_id: row.student_id,
+    reason: row.reason,
     record_date: String(row.record_date),
     record_time: row.record_time ?? null,
     details: row.details ?? null,
     marked_by: row.marked_by ?? null,
     year: row.year ?? null,
   };
+}
+
+export async function deleteAllDiscipline(): Promise<number> {
+  const [res] = await pool.query<ResultSetHeader>('DELETE FROM discipline_records');
+  return res.affectedRows;
 }

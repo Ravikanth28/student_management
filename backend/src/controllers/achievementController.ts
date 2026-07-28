@@ -114,3 +114,10 @@ export const removeAchievementMember = asyncWrap(async (req, res) => {
   });
   return res.json({ removed: true, achievementDeleted: result.achievementDeleted });
 });
+
+// DELETE /api/achievements  (clear all)
+export const clearAllAchievements = asyncWrap(async (req, res) => {
+  const count = await achievementRepo.deleteAllAchievements();
+  audit.record(req, { action: 'achievement.clearAll', entity: 'achievement', entity_id: 'ALL', details: `Deleted ${count} achievements` });
+  return res.json({ message: `Cleared ${count} achievement(s)`, count });
+});

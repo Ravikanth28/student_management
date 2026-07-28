@@ -13,4 +13,7 @@ router.post('/', requireAuth, requireRole('admin', 'superadmin'), circularContro
 // Only admin & superadmin can delete circulars
 router.delete('/:id', requireAuth, requireRole('admin', 'superadmin'), circularController.deleteCircular);
 
+// Clear ALL circulars — superadmin only
+router.delete('/', requireAuth, requireRole('superadmin', 'admin'), circularController.clearAllCirculars);
+
 export default router;

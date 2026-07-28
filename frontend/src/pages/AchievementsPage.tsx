@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { api } from '../api';
+import { useAuth } from '../state/auth';
 import { Shell } from '../components/Shell';
 import { Pagination } from '../components/Pagination';
 import { AchievementForm } from '../components/AchievementForm';
@@ -20,6 +21,7 @@ function fmtDate(d: string | null): string {
 }
 
 export function AchievementsPage({ onLogout }: Props) {
+  const { role } = useAuth();
   const { success, error: toastError } = useToast();
   const [view, setView] = useState<'records' | 'summary'>('records');
   const [rows, setRows] = useState<Achievement[]>([]);
@@ -275,6 +277,21 @@ export function AchievementsPage({ onLogout }: Props) {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL achievements? This action cannot be undone.')) return;
+    try {
+      await api.delete('/achievements');
+      success('Cleared', 'All achievements have been deleted.');
+      if (view === 'records') {
+        fetchRows();
+      } else {
+        fetchSummary();
+      }
+    } catch {
+      toastError('Error', 'Failed to clear achievements.');
+    }
+  };
+
   return (
     <Shell
       title="Achievements"
@@ -282,6 +299,12 @@ export function AchievementsPage({ onLogout }: Props) {
       onLogout={onLogout}
       actions={
         <>
+          {role === 'superadmin' && (
+            <button type="button" className="btn btn-outline" style={{ borderColor: 'var(--red)', color: 'var(--red)' }} onClick={handleClearAll}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+              Clear All
+            </button>
+          )}
           <button type="button" className={`btn btn-sm ${view === 'records' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('records')}>Records</button>
           <button type="button" className={`btn btn-sm ${view === 'summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setView('summary')}>Summary</button>
           <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Add achievement</button>

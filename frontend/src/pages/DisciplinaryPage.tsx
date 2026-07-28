@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { useAuth } from '../state/auth';
 import { Shell } from '../components/Shell';
 import { Pagination } from '../components/Pagination';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -30,6 +31,7 @@ function download(name: string, csv: string) {
 const cell = (c: unknown) => `"${String(c ?? '').replace(/"/g, '""')}"`;
 
 export function DisciplinaryPage({ onLogout }: Props) {
+  const { role } = useAuth();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
   const [view, setView] = useState<'records' | 'summary'>('records');
@@ -98,6 +100,21 @@ export function DisciplinaryPage({ onLogout }: Props) {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL disciplinary records? This action cannot be undone.')) return;
+    try {
+      await api.delete('/discipline-records');
+      success('Cleared', 'All disciplinary records have been deleted.');
+      if (view === 'records') {
+        fetchRows();
+      } else {
+        fetchSummary();
+      }
+    } catch {
+      toastError('Error', 'Failed to clear disciplinary records.');
+    }
+  };
+
   const exportRecords = async () => {
     const res = await api.get<DisciplineListResponse>('/discipline-records', {
       params: { page: 1, limit: 2000, date: date || undefined, reason: reason || undefined, year: year || undefined, q: q || undefined },
@@ -149,6 +166,12 @@ export function DisciplinaryPage({ onLogout }: Props) {
       onLogout={onLogout}
       actions={
         <>
+          {role === 'superadmin' && (
+            <button type="button" className="btn btn-outline" style={{ borderColor: 'var(--red)', color: 'var(--red)' }} onClick={handleClearAll}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+              Clear All
+            </button>
+          )}
           {toggleBtn('records', 'Records')}
           {toggleBtn('summary', 'Summary')}
           <button className="btn btn-outline" onClick={() => (view === 'records' ? void exportRecords() : exportSummary())}>Export CSV</button>

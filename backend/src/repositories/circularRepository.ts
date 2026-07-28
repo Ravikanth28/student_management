@@ -39,3 +39,8 @@ export async function deleteCircular(id: number): Promise<boolean> {
   );
   return res.affectedRows > 0;
 }
+
+export async function deleteAllCirculars(): Promise<number> {
+  const [res] = await pool.query<ResultSetHeader>('DELETE FROM circulars');
+  return res.affectedRows;
+}

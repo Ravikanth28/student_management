@@ -338,3 +338,10 @@ function normalize(a: Achievement & RowDataPacket, members: AchievementMember[])
     members,
   };
 }
+
+export async function deleteAllAchievements(): Promise<number> {
+  // achievement_members has ON DELETE CASCADE so deleting from achievements
+  // automatically removes all member rows.
+  const [res] = await pool.query<ResultSetHeader>('DELETE FROM achievements');
+  return res.affectedRows;
+}

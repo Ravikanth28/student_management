@@ -104,3 +104,10 @@ export const deleteDisciplineRecord = asyncWrap(async (req, res) => {
   audit.record(req, { action: 'discipline.delete', entity: 'discipline_record', entity_id: String(id) });
   return res.status(204).send();
 });
+
+// DELETE /api/discipline-records  (clear all)
+export const clearAllDisciplineRecords = asyncWrap(async (req, res) => {
+  const count = await disciplineRepo.deleteAllDiscipline();
+  audit.record(req, { action: 'discipline.clearAll', entity: 'discipline_record', entity_id: 'ALL', details: `Deleted ${count} records` });
+  return res.json({ message: `Cleared ${count} discipline record(s)`, count });
+});

@@ -2,6 +2,7 @@ import {
   findAllCirculars,
   createCircular,
   deleteCircular,
+  deleteAllCirculars,
   type CircularRecord,
 } from '../repositories/circularRepository.js';
 
@@ -30,4 +31,8 @@ export async function broadcastCircular(
 
 export async function removeCircular(id: number): Promise<boolean> {
   return await deleteCircular(id);
+}
+
+export async function removeAllCirculars(): Promise<number> {
+  return await deleteAllCirculars();
 }
