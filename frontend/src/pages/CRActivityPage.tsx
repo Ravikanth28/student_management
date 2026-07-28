@@ -190,7 +190,7 @@ export function CRActivityPage({ onLogout }: { onLogout: () => void }) {
                             {log.browser ?? 'Unknown Browser'} on {log.os ?? 'Unknown OS'}
                           </span>
                           <span style={{ fontFamily: 'monospace', color: 'var(--text-3)', fontSize: '0.76rem' }}>
-                            IP: {log.ip_address ?? 'Unknown'} {log.device_type ? `• ${log.device_type}` : ''}
+                            IP: {log.ip_address === '::1' ? '127.0.0.1 (Localhost)' : log.ip_address ?? 'Unknown'} {log.device_type ? `• ${log.device_type}` : ''}
                           </span>
                         </div>
                       </td>

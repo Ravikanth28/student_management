@@ -121,13 +121,16 @@ export const submitCRAttendance = asyncWrap(async (req, res) => {
     details: `CR ${req.user?.username ?? 'system'} submitted absentees for ${date} — Year ${year} Sec ${section}: ${result.absent} absent, ${result.present} present`,
   });
 
+  const rawIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || req.socket.remoteAddress || '';
+  const clientIp = rawIp.replace('::ffff:', '') === '::1' ? '127.0.0.1 (Localhost)' : rawIp.replace('::ffff:', '');
+
   // Fire-and-forget: log CR device info (never blocks the response)
   void crActivityRepo.insertCRActivity({
     att_date: date,
     year,
     section,
     absentIds: absentStudentIds,
-    ip: (req.ip ?? '').replace('::ffff:', '') || null,
+    ip: clientIp || null,
     userAgent: req.headers['user-agent'] ?? null,
   }).catch(() => { /* swallow — logging must never break the submit */ });
 
