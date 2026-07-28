@@ -8,6 +8,7 @@ import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
 import type { Student } from '../types';
 import { YEAR_LABELS } from '../types';
+import { proxiedImage } from '../lib/img';
 
 // ─── SVG Icons ──────────────────────────────────────────────
 function IconUsers() {
@@ -186,8 +187,8 @@ export function DashboardPage({ onLogout }: Props) {
                 onClick={() => navigate(`/students/${s.id}`)}
                 style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px 12px 14px', border: '2px solid var(--border)', borderRadius: 999, background: 'var(--surface)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
               >
-                {s.photo_url ? (
-                  <img src={s.photo_url} alt={s.name} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--amber)' }} />
+                {proxiedImage(s.photo_url) ? (
+                  <img src={proxiedImage(s.photo_url)!} alt={s.name} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--amber)' }} />
                 ) : (
                   <span style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '1.2rem', border: '2px solid var(--amber)' }}>
                     {s.name.charAt(0).toUpperCase()}
