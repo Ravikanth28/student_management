@@ -76,6 +76,8 @@ export async function listLateByStudent(studentId: number): Promise<LateRecord[]
 
 export interface LateFilter {
   date?: string;
+  from?: string;
+  to?: string;
   period?: string;
   section?: string;
   batch?: string;
@@ -90,6 +92,8 @@ export async function listLate(f: LateFilter): Promise<LateListResult> {
   const values: unknown[] = [];
 
   if (f.date)    { conditions.push('lr.late_date = ?'); values.push(f.date); }
+  if (f.from)    { conditions.push('lr.late_date >= ?'); values.push(f.from); }
+  if (f.to)      { conditions.push('lr.late_date <= ?'); values.push(f.to); }
   if (f.period)  { conditions.push('lr.period = ?'); values.push(f.period); }
   if (f.section) { conditions.push('s.section = ?'); values.push(f.section); }
   if (f.batch)   { conditions.push('s.batch = ?'); values.push(f.batch); }
