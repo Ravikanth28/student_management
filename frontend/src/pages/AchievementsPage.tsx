@@ -425,6 +425,7 @@ export function AchievementsPage({ onLogout }: Props) {
             <option value="III">III Year</option>
             <option value="IV">IV Year</option>
           </select>
+          <input className="form-control" style={{ height: 40, width: 120 }} placeholder="Batch" value={rBatch} onChange={(e) => { setPage(1); setRBatch(e.target.value); }} />
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
             <button className="btn btn-outline" style={{ height: 40 }} onClick={exportRecordsCSV}>CSV</button>
             <button className="btn btn-outline" style={{ height: 40 }} onClick={exportRecordsPDF}>PDF</button>
