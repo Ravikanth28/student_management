@@ -21,6 +21,9 @@ function IconCalendar() {
 function IconUser() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
 }
+function IconTrash() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
+}
 
 const SECTIONS = ['A', 'B', 'C', 'D', 'E'];
 const todayIST = () => new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -43,6 +46,46 @@ export function AttendancePage({ onLogout }: Props) {
   // Date-wise log state
   const [dateLog, setDateLog] = useState<AttendanceRangeRow[]>([]);
   const [loadingDateLog, setLoadingDateLog] = useState(false);
+
+  // ── Absentees multi-select & removal state ──
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [targetToRemove, setTargetToRemove] = useState<{ student_id: number; att_date: string; name: string }[] | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  const toggleSelectKey = (key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedKeys.size === dateLog.length && dateLog.length > 0) {
+      setSelectedKeys(new Set());
+    } else {
+      const allKeys = new Set(dateLog.map((r) => `${r.att_date}_${r.student_id}`));
+      setSelectedKeys(allKeys);
+    }
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!targetToRemove || targetToRemove.length === 0) return;
+    setRemoving(true);
+    try {
+      const entries = targetToRemove.map((t) => ({ student_id: t.student_id, att_date: t.att_date }));
+      const res = await api.post<{ removed: number }>('/attendance/remove-absentees', { entries });
+      success('Absentees removed', `Successfully removed ${res.data.removed} absent record(s).`);
+      setTargetToRemove(null);
+      setSelectedKeys(new Set());
+      await Promise.all([loadDateLog(), loadDay()]);
+    } catch {
+      toastError('Removal failed', 'Could not remove selected absent record(s).');
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   // ── Marking state ──
   const [year, setYear] = useState('');
@@ -313,8 +356,21 @@ export function AttendancePage({ onLogout }: Props) {
                               <td><span className="badge badge-green">{s.present}</span></td>
                               <td><span className="badge badge-red">{s.absent}</span></td>
                               <td style={{ fontSize: '0.78rem' }}>
-                                {s.absentees.length === 0 ? <span style={{ color: 'var(--text-3)' }}>—</span>
-                                  : s.absentees.map((a) => a.name).join(', ')}
+                                {s.absentees.length === 0 ? <span style={{ color: 'var(--text-3)' }}>—</span> : (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                    {s.absentees.map((a) => (
+                                      <span
+                                        key={a.id}
+                                        className="badge badge-red"
+                                        style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                        title="Click to remove absent record for this student on this date"
+                                        onClick={() => setTargetToRemove([{ student_id: a.id, att_date: date, name: a.name }])}
+                                      >
+                                        {a.name} <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>×</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </td>
                               <td style={{ textAlign: 'right' }}>
                                 <button
@@ -353,6 +409,35 @@ export function AttendancePage({ onLogout }: Props) {
             </div>
           </div>
 
+          {dateLog.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 14, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text)', fontWeight: 600 }}>
+                {selectedKeys.size > 0 ? (
+                  <span><strong>{selectedKeys.size}</strong> absent record(s) selected</span>
+                ) : (
+                  <span style={{ color: 'var(--text-2)' }}>Select absentees below using checkboxes to remove them in bulk</span>
+                )}
+              </div>
+              <div>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  disabled={selectedKeys.size === 0}
+                  style={{ background: selectedKeys.size > 0 ? '#dc2626' : undefined, borderColor: selectedKeys.size > 0 ? '#dc2626' : undefined, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const selectedList = dateLog
+                      .filter((r) => selectedKeys.has(`${r.att_date}_${r.student_id}`))
+                      .map((r) => ({ student_id: r.student_id, att_date: r.att_date, name: r.name }));
+                    setTargetToRemove(selectedList);
+                  }}
+                >
+                  <IconTrash />
+                  Remove Selected Absentees ({selectedKeys.size})
+                </button>
+              </div>
+            </div>
+          )}
+
           {loadingDateLog ? (
             <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)' }}>Loading date-wise log...</div>
           ) : dateLog.length === 0 ? (
@@ -362,25 +447,56 @@ export function AttendancePage({ onLogout }: Props) {
               <table>
                 <thead>
                   <tr>
+                    <th style={{ width: 36, textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedKeys.size > 0 && selectedKeys.size === dateLog.length}
+                        onChange={toggleSelectAll}
+                        title="Select or deselect all"
+                      />
+                    </th>
                     <th>Date</th>
                     <th>Student Name</th>
                     <th>Register No.</th>
                     <th>Year</th>
                     <th>Sec</th>
                     <th>Marked By</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {dateLog.map((r, idx) => (
-                    <tr key={`${r.att_date}-${r.student_id}-${idx}`}>
-                      <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{r.att_date}</td>
-                      <td style={{ fontWeight: 600 }}>{r.name}</td>
-                      <td className="td-muted">{r.register_number}</td>
-                      <td><span className="badge badge-purple">{r.year ? (YEAR_LABELS[r.year] ?? r.year) : '—'}</span></td>
-                      <td><span className="badge badge-green">Sec {r.section}</span></td>
-                      <td className="td-muted" style={{ fontSize: '0.78rem' }}>{r.marked_by || 'system'}</td>
-                    </tr>
-                  ))}
+                  {dateLog.map((r, idx) => {
+                    const key = `${r.att_date}_${r.student_id}`;
+                    const isSelected = selectedKeys.has(key);
+                    return (
+                      <tr key={`${r.att_date}-${r.student_id}-${idx}`} style={{ background: isSelected ? 'rgba(239, 68, 68, 0.06)' : undefined }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectKey(key)}
+                          />
+                        </td>
+                        <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{r.att_date}</td>
+                        <td style={{ fontWeight: 600 }}>{r.name}</td>
+                        <td className="td-muted">{r.register_number}</td>
+                        <td><span className="badge badge-purple">{r.year ? (YEAR_LABELS[r.year] ?? r.year) : '—'}</span></td>
+                        <td><span className="badge badge-green">Sec {r.section}</span></td>
+                        <td className="td-muted" style={{ fontSize: '0.78rem' }}>{r.marked_by || 'system'}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            type="button"
+                            style={{ color: '#dc2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                            onClick={() => setTargetToRemove([{ student_id: r.student_id, att_date: r.att_date, name: r.name }])}
+                            title="Remove absent record for this student on this date"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -483,6 +599,21 @@ export function AttendancePage({ onLogout }: Props) {
           onConfirm={removeDay}
           onCancel={() => setDeleteTarget(null)}
           loading={deleting}
+        />
+      )}
+
+      {targetToRemove && (
+        <ConfirmModal
+          title={`Remove ${targetToRemove.length === 1 ? 'absent record' : `${targetToRemove.length} absent records`}?`}
+          description={
+            targetToRemove.length === 1
+              ? `This will remove the absent record for ${targetToRemove[0].name} on ${targetToRemove[0].att_date} and mark them as present.`
+              : `This will remove absent records for ${targetToRemove.length} selected student(s) and mark them as present.`
+          }
+          confirmLabel={removing ? 'Removing…' : 'Remove Absentees'}
+          onConfirm={handleConfirmRemove}
+          onCancel={() => setTargetToRemove(null)}
+          loading={removing}
         />
       )}
 

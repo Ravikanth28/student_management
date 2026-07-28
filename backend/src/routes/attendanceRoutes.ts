@@ -9,6 +9,7 @@ import {
   getStudentAttendance,
   submitCRAttendance,
   getAttendanceRangeReport,
+  removeAbsentees,
 } from '../controllers/attendanceController.js';
 
 export const attendanceRoutes = Router();
@@ -25,4 +26,6 @@ attendanceRoutes.get('/summary', staff, getSummary);
 attendanceRoutes.get('/range', staff, getAttendanceRangeReport);
 attendanceRoutes.get('/student/:id', staff, getStudentAttendance);
 attendanceRoutes.post('/', staff, saveAttendance);
+attendanceRoutes.post('/remove-absentees', staff, removeAbsentees);
 attendanceRoutes.delete('/', staff, deleteDay);
+

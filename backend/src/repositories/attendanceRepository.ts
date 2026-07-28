@@ -197,3 +197,16 @@ export async function getRangeReport(params: {
     student_id: Number(r.student_id),
   }));
 }
+
+/** Remove absent status for one or multiple student entries (updating status to present). */
+export async function removeAbsentees(entries: { student_id: number; att_date: string }[]): Promise<number> {
+  if (entries.length === 0) return 0;
+  const conditions = entries.map(() => '(student_id = ? AND att_date = ?)').join(' OR ');
+  const params = entries.flatMap((e) => [e.student_id, e.att_date]);
+  const [res] = await pool.query<ResultSetHeader>(
+    `UPDATE attendance SET status = 'present' WHERE status = 'absent' AND (${conditions})`,
+    params,
+  );
+  return res.affectedRows;
+}
+

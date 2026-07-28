@@ -156,3 +156,28 @@ export const getAttendanceRangeReport = asyncWrap(async (req, res) => {
   });
   return res.json({ data: rows });
 });
+
+// POST /api/attendance/remove-absentees  { entries: Array<{ student_id: number; att_date: string }> }
+export const removeAbsentees = asyncWrap(async (req, res) => {
+  const rawEntries = req.body?.entries;
+  if (!Array.isArray(rawEntries) || rawEntries.length === 0) {
+    throw new HttpError(400, 'entries array is required');
+  }
+  const entries = rawEntries
+    .map((e: { student_id?: unknown; att_date?: unknown }) => ({
+      student_id: Number(e.student_id),
+      att_date: String(e.att_date || '').trim(),
+    }))
+    .filter((e) => Number.isInteger(e.student_id) && e.student_id > 0 && /^\d{4}-\d{2}-\d{2}$/.test(e.att_date));
+
+  if (entries.length === 0) throw new HttpError(400, 'No valid entries provided');
+
+  const removed = await attendanceRepo.removeAbsentees(entries);
+  audit.record(req, {
+    action: 'attendance.remove_absentees',
+    entity: 'attendance',
+    details: `Removed absent record for ${removed} entry/entries`,
+  });
+  return res.json({ removed });
+});
+
