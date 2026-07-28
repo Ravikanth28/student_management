@@ -57,6 +57,10 @@ jobs:
         run: npm run build
 
       - name: Add Android platform
+        env:
+          # CAP_SERVER_URL tells capacitor.config.ts which live URL to load.
+          # Falls back to the hardcoded Render URL if the secret is not set.
+          CAP_SERVER_URL: ${{ secrets.VITE_API_BASE_URL }}
         run: npx --no-install cap add android
 
       - name: Wire up Firebase (google-services) for push notifications
@@ -99,6 +103,8 @@ jobs:
           echo "APK versionName set to $APP_VERSION"
 
       - name: Sync web assets into Android project
+        env:
+          CAP_SERVER_URL: ${{ secrets.VITE_API_BASE_URL }}
         run: npx --no-install cap sync android
 
       - name: Build debug APK
