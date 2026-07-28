@@ -20,7 +20,6 @@ import { LateComersPage } from './pages/LateComersPage';
 import { DisciplinaryPage } from './pages/DisciplinaryPage';
 import { AttendancePage } from './pages/AttendancePage';
 import { CRAttendancePage } from './pages/CRAttendancePage';
-import { CRLogPage } from './pages/CRLogPage';
 import { CircularsPage } from './pages/CircularsPage';
 import { AchievementsPage } from './pages/AchievementsPage';
 import { PlacementsPage } from './pages/PlacementsPage';
@@ -35,7 +34,7 @@ const ScannerPage = lazy(() => import('./pages/ScannerPage').then((m) => ({ defa
 function Protected({ roleKey, children }: { roleKey: string; children: ReactNode }) {
   const { isAuthenticated, role } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (role === 'cr' && roleKey !== '/cr-attendance' && roleKey !== '/cr-log' && roleKey !== '/circulars') return <Navigate to="/cr-attendance" replace />;
+  if (role === 'cr' && roleKey !== '/cr-attendance' && roleKey !== '/circulars') return <Navigate to="/cr-attendance" replace />;
   if (!canAccess(roleKey, role)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
@@ -73,7 +72,6 @@ function AppRoutes() {
       />
       <Route path="/attendance" element={<Protected roleKey="/attendance"><AttendancePage onLogout={logout} /></Protected>} />
       <Route path="/cr-attendance" element={<Protected roleKey="/cr-attendance"><CRAttendancePage onLogout={logout} /></Protected>} />
-      <Route path="/cr-log" element={<Protected roleKey="/cr-log"><CRLogPage onLogout={logout} /></Protected>} />
       <Route path="/circulars" element={<Protected roleKey="/circulars"><CircularsPage onLogout={logout} /></Protected>} />
       <Route path="/late-comers" element={<Protected roleKey="/late-comers"><LateComersPage onLogout={logout} /></Protected>} />
       <Route path="/disciplinary" element={<Protected roleKey="/disciplinary"><DisciplinaryPage onLogout={logout} /></Protected>} />
