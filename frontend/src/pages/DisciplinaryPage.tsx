@@ -16,6 +16,41 @@ const LIMIT = 50;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const monthStartStr = () => `${new Date().toISOString().slice(0, 7)}-01`;
 
+type DateRangeKey = 'today' | 'week' | 'month' | 'last3months' | 'year' | 'all';
+
+const DATE_RANGE_OPTIONS: { value: DateRangeKey; label: string }[] = [
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
+  { value: 'last3months', label: 'Last 3 Months' },
+  { value: 'year', label: 'This Year' },
+  { value: 'all', label: 'All Time' },
+];
+
+function getDateRangeDates(key: DateRangeKey): { from: string; to: string } | { date: string } | Record<string, never> {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = fmt(now);
+  if (key === 'today') return { date: today };
+  if (key === 'week') {
+    const day = now.getDay(); // 0=Sun
+    const mon = new Date(now); mon.setDate(now.getDate() - ((day + 6) % 7));
+    return { from: fmt(mon), to: today };
+  }
+  if (key === 'month') {
+    return { from: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, to: today };
+  }
+  if (key === 'last3months') {
+    const d = new Date(now); d.setMonth(d.getMonth() - 3);
+    return { from: fmt(d), to: today };
+  }
+  if (key === 'year') {
+    return { from: `${now.getFullYear()}-01-01`, to: today };
+  }
+  return {}; // all
+}
+
 function fmtDate(d: string): string {
   const dt = new Date(d.includes('T') ? d : `${d}T00:00:00`);
   return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -40,7 +75,7 @@ export function DisciplinaryPage({ onLogout }: Props) {
   const [rows, setRows] = useState<DisciplineRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [date, setDate] = useState('');
+  const [dateRange, setDateRange] = useState<DateRangeKey>('today');
   const [reason, setReason] = useState('');
   const [year, setYear] = useState('');
   const [batch, setBatch] = useState('');
@@ -92,13 +127,14 @@ export function DisciplinaryPage({ onLogout }: Props) {
   const fetchRows = useCallback(async () => {
     setLoading(true);
     try {
+      const rangeDates = getDateRangeDates(dateRange);
       const res = await api.get<DisciplineListResponse>('/discipline-records', {
-        params: { page, limit: LIMIT, date: date || undefined, reason: reason || undefined, year: year || undefined, batch: batch || undefined, q: q || undefined },
+        params: { page, limit: LIMIT, ...rangeDates, reason: reason || undefined, year: year || undefined, batch: batch || undefined, q: q || undefined },
       });
       setRows(res.data.data);
       setTotal(res.data.meta.total);
     } catch { setRows([]); setTotal(0); } finally { setLoading(false); }
-  }, [page, date, reason, year, batch, q]);
+  }, [page, dateRange, reason, year, batch, q]);
 
   // ── Summary view ──
   const [summary, setSummary] = useState<DisciplineSummaryRow[]>([]);
@@ -155,8 +191,9 @@ export function DisciplinaryPage({ onLogout }: Props) {
   };
 
   const exportRecords = async () => {
+    const rangeDates = getDateRangeDates(dateRange);
     const res = await api.get<DisciplineListResponse>('/discipline-records', {
-      params: { page: 1, limit: 2000, date: date || undefined, reason: reason || undefined, year: year || undefined, batch: batch || undefined, q: q || undefined },
+      params: { page: 1, limit: 2000, ...rangeDates, reason: reason || undefined, year: year || undefined, batch: batch || undefined, q: q || undefined },
     });
     const header = ['Date', 'Time', 'Reason', 'Details', 'Name', 'Register No', 'Enrollment No', 'Department', 'Year', 'Section', 'Batch', 'Marked By'];
     const body = res.data.data.map((r) => [
@@ -173,7 +210,7 @@ export function DisciplinaryPage({ onLogout }: Props) {
       r.batch,
       r.marked_by,
     ].map(cell).join(','));
-    download(`disciplinary-records_${date || 'all'}.csv`, [header.join(','), ...body].join('\n'));
+    download(`disciplinary-records_${dateRange || 'all'}.csv`, [header.join(','), ...body].join('\n'));
   };
 
   const exportSummary = () => {
@@ -220,7 +257,9 @@ export function DisciplinaryPage({ onLogout }: Props) {
       {view === 'records' ? (
         <div className="card">
           <div className="toolbar">
-            <input type="date" className="form-control" style={{ height: 40, maxWidth: 170 }} value={date} onChange={(e) => { setPage(1); setDate(e.target.value); }} />
+            <select className="form-control" style={{ height: 40, maxWidth: 170 }} value={dateRange} onChange={(e) => { setPage(1); setDateRange(e.target.value as DateRangeKey); }}>
+              {DATE_RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
             <select className="form-control" style={{ height: 40, maxWidth: 190 }} value={reason} onChange={(e) => { setPage(1); setReason(e.target.value); }}>
               <option value="">All Issues / Reasons</option>
               {DISCIPLINE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -231,8 +270,8 @@ export function DisciplinaryPage({ onLogout }: Props) {
             </select>
             <input className="form-control" style={{ height: 40, width: 120 }} placeholder="Batch" value={batch} onChange={(e) => { setPage(1); setBatch(e.target.value); }} />
             <input className="form-control" style={{ height: 40, flex: 1, minWidth: 160 }} placeholder="Search student name / register no / reason…" value={q} onChange={(e) => { setPage(1); setQ(e.target.value); }} />
-            {(date || reason || year || batch || q) && (
-              <button className="btn btn-outline btn-sm" onClick={() => { setPage(1); setDate(''); setReason(''); setYear(''); setBatch(''); setQ(''); }}>
+            {(dateRange !== 'today' || reason || year || batch || q) && (
+              <button className="btn btn-outline btn-sm" onClick={() => { setPage(1); setDateRange('today'); setReason(''); setYear(''); setBatch(''); setQ(''); }}>
                 Clear Filters
               </button>
             )}

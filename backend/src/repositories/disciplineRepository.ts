@@ -82,6 +82,8 @@ export async function listDisciplineByStudent(studentId: number): Promise<Discip
 
 export interface DisciplineFilter {
   date?: string;
+  from?: string;
+  to?: string;
   reason?: string;
   section?: string;
   batch?: string;
@@ -98,6 +100,14 @@ export async function listDiscipline(f: DisciplineFilter): Promise<DisciplineLis
   if (f.date) {
     conditions.push('dr.record_date = ?');
     values.push(f.date);
+  }
+  if (f.from) {
+    conditions.push('dr.record_date >= ?');
+    values.push(f.from);
+  }
+  if (f.to) {
+    conditions.push('dr.record_date <= ?');
+    values.push(f.to);
   }
   if (f.reason) {
     conditions.push('dr.reason LIKE ?');

@@ -72,6 +72,8 @@ export const listDisciplineRecords = asyncWrap(async (req, res) => {
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
   const result = await disciplineRepo.listDiscipline({
     date: req.query.date ? String(req.query.date) : undefined,
+    from: req.query.from ? String(req.query.from) : undefined,
+    to: req.query.to ? String(req.query.to) : undefined,
     reason: req.query.reason ? String(req.query.reason) : undefined,
     section: req.query.section ? String(req.query.section) : undefined,
     batch: req.query.batch ? String(req.query.batch) : undefined,
