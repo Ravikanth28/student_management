@@ -161,7 +161,7 @@ export function CircularsPage({ onLogout }: { onLogout: () => void }) {
       actions={
         canBroadcast ? (
           <div style={{ display: 'flex', gap: '8px' }}>
-            {role === 'superadmin' && circulars.length > 0 && (
+            {role === 'superadmin' && (
               <button type="button" className="btn btn-outline" style={{ borderColor: 'var(--red)', color: 'var(--red)' }} onClick={handleClearAll}>
                 <IconTrash /> Clear All
               </button>
