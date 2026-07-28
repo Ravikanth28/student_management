@@ -209,8 +209,9 @@ export async function summarizeDiscipline(f: {
 
 function normalize(row: DisciplineRecord & RowDataPacket): DisciplineRecord {
   return {
-    id: row.id,
-    student_id: row.student_id,
+    ...row,
+    id: Number(row.id),
+    student_id: Number(row.student_id),
     reason: row.reason,
     record_date: String(row.record_date),
     record_time: row.record_time ?? null,
