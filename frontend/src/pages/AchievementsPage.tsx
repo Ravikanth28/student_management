@@ -501,7 +501,7 @@ export function AchievementsPage({ onLogout }: Props) {
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxWidth: 320 }}>
                           {a.members.map((m) => (
-                            <span key={m.student_id} className="badge badge-blue">{m.name} <span style={{ opacity: 0.7 }}>({m.register_number}{m.year ? ` · ${YEAR_LABELS[m.year] ?? m.year}` : ''})</span></span>
+                            <span key={m.student_id} className="badge badge-blue">{m.name} <span style={{ opacity: 0.7 }}>({m.register_number}{m.batch ? ` · ${m.batch}` : ''}{m.year ? ` · ${YEAR_LABELS[m.year] ?? m.year}` : ''})</span></span>
                           ))}
                         </div>
                       </td>

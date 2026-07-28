@@ -167,31 +167,35 @@ export function DashboardPage({ onLogout }: Props) {
       {birthdays.length > 0 && (
         <div
           className="card"
-          style={{ margin: '16px 0', borderColor: 'var(--amber)', overflow: 'hidden' }}
+          style={{ margin: '24px 0', borderColor: 'var(--amber)', overflow: 'hidden', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.15)' }}
         >
-          <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--amber-light)', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 22 }}>🎂</span>
+          <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14, background: 'var(--amber-light)', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 32 }}>🎂</span>
             <div>
-              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text)' }}>
-                {birthdays.length === 1 ? "Today's Birthday" : `Today's Birthdays (${birthdays.length})`}
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text)' }}>
+                {birthdays.length === 1 ? "Today's Birthday!" : `Today's Birthdays (${birthdays.length})!`}
               </div>
-              <div style={{ fontSize: '0.76rem', color: 'var(--text-2)' }}>Wish them a great day!</div>
+              <div style={{ fontSize: '0.9rem', color: 'var(--text-2)' }}>Wish them a great day!</div>
             </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: 16 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, padding: 24 }}>
             {birthdays.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => navigate(`/students/${s.id}`)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 10px', border: '1px solid var(--border)', borderRadius: 999, background: 'var(--surface)', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px 12px 14px', border: '2px solid var(--border)', borderRadius: 999, background: 'var(--surface)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
               >
-                <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '0.9rem' }}>
-                  {s.name.charAt(0).toUpperCase()}
-                </span>
-                <span style={{ textAlign: 'left', lineHeight: 1.2 }}>
-                  <span style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text)' }}>{s.name}</span>
-                  <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-2)' }}>
+                {s.photo_url ? (
+                  <img src={s.photo_url} alt={s.name} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--amber)' }} />
+                ) : (
+                  <span style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '1.2rem', border: '2px solid var(--amber)' }}>
+                    {s.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span style={{ textAlign: 'left', lineHeight: 1.3 }}>
+                  <span style={{ display: 'block', fontSize: '1rem', fontWeight: 800, color: 'var(--text)' }}>{s.name}</span>
+                  <span style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-2)' }}>
                     {s.department} {s.year ? `${YEAR_LABELS[s.year] ?? s.year} ` : ''}{s.section} section
                   </span>
                 </span>
@@ -201,85 +205,6 @@ export function DashboardPage({ onLogout }: Props) {
         </div>
       )}
 
-      {/* Recent Students */}
-      <div className="card">
-        <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)' }}>Recently Added Students</h2>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginTop: 2 }}>Last 5 student records added to the system</p>
-          </div>
-          <button className="btn btn-outline btn-sm" type="button" onClick={() => navigate('/students')} id="dashboard-view-all">
-            View All
-            <IconChevRight />
-          </button>
-        </div>
-
-        {loading ? (
-          <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div className="skeleton" style={{ width: 40, height: 40, borderRadius: '50%' }} />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div className="skeleton" style={{ height: 12, width: '40%', borderRadius: 6 }} />
-                  <div className="skeleton" style={{ height: 10, width: '60%', borderRadius: 6 }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : stats?.recentStudents.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">
-              <IconUsers />
-            </div>
-            <p className="empty-title">No students yet</p>
-            <p className="empty-sub">Add your first student record to get started.</p>
-            {staff && (
-              <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} type="button" onClick={() => navigate('/students/new')}>
-                Add First Student
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Register No.</th>
-                  <th>Department</th>
-                  <th>Batch</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats?.recentStudents.map(s => (
-                  <tr key={s.id}>
-                    <td style={{ fontWeight: 600 }}>{s.name}</td>
-                    <td className="td-muted">{s.register_number}</td>
-                    <td>
-                      <span className="badge badge-blue">{s.department}</span>
-                    </td>
-                    <td>
-                      <span className="badge badge-gray">{s.batch}</span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-outline btn-sm"
-                        type="button"
-                        onClick={() => navigate(`/students/${s.id}`)}
-                        id={`dashboard-view-${s.id}`}
-                      >
-                        View
-                        <IconChevRight />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </Shell>
   );
 }
