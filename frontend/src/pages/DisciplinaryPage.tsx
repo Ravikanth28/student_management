@@ -51,6 +51,43 @@ export function DisciplinaryPage({ onLogout }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<DisciplineRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // ── Multi-select batch delete state ──
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchDeleteTarget, setBatchDeleteTarget] = useState<number[] | null>(null);
+  const [batchDeleting, setBatchDeleting] = useState(false);
+
+  const toggleSelectId = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === rows.length && rows.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rows.map((r) => r.id)));
+    }
+  };
+
+  const deleteBatchRecords = async () => {
+    if (!batchDeleteTarget || batchDeleteTarget.length === 0) return;
+    setBatchDeleting(true);
+    try {
+      const res = await api.post<{ message: string; count: number }>('/discipline-records/batch-delete', { ids: batchDeleteTarget });
+      success('Records deleted', `Successfully deleted ${res.data.count} discipline record(s).`);
+      setBatchDeleteTarget(null);
+      setSelectedIds(new Set());
+      if (view === 'records') void fetchRows(); else void fetchSummary();
+    } catch {
+      toastError('Delete failed', 'Could not delete selected discipline records.');
+    } finally {
+      setBatchDeleting(false);
+    }
+  };
+
   const fetchRows = useCallback(async () => {
     setLoading(true);
     try {
@@ -198,6 +235,27 @@ export function DisciplinaryPage({ onLogout }: Props) {
             )}
           </div>
 
+          {rows.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '10px 14px', margin: '0 16px 12px 16px', background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text)', fontWeight: 600 }}>
+                {selectedIds.size > 0 ? (
+                  <span><strong>{selectedIds.size}</strong> record(s) selected</span>
+                ) : (
+                  <span style={{ color: 'var(--text-2)' }}>Select records below to delete them in bulk</span>
+                )}
+              </div>
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={selectedIds.size === 0}
+                style={{ background: selectedIds.size > 0 ? '#dc2626' : undefined, borderColor: selectedIds.size > 0 ? '#dc2626' : undefined }}
+                onClick={() => setBatchDeleteTarget([...selectedIds])}
+              >
+                Delete Selected ({selectedIds.size})
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 40, borderRadius: 8 }} />)}
@@ -212,6 +270,13 @@ export function DisciplinaryPage({ onLogout }: Props) {
               <table>
                 <thead>
                   <tr>
+                    <th style={{ width: 36, textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size > 0 && selectedIds.size === rows.length}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
                     <th>Date & Time</th>
                     <th>Student Name</th>
                     <th>Reg Number</th>
@@ -223,46 +288,56 @@ export function DisciplinaryPage({ onLogout }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 600 }}>{fmtDate(r.record_date)}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{r.record_time ?? '—'}</div>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn-link"
-                          style={{ fontWeight: 700, textAlign: 'left' }}
-                          onClick={() => navigate(`/students/${r.student_id}`)}
-                        >
-                          {r.name}
-                        </button>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>{r.department} ({r.batch})</div>
-                      </td>
-                      <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{r.register_number}</td>
-                      <td>{yearLabel(r.year)} · Sec {r.section}</td>
-                      <td>
-                        <span className="badge badge-amber" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          ⚠️ {r.reason}
-                        </span>
-                      </td>
-                      <td style={{ maxWidth: 220, color: 'var(--text-2)', fontSize: '0.85rem' }}>
-                        {r.details || '—'}
-                      </td>
-                      <td style={{ fontSize: '0.82rem', color: 'var(--text-2)' }}>{r.marked_by ?? 'system'}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          className="btn btn-outline btn-sm"
-                          style={{ color: 'var(--red)', borderColor: 'var(--border)' }}
-                          onClick={() => setDeleteTarget(r)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((r) => {
+                    const isSelected = selectedIds.has(r.id);
+                    return (
+                      <tr key={r.id} style={{ background: isSelected ? 'rgba(239, 68, 68, 0.06)' : undefined }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectId(r.id)}
+                          />
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <div style={{ fontWeight: 600 }}>{fmtDate(r.record_date)}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{r.record_time ?? '—'}</div>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-link"
+                            style={{ fontWeight: 700, textAlign: 'left' }}
+                            onClick={() => navigate(`/students/${r.student_id}`)}
+                          >
+                            {r.name}
+                          </button>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>{r.department} ({r.batch})</div>
+                        </td>
+                        <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{r.register_number}</td>
+                        <td>{yearLabel(r.year)} · Sec {r.section}</td>
+                        <td>
+                          <span className="badge badge-amber" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            ⚠️ {r.reason}
+                          </span>
+                        </td>
+                        <td style={{ maxWidth: 220, color: 'var(--text-2)', fontSize: '0.85rem' }}>
+                          {r.details || '—'}
+                        </td>
+                        <td style={{ fontSize: '0.82rem', color: 'var(--text-2)' }}>{r.marked_by ?? 'system'}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            style={{ color: 'var(--red)', borderColor: 'var(--border)' }}
+                            onClick={() => setDeleteTarget(r)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -276,7 +351,26 @@ export function DisciplinaryPage({ onLogout }: Props) {
         </div>
       ) : (
         <div className="card">
-          <div className="toolbar">
+          <div className="toolbar" style={{ gap: 10, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: '0.78rem', color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              Select Month
+              <input
+                type="month"
+                className="form-control"
+                style={{ height: 40, maxWidth: 160 }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    const [y, m] = val.split('-').map(Number);
+                    const start = `${y}-${String(m).padStart(2, '0')}-01`;
+                    const lastDay = new Date(y, m, 0).getDate();
+                    const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                    setSFrom(start);
+                    setSTo(end);
+                  }
+                }}
+              />
+            </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-2)' }}>From:</span>
               <input type="date" className="form-control" style={{ height: 40, maxWidth: 150 }} value={sFrom} onChange={(e) => setSFrom(e.target.value)} />
@@ -365,6 +459,17 @@ export function DisciplinaryPage({ onLogout }: Props) {
           loading={deleting}
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {batchDeleteTarget && (
+        <ConfirmModal
+          title={`Delete ${batchDeleteTarget.length} discipline record(s)?`}
+          description={`Are you sure you want to delete ${batchDeleteTarget.length} selected discipline record(s)?`}
+          confirmLabel="Delete Selected Records"
+          onConfirm={deleteBatchRecords}
+          onCancel={() => setBatchDeleteTarget(null)}
+          loading={batchDeleting}
         />
       )}
     </Shell>

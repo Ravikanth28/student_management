@@ -64,6 +64,12 @@ export async function deleteDiscipline(id: number): Promise<boolean> {
   return result.affectedRows > 0;
 }
 
+export async function deleteBatchDiscipline(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const [res] = await pool.query<ResultSetHeader>('DELETE FROM discipline_records WHERE id IN (?)', [ids]);
+  return res.affectedRows;
+}
+
 export async function listDisciplineByStudent(studentId: number): Promise<DisciplineRecord[]> {
   const [rows] = await pool.query<Array<DisciplineRecord & RowDataPacket>>(
     `SELECT id, student_id, reason, details,

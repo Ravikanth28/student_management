@@ -10,6 +10,9 @@ router.get('/', requireAuth, circularController.listCirculars);
 // Only admin & superadmin can broadcast circulars
 router.post('/', requireAuth, requireRole('admin', 'superadmin'), circularController.createCircular);
 
+// Batch delete circulars
+router.post('/batch-delete', requireAuth, requireRole('admin', 'superadmin'), circularController.deleteBatchCirculars);
+
 // Only admin & superadmin can delete circulars
 router.delete('/:id', requireAuth, requireRole('admin', 'superadmin'), circularController.deleteCircular);
 

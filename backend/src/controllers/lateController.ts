@@ -123,6 +123,17 @@ export const deleteLateRecord = asyncWrap(async (req, res) => {
   return res.status(204).send();
 });
 
+// POST /api/late-records/batch-delete  { ids: number[] }
+export const deleteBatchLateRecords = asyncWrap(async (req, res) => {
+  const ids = Array.isArray(req.body?.ids)
+    ? req.body.ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0)
+    : [];
+  if (ids.length === 0) throw new HttpError(400, 'ids array is required');
+  const count = await lateRepo.deleteBatchLate(ids);
+  audit.record(req, { action: 'late.delete_batch', entity: 'late_records', details: `Deleted ${count} late record(s)` });
+  return res.json({ message: `Deleted ${count} late record(s)`, deleted: count });
+});
+
 // DELETE /api/late-records  (delete all late records)
 export const deleteAllLateRecords = asyncWrap(async (req, res) => {
   const count = await lateRepo.deleteAllLate();

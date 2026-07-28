@@ -105,6 +105,17 @@ export const deleteDisciplineRecord = asyncWrap(async (req, res) => {
   return res.status(204).send();
 });
 
+// POST /api/discipline-records/batch-delete  { ids: number[] }
+export const deleteBatchDisciplineRecords = asyncWrap(async (req, res) => {
+  const ids = Array.isArray(req.body?.ids)
+    ? req.body.ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0)
+    : [];
+  if (ids.length === 0) throw new HttpError(400, 'ids array is required');
+  const count = await disciplineRepo.deleteBatchDiscipline(ids);
+  audit.record(req, { action: 'discipline.delete_batch', entity: 'discipline_records', details: `Deleted ${count} record(s)` });
+  return res.json({ message: `Deleted ${count} discipline record(s)`, count });
+});
+
 // DELETE /api/discipline-records  (clear all)
 export const clearAllDisciplineRecords = asyncWrap(async (req, res) => {
   const count = await disciplineRepo.deleteAllDiscipline();

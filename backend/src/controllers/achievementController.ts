@@ -100,6 +100,17 @@ export const deleteAchievement = asyncWrap(async (req, res) => {
   return res.status(204).send();
 });
 
+// POST /api/achievements/batch-delete  { ids: number[] }
+export const deleteBatchAchievements = asyncWrap(async (req, res) => {
+  const ids = Array.isArray(req.body?.ids)
+    ? req.body.ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0)
+    : [];
+  if (ids.length === 0) throw new HttpError(400, 'ids array is required');
+  const count = await achievementRepo.deleteBatchAchievements(ids);
+  audit.record(req, { action: 'achievement.delete_batch', entity: 'achievements', details: `Deleted ${count} achievement(s)` });
+  return res.json({ message: `Deleted ${count} achievement(s)`, count });
+});
+
 // DELETE /api/achievements/:id/members/:studentId  (remove a student from an achievement)
 export const removeAchievementMember = asyncWrap(async (req, res) => {
   const id = parseId(req.params.id);

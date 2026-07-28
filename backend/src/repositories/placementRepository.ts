@@ -81,6 +81,12 @@ export async function deletePlacement(id: number): Promise<boolean> {
   return res.affectedRows > 0;
 }
 
+export async function deleteBatchPlacements(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const [res] = await pool.query<ResultSetHeader>('DELETE FROM placements WHERE id IN (?)', [ids]);
+  return res.affectedRows;
+}
+
 export interface PlacementFilters {
   q?: string;
   year?: string;

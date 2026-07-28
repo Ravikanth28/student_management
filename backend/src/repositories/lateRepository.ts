@@ -53,6 +53,12 @@ export async function deleteLate(id: number): Promise<boolean> {
   return result.affectedRows > 0;
 }
 
+export async function deleteBatchLate(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const [result] = await pool.query<ResultSetHeader>('DELETE FROM late_records WHERE id IN (?)', [ids]);
+  return result.affectedRows;
+}
+
 export async function deleteAllLate(): Promise<number> {
   const [result] = await pool.query<ResultSetHeader>('DELETE FROM late_records');
   return result.affectedRows;

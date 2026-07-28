@@ -81,3 +81,14 @@ export const deletePlacement = asyncWrap(async (req, res) => {
   audit.record(req, { action: 'placement.delete', entity: 'placement', entity_id: String(id) });
   return res.status(204).send();
 });
+
+// POST /api/placements/batch-delete  { ids: number[] }
+export const deleteBatchPlacements = asyncWrap(async (req, res) => {
+  const ids = Array.isArray(req.body?.ids)
+    ? req.body.ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0)
+    : [];
+  if (ids.length === 0) throw new HttpError(400, 'ids array is required');
+  const count = await placementRepo.deleteBatchPlacements(ids);
+  audit.record(req, { action: 'placement.delete_batch', entity: 'placements', details: `Deleted ${count} placement(s)` });
+  return res.json({ message: `Deleted ${count} placement(s)`, count });
+});

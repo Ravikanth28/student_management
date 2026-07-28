@@ -53,6 +53,22 @@ export async function deleteCircular(req: Request, res: Response): Promise<void>
   }
 }
 
+export async function deleteBatchCirculars(req: Request, res: Response): Promise<void> {
+  try {
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0)
+      : [];
+    if (ids.length === 0) {
+      res.status(400).json({ message: 'ids array is required' });
+      return;
+    }
+    const count = await circularService.removeBatchCirculars(ids);
+    res.json({ message: `Deleted ${count} circular(s)`, count });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete circulars' });
+  }
+}
+
 export async function clearAllCirculars(req: Request, res: Response): Promise<void> {
   try {
     const count = await circularService.removeAllCirculars();

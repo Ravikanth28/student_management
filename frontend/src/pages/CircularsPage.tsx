@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useAuth } from '../state/auth';
 import { useToast } from '../components/Toast';
 import { Shell } from '../components/Shell';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 function Spinner() {
   return (
@@ -74,6 +75,44 @@ export function CircularsPage({ onLogout }: { onLogout: () => void }) {
   const [priority, setPriority] = useState('Normal');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // ── Multi-select batch delete state ──
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchDeleteTarget, setBatchDeleteTarget] = useState<number[] | null>(null);
+  const [batchDeleting, setBatchDeleting] = useState(false);
+
+  const toggleSelectId = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === circulars.length && circulars.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(circulars.map((c) => c.id)));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (!batchDeleteTarget || batchDeleteTarget.length === 0) return;
+    setBatchDeleting(true);
+    try {
+      const res = await api.post<{ message: string; count: number }>('/circulars/batch-delete', { ids: batchDeleteTarget });
+      success('Circulars deleted', `Successfully deleted ${res.data.count} circular(s).`);
+      setBatchDeleteTarget(null);
+      setSelectedIds(new Set());
+      fetchCirculars();
+    } catch {
+      toastError('Error', 'Failed to delete selected circulars.');
+    } finally {
+      setBatchDeleting(false);
+    }
+  };
 
   const fetchCirculars = async () => {
     setLoading(true);
@@ -189,57 +228,99 @@ export function CircularsPage({ onLogout }: { onLogout: () => void }) {
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 14 }}>
-          {circulars.map((item) => (
-            <div
-              key={item.id}
-              className="card card-padded"
-              onClick={() => setSelectedCircular(item)}
-              style={{
-                cursor: 'pointer',
-                transition: 'transform 0.15s, box-shadow 0.15s, border-color 0.15s',
-                borderColor: 'var(--border)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--blue)';
-                e.currentTarget.style.boxShadow = 'var(--shadow)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border)';
-                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 10, flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <span className={getPriorityBadgeClass(item.priority)}>{item.priority}</span>
-                  <span className="badge badge-gray">Audience: {item.target_audience}</span>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-3)' }}>{fmtDate(item.created_at)}</span>
-                </div>
-                {canBroadcast && (
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={(e) => handleDelete(e, item.id)}
-                    disabled={deletingId === item.id}
-                    style={{ color: 'var(--red)', borderColor: 'rgba(220,38,38,0.2)' }}
-                    title="Delete Circular"
-                  >
-                    {deletingId === item.id ? <Spinner /> : <IconTrash />} Delete
-                  </button>
+          {canBroadcast && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '10px 14px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size > 0 && selectedIds.size === circulars.length}
+                    onChange={toggleSelectAll}
+                  />
+                  Select All ({circulars.length})
+                </label>
+                {selectedIds.size > 0 && (
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-2)' }}>
+                    <strong>{selectedIds.size}</strong> circular(s) selected
+                  </span>
                 )}
               </div>
-
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text)', margin: '4px 0 12px', lineHeight: 1.3 }}>
-                {item.title}
-              </h2>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: '0.78rem', color: 'var(--text-3)' }}>
-                <span>Published by <strong>{item.created_by}</strong></span>
-                <span style={{ color: 'var(--blue)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  Read Full Notice →
-                </span>
-              </div>
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={selectedIds.size === 0}
+                style={{ background: selectedIds.size > 0 ? '#dc2626' : undefined, borderColor: selectedIds.size > 0 ? '#dc2626' : undefined }}
+                onClick={() => setBatchDeleteTarget([...selectedIds])}
+              >
+                Delete Selected ({selectedIds.size})
+              </button>
             </div>
-          ))}
+          )}
+
+          {circulars.map((item) => {
+            const isSelected = selectedIds.has(item.id);
+            return (
+              <div
+                key={item.id}
+                className="card card-padded"
+                onClick={() => setSelectedCircular(item)}
+                style={{
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s, box-shadow 0.15s, border-color 0.15s',
+                  borderColor: isSelected ? '#dc2626' : 'var(--border)',
+                  background: isSelected ? 'rgba(239, 68, 68, 0.04)' : undefined,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.borderColor = 'var(--blue)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    {canBroadcast && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onClick={(e) => toggleSelectId(e, item.id)}
+                        onChange={() => {}}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    )}
+                    <span className={getPriorityBadgeClass(item.priority)}>{item.priority}</span>
+                    <span className="badge badge-gray">Audience: {item.target_audience}</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-3)' }}>{fmtDate(item.created_at)}</span>
+                  </div>
+                  {canBroadcast && (
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={(e) => handleDelete(e, item.id)}
+                      disabled={deletingId === item.id}
+                      style={{ color: 'var(--red)', borderColor: 'rgba(220,38,38,0.2)' }}
+                      title="Delete Circular"
+                    >
+                      {deletingId === item.id ? <Spinner /> : <IconTrash />} Delete
+                    </button>
+                  )}
+                </div>
+
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text)', margin: '4px 0 12px', lineHeight: 1.3 }}>
+                  {item.title}
+                </h2>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: '0.78rem', color: 'var(--text-3)' }}>
+                  <span>Published by <strong>{item.created_by}</strong></span>
+                  <span style={{ color: 'var(--blue)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    Read Full Notice →
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -357,6 +438,16 @@ export function CircularsPage({ onLogout }: { onLogout: () => void }) {
             </form>
           </div>
         </div>
+      )}
+      {batchDeleteTarget && (
+        <ConfirmModal
+          title={`Delete ${batchDeleteTarget.length} circular(s)?`}
+          description={`Are you sure you want to delete ${batchDeleteTarget.length} selected circular(s)?`}
+          confirmLabel="Delete Selected"
+          onConfirm={handleBatchDelete}
+          onCancel={() => setBatchDeleteTarget(null)}
+          loading={batchDeleting}
+        />
       )}
     </Shell>
   );

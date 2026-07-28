@@ -398,6 +398,25 @@ export function AttendancePage({ onLogout }: Props) {
       {tab === 'summary' && (
         <div className="card card-padded">
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+            <div>
+              <label className="form-label">Select Month (Report)</label>
+              <input
+                type="month"
+                className="form-control"
+                style={{ maxWidth: 160 }}
+                onChange={(e) => {
+                  const val = e.target.value; // YYYY-MM
+                  if (val) {
+                    const [y, m] = val.split('-').map(Number);
+                    const start = `${y}-${String(m).padStart(2, '0')}-01`;
+                    const lastDay = new Date(y, m, 0).getDate();
+                    const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                    setSumFrom(start);
+                    setSumTo(end);
+                  }
+                }}
+              />
+            </div>
             <div><label className="form-label">From Date</label><input type="date" className="form-control" value={sumFrom} onChange={(e) => setSumFrom(e.target.value)} style={{ maxWidth: 160 }} /></div>
             <div><label className="form-label">To Date</label><input type="date" className="form-control" value={sumTo} onChange={(e) => setSumTo(e.target.value)} style={{ maxWidth: 160 }} /></div>
             <div>
@@ -514,6 +533,24 @@ export function AttendancePage({ onLogout }: Props) {
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
+            <div>
+              <label className="form-label">Select Month (Report)</label>
+              <input
+                type="month"
+                className="form-control"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    const [y, m] = val.split('-').map(Number);
+                    const start = `${y}-${String(m).padStart(2, '0')}-01`;
+                    const lastDay = new Date(y, m, 0).getDate();
+                    const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                    setExportFrom(start);
+                    setExportTo(end);
+                  }
+                }}
+              />
+            </div>
             <div>
               <label className="form-label">From Date *</label>
               <input type="date" className="form-control" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} />

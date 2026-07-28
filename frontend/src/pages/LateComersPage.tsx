@@ -50,6 +50,43 @@ export function LateComersPage({ onLogout }: Props) {
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState(false);
 
+  // ── Multi-select batch delete state ──
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchDeleteTarget, setBatchDeleteTarget] = useState<number[] | null>(null);
+  const [batchDeleting, setBatchDeleting] = useState(false);
+
+  const toggleSelectId = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === rows.length && rows.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rows.map((r) => r.id)));
+    }
+  };
+
+  const deleteBatchRecords = async () => {
+    if (!batchDeleteTarget || batchDeleteTarget.length === 0) return;
+    setBatchDeleting(true);
+    try {
+      const res = await api.post<{ message: string; deleted: number }>('/late-records/batch-delete', { ids: batchDeleteTarget });
+      success('Records deleted', `Successfully deleted ${res.data.deleted} late record(s).`);
+      setBatchDeleteTarget(null);
+      setSelectedIds(new Set());
+      if (view === 'records') void fetchRows(); else void fetchSummary();
+    } catch {
+      toastError('Delete failed', 'Could not delete selected late records.');
+    } finally {
+      setBatchDeleting(false);
+    }
+  };
+
   const fetchRows = useCallback(async () => {
     setLoading(true);
     try {
@@ -179,6 +216,27 @@ export function LateComersPage({ onLogout }: Props) {
             {date && <button className="btn btn-outline btn-sm" onClick={() => { setPage(1); setDate(''); }}>All dates</button>}
           </div>
 
+          {rows.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '10px 14px', margin: '0 16px 12px 16px', background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text)', fontWeight: 600 }}>
+                {selectedIds.size > 0 ? (
+                  <span><strong>{selectedIds.size}</strong> record(s) selected</span>
+                ) : (
+                  <span style={{ color: 'var(--text-2)' }}>Select records below to delete them in bulk</span>
+                )}
+              </div>
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={selectedIds.size === 0}
+                style={{ background: selectedIds.size > 0 ? '#dc2626' : undefined, borderColor: selectedIds.size > 0 ? '#dc2626' : undefined }}
+                onClick={() => setBatchDeleteTarget([...selectedIds])}
+              >
+                Delete Selected ({selectedIds.size})
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>{Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 40, borderRadius: 8 }} />)}</div>
           ) : rows.length === 0 ? (
@@ -186,32 +244,63 @@ export function LateComersPage({ onLogout }: Props) {
           ) : (
             <div className="table-container">
               <table>
-                <thead><tr><th>Date</th><th>Period</th><th>Scheduled</th><th>Arrival</th><th>Late</th><th>Name</th><th>Register No.</th><th>Year</th><th>Section</th><th>Batch</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={{ width: 36, textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size > 0 && selectedIds.size === rows.length}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th>Date</th>
+                    <th>Period</th>
+                    <th>Scheduled</th>
+                    <th>Arrival</th>
+                    <th>Late</th>
+                    <th>Name</th>
+                    <th>Register No.</th>
+                    <th>Year</th>
+                    <th>Section</th>
+                    <th>Batch</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.late_date)}</td>
-                      <td><span className="badge badge-amber">{LATE_PERIOD_LABELS[r.period] ?? r.period}</span></td>
-                      <td className="td-muted">{r.scheduled_time ?? '—'}</td>
-                      <td className="td-muted">{r.late_time ?? '—'}</td>
-                      <td>{r.minutes_late == null ? '—' : <span className="badge badge-amber">{r.minutes_late} min</span>}</td>
-                      <td style={{ fontWeight: 600 }}>{r.name}</td>
-                      <td className="td-muted">{r.register_number}</td>
-                      <td>{yearLabel(r.year)}</td>
-                      <td>{r.section}</td>
-                      <td className="td-muted">{r.batch}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          className="btn btn-outline btn-sm"
-                          type="button"
-                          style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                          onClick={() => setDeleteTargetId(r.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((r) => {
+                    const isSelected = selectedIds.has(r.id);
+                    return (
+                      <tr key={r.id} style={{ background: isSelected ? 'rgba(239, 68, 68, 0.06)' : undefined }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectId(r.id)}
+                          />
+                        </td>
+                        <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.late_date)}</td>
+                        <td><span className="badge badge-amber">{LATE_PERIOD_LABELS[r.period] ?? r.period}</span></td>
+                        <td className="td-muted">{r.scheduled_time ?? '—'}</td>
+                        <td className="td-muted">{r.late_time ?? '—'}</td>
+                        <td>{r.minutes_late == null ? '—' : <span className="badge badge-amber">{r.minutes_late} min</span>}</td>
+                        <td style={{ fontWeight: 600 }}>{r.name}</td>
+                        <td className="td-muted">{r.register_number}</td>
+                        <td>{yearLabel(r.year)}</td>
+                        <td>{r.section}</td>
+                        <td className="td-muted">{r.batch}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            type="button"
+                            style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                            onClick={() => setDeleteTargetId(r.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -221,6 +310,25 @@ export function LateComersPage({ onLogout }: Props) {
       ) : (
         <div className="card">
           <div className="toolbar" style={{ gap: 10, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: '0.78rem', color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              Select Month
+              <input
+                type="month"
+                className="form-control"
+                style={{ height: 40, maxWidth: 160 }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    const [y, m] = val.split('-').map(Number);
+                    const start = `${y}-${String(m).padStart(2, '0')}-01`;
+                    const lastDay = new Date(y, m, 0).getDate();
+                    const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                    setSFrom(start);
+                    setSTo(end);
+                  }
+                }}
+              />
+            </label>
             <label style={{ fontSize: '0.78rem', color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
               From <input type="date" className="form-control" style={{ height: 40, maxWidth: 160 }} value={sFrom} onChange={(e) => setSFrom(e.target.value)} />
             </label>
@@ -320,6 +428,17 @@ export function LateComersPage({ onLogout }: Props) {
           onConfirm={() => deleteSingleRecord(deleteTargetId)}
           onCancel={() => setDeleteTargetId(null)}
           loading={deletingId}
+        />
+      )}
+
+      {batchDeleteTarget && (
+        <ConfirmModal
+          title={`Delete ${batchDeleteTarget.length} late record(s)?`}
+          description={`Are you sure you want to delete ${batchDeleteTarget.length} selected late record(s)?`}
+          confirmLabel="Delete Selected Records"
+          onConfirm={deleteBatchRecords}
+          onCancel={() => setBatchDeleteTarget(null)}
+          loading={batchDeleting}
         />
       )}
     </Shell>

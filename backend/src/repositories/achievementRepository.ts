@@ -322,6 +322,23 @@ export async function deleteAchievement(id: number): Promise<boolean> {
   }
 }
 
+export async function deleteBatchAchievements(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query('DELETE FROM achievement_members WHERE achievement_id IN (?)', [ids]);
+    const [res] = await conn.query<ResultSetHeader>('DELETE FROM achievements WHERE id IN (?)', [ids]);
+    await conn.commit();
+    return res.affectedRows;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 function normalize(a: Achievement & RowDataPacket, members: AchievementMember[]): Achievement {
   return {
     id: Number(a.id),

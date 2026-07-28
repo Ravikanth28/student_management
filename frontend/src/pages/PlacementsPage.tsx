@@ -41,6 +41,43 @@ export function PlacementsPage({ onLogout }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<Placement | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // ── Multi-select batch delete state ──
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchDeleteTarget, setBatchDeleteTarget] = useState<number[] | null>(null);
+  const [batchDeleting, setBatchDeleting] = useState(false);
+
+  const toggleSelectId = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === rows.length && rows.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rows.map((r) => r.id)));
+    }
+  };
+
+  const deleteBatchRecords = async () => {
+    if (!batchDeleteTarget || batchDeleteTarget.length === 0) return;
+    setBatchDeleting(true);
+    try {
+      const res = await api.post<{ message: string; count: number }>('/placements/batch-delete', { ids: batchDeleteTarget });
+      success('Placements deleted', `Successfully deleted ${res.data.count} placement(s).`);
+      setBatchDeleteTarget(null);
+      setSelectedIds(new Set());
+      void fetchRows();
+    } catch {
+      toastError('Delete failed', 'Could not delete selected placements.');
+    } finally {
+      setBatchDeleting(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
 
   const fetchRows = useCallback(async () => {
@@ -176,6 +213,23 @@ export function PlacementsPage({ onLogout }: Props) {
           </select>
           <input className="form-control" style={{ height: 40, width: 120 }} placeholder="Batch" value={rBatch} onChange={(e) => { setPage(1); setRBatch(e.target.value); }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="month"
+              className="form-control"
+              style={{ height: 40, width: 130 }}
+              title="Select Month"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val) {
+                  const [y, m] = val.split('-').map(Number);
+                  const start = `${y}-${String(m).padStart(2, '0')}-01`;
+                  const lastDay = new Date(y, m, 0).getDate();
+                  const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                  setRFrom(start);
+                  setRTo(end);
+                }
+              }}
+            />
             <input type="date" className="form-control" style={{ height: 40, width: 130 }} value={rFrom} onChange={(e) => { setPage(1); setRFrom(e.target.value); }} title="From Date" />
             <span style={{ color: 'var(--text-3)' }}>to</span>
             <input type="date" className="form-control" style={{ height: 40, width: 130 }} value={rTo} onChange={(e) => { setPage(1); setRTo(e.target.value); }} title="To Date" />
@@ -186,6 +240,27 @@ export function PlacementsPage({ onLogout }: Props) {
           </div>
         </div>
 
+        {rows.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '10px 14px', margin: '0 16px 12px 16px', background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text)', fontWeight: 600 }}>
+              {selectedIds.size > 0 ? (
+                <span><strong>{selectedIds.size}</strong> placement(s) selected</span>
+              ) : (
+                <span style={{ color: 'var(--text-2)' }}>Select placements below to delete them in bulk</span>
+              )}
+            </div>
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={selectedIds.size === 0}
+              style={{ background: selectedIds.size > 0 ? '#dc2626' : undefined, borderColor: selectedIds.size > 0 ? '#dc2626' : undefined }}
+              onClick={() => setBatchDeleteTarget([...selectedIds])}
+            >
+              Delete Selected ({selectedIds.size})
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 44, borderRadius: 8 }} />)}</div>
         ) : rows.length === 0 ? (
@@ -194,25 +269,44 @@ export function PlacementsPage({ onLogout }: Props) {
           <div className="table-container">
             <table>
               <thead>
-                <tr><th>Student</th><th>Register No.</th><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Date</th><th>Action</th></tr>
+                <tr>
+                  <th style={{ width: 36, textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size > 0 && selectedIds.size === rows.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                  <th>Student</th><th>Register No.</th><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Date</th><th>Action</th>
+                </tr>
               </thead>
               <tbody>
-                {rows.map((p) => (
-                  <tr key={p.id}>
-                    <td style={{ fontWeight: 600 }}>{p.name}</td>
-                    <td className="td-muted">{p.register_number}</td>
-                    <td>{p.company}</td>
-                    <td className="td-muted">{p.position ?? '—'}</td>
-                    <td className="td-muted">{p.package ?? '—'}</td>
-                    <td><span className={`badge ${p.placement_type === 'on_campus' ? 'badge-green' : 'badge-blue'}`}>{PLACEMENT_TYPE_LABELS[p.placement_type] ?? p.placement_type}</span></td>
-                    <td className="td-muted">{p.offer_type ? OFFER_TYPE_LABELS[p.offer_type] ?? p.offer_type : '—'}</td>
-                    <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.placed_date)}</td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => setEditTarget(p)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(p)}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((p) => {
+                  const isSelected = selectedIds.has(p.id);
+                  return (
+                    <tr key={p.id} style={{ background: isSelected ? 'rgba(239, 68, 68, 0.06)' : undefined }}>
+                      <td style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectId(p.id)}
+                        />
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{p.name}</td>
+                      <td className="td-muted">{p.register_number}</td>
+                      <td>{p.company}</td>
+                      <td className="td-muted">{p.position ?? '—'}</td>
+                      <td className="td-muted">{p.package ?? '—'}</td>
+                      <td><span className={`badge ${p.placement_type === 'on_campus' ? 'badge-green' : 'badge-blue'}`}>{PLACEMENT_TYPE_LABELS[p.placement_type] ?? p.placement_type}</span></td>
+                      <td className="td-muted">{p.offer_type ? OFFER_TYPE_LABELS[p.offer_type] ?? p.offer_type : '—'}</td>
+                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.placed_date)}</td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => setEditTarget(p)}>Edit</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(p)}>Delete</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -247,6 +341,17 @@ export function PlacementsPage({ onLogout }: Props) {
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
           loading={deleting}
+        />
+      )}
+
+      {batchDeleteTarget && (
+        <ConfirmModal
+          title={`Delete ${batchDeleteTarget.length} placement(s)?`}
+          description={`Are you sure you want to delete ${batchDeleteTarget.length} selected placement(s)?`}
+          confirmLabel="Delete Selected"
+          onConfirm={deleteBatchRecords}
+          onCancel={() => setBatchDeleteTarget(null)}
+          loading={batchDeleting}
         />
       )}
     </Shell>

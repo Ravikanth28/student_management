@@ -40,6 +40,12 @@ export async function deleteCircular(id: number): Promise<boolean> {
   return res.affectedRows > 0;
 }
 
+export async function deleteBatchCirculars(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const [res] = await pool.query<ResultSetHeader>('DELETE FROM circulars WHERE id IN (?)', [ids]);
+  return res.affectedRows;
+}
+
 export async function deleteAllCirculars(): Promise<number> {
   const [res] = await pool.query<ResultSetHeader>('DELETE FROM circulars');
   return res.affectedRows;
