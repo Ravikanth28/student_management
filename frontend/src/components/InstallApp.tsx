@@ -79,6 +79,15 @@ export function InstallAppModal({ onClose }: { onClose: () => void }) {
             download="student-portal.apk"
             className="btn btn-primary btn-lg"
             style={{ width: '100%', justifyContent: 'center', gap: 8 }}
+            onClick={(e) => {
+              if (!APK_DOWNLOAD_URL) {
+                // If VITE_APK_URL isn't configured, alert the user if they're trying to download a non-existent local file
+                const confirmed = window.confirm(
+                  'Note: VITE_APK_URL is not set on the server yet.\n\nIf you have not built/uploaded student-portal.apk to your server or GitHub Releases, this download will return a 404 HTML web page.\n\nDo you still want to attempt downloading?'
+                );
+                if (!confirmed) e.preventDefault();
+              }
+            }}
           >
             <IconDownload size={18} /> Download Android APK
           </a>

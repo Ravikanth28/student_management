@@ -12,7 +12,9 @@ export const API_BASE_URL =
 // "Download App" option in the web UI. Left blank → the option is hidden.
 // Typically your GitHub release asset:
 //   https://github.com/<OWNER>/<REPO>/releases/download/apk-latest/student-portal.apk
-export const APK_DOWNLOAD_URL = import.meta.env.VITE_APK_URL ?? '';
+export const APK_DOWNLOAD_URL =
+  import.meta.env.VITE_APK_URL ||
+  'https://github.com/Ravikanth28/student_management/releases/download/apk-latest/student-portal.apk';
 
 // Current app version (from package.json). The installed APK is stamped with the
 // same value; if an installed app reports an older version, it prompts to update.

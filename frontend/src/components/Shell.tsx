@@ -219,7 +219,7 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
   { to: '/scanner',       label: 'Scanner',          Icon: IconScan,          roles: ['superadmin', 'admin'] },
   { to: '/attendance',    label: 'Attendance',       Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
   { to: '/cr-attendance', label: 'Mark Absentees',   Icon: IconClipboard,     roles: ['cr'] },
-  { to: '/circulars',     label: 'Circulars',        Icon: IconMegaphone,     roles: ['superadmin', 'admin', 'cr'] },
+  { to: '/circulars',     label: 'Circulars',        Icon: IconMegaphone,     roles: ['superadmin', 'admin', 'cr', 'user'] },
   { to: '/late-comers',   label: 'Late Comers',      Icon: IconClock,         roles: ['superadmin', 'admin'] },
   { to: '/disciplinary',  label: 'Disciplinary',     Icon: IconAlertTriangle, roles: ['superadmin', 'admin'] },
   { to: '/achievements',  label: 'Achievements',     Icon: IconTrophy,        roles: ['superadmin', 'admin'] },
