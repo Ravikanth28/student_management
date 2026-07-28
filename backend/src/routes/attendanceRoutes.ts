@@ -22,7 +22,7 @@ attendanceRoutes.post('/cr-submit', staffAndCR, submitCRAttendance);
 
 attendanceRoutes.get('/day', staff, getDay);
 attendanceRoutes.get('/summary', staff, getSummary);
-attendanceRoutes.get('/range', staff, getAttendanceRangeReport);
+attendanceRoutes.get('/range', staffAndCR, getAttendanceRangeReport);
 attendanceRoutes.get('/student/:id', staff, getStudentAttendance);
 attendanceRoutes.post('/', staff, saveAttendance);
 attendanceRoutes.delete('/', staff, deleteDay);

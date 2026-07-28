@@ -211,6 +211,14 @@ function IconMegaphone() {
   );
 }
 
+function IconCalendar() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
 // ─── Nav Items ───────────────────────────────────────────────
 const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; roles: Role[] }> = [
   { to: '/dashboard',     label: 'Dashboard',        Icon: IconGrid,          roles: ['superadmin', 'admin', 'user'] },
@@ -219,6 +227,7 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
   { to: '/scanner',       label: 'Scanner',          Icon: IconScan,          roles: ['superadmin', 'admin'] },
   { to: '/attendance',    label: 'Attendance',       Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
   { to: '/cr-attendance', label: 'Mark Absentees',   Icon: IconClipboard,     roles: ['cr'] },
+  { to: '/cr-log',        label: 'CR Log',           Icon: IconCalendar,      roles: ['cr'] },
   { to: '/circulars',     label: 'Circulars',        Icon: IconMegaphone,     roles: ['superadmin', 'admin', 'cr', 'user'] },
   { to: '/late-comers',   label: 'Late Comers',      Icon: IconClock,         roles: ['superadmin', 'admin'] },
   { to: '/disciplinary',  label: 'Disciplinary',     Icon: IconAlertTriangle, roles: ['superadmin', 'admin'] },
