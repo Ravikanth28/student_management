@@ -43,6 +43,7 @@ export function DisciplinaryPage({ onLogout }: Props) {
   const [date, setDate] = useState('');
   const [reason, setReason] = useState('');
   const [year, setYear] = useState('');
+  const [batch, setBatch] = useState('');
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
@@ -92,18 +93,19 @@ export function DisciplinaryPage({ onLogout }: Props) {
     setLoading(true);
     try {
       const res = await api.get<DisciplineListResponse>('/discipline-records', {
-        params: { page, limit: LIMIT, date: date || undefined, reason: reason || undefined, year: year || undefined, q: q || undefined },
+        params: { page, limit: LIMIT, date: date || undefined, reason: reason || undefined, year: year || undefined, batch: batch || undefined, q: q || undefined },
       });
       setRows(res.data.data);
       setTotal(res.data.meta.total);
     } catch { setRows([]); setTotal(0); } finally { setLoading(false); }
-  }, [page, date, reason, year, q]);
+  }, [page, date, reason, year, batch, q]);
 
   // ── Summary view ──
   const [summary, setSummary] = useState<DisciplineSummaryRow[]>([]);
   const [sFrom, setSFrom] = useState(monthStartStr());
   const [sTo, setSTo] = useState(todayStr());
   const [sYear, setSYear] = useState('');
+  const [sBatch, setSBatch] = useState('');
   const [sQ, setSQ] = useState('');
   const [sLoading, setSLoading] = useState(false);
 
@@ -111,11 +113,11 @@ export function DisciplinaryPage({ onLogout }: Props) {
     setSLoading(true);
     try {
       const res = await api.get<{ data: DisciplineSummaryRow[] }>('/discipline-records/summary', {
-        params: { from: sFrom || undefined, to: sTo || undefined, year: sYear || undefined, q: sQ || undefined },
+        params: { from: sFrom || undefined, to: sTo || undefined, year: sYear || undefined, batch: sBatch || undefined, q: sQ || undefined },
       });
       setSummary(res.data.data);
     } catch { setSummary([]); } finally { setSLoading(false); }
-  }, [sFrom, sTo, sYear, sQ]);
+  }, [sFrom, sTo, sYear, sBatch, sQ]);
 
   useEffect(() => {
     if (view === 'records') void fetchRows(); else void fetchSummary();
@@ -154,7 +156,7 @@ export function DisciplinaryPage({ onLogout }: Props) {
 
   const exportRecords = async () => {
     const res = await api.get<DisciplineListResponse>('/discipline-records', {
-      params: { page: 1, limit: 2000, date: date || undefined, reason: reason || undefined, year: year || undefined, q: q || undefined },
+      params: { page: 1, limit: 2000, date: date || undefined, reason: reason || undefined, year: year || undefined, batch: batch || undefined, q: q || undefined },
     });
     const header = ['Date', 'Time', 'Reason', 'Details', 'Name', 'Register No', 'Enrollment No', 'Department', 'Year', 'Section', 'Batch', 'Marked By'];
     const body = res.data.data.map((r) => [
@@ -227,9 +229,10 @@ export function DisciplinaryPage({ onLogout }: Props) {
               <option value="">All years</option>
               {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
             </select>
+            <input className="form-control" style={{ height: 40, width: 120 }} placeholder="Batch" value={batch} onChange={(e) => { setPage(1); setBatch(e.target.value); }} />
             <input className="form-control" style={{ height: 40, flex: 1, minWidth: 160 }} placeholder="Search student name / register no / reason…" value={q} onChange={(e) => { setPage(1); setQ(e.target.value); }} />
-            {(date || reason || year || q) && (
-              <button className="btn btn-outline btn-sm" onClick={() => { setPage(1); setDate(''); setReason(''); setYear(''); setQ(''); }}>
+            {(date || reason || year || batch || q) && (
+              <button className="btn btn-outline btn-sm" onClick={() => { setPage(1); setDate(''); setReason(''); setYear(''); setBatch(''); setQ(''); }}>
                 Clear Filters
               </button>
             )}
@@ -379,11 +382,17 @@ export function DisciplinaryPage({ onLogout }: Props) {
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-2)' }}>To:</span>
               <input type="date" className="form-control" style={{ height: 40, maxWidth: 150 }} value={sTo} onChange={(e) => setSTo(e.target.value)} />
             </div>
-            <select className="form-control" style={{ height: 40, maxWidth: 140 }} value={sYear} onChange={(e) => setSYear(e.target.value)}>
+            <select className="form-control" value={sYear} onChange={(e) => setSYear(e.target.value)} style={{ minWidth: 120 }}>
               <option value="">All years</option>
               {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
             </select>
-            <input className="form-control" style={{ height: 40, flex: 1, minWidth: 160 }} placeholder="Search student name / register no…" value={sQ} onChange={(e) => setSQ(e.target.value)} />
+            <input className="form-control" style={{ width: 120 }} placeholder="Batch" value={sBatch} onChange={(e) => setSBatch(e.target.value)} />
+            <input className="form-control" style={{ flex: 1, minWidth: 160 }} placeholder="Search student name or register no…" value={sQ} onChange={(e) => setSQ(e.target.value)} />
+            {(sFrom !== monthStartStr() || sTo !== todayStr() || sYear || sBatch || sQ) && (
+              <button className="btn btn-outline btn-sm" onClick={() => { setSFrom(monthStartStr()); setSTo(todayStr()); setSYear(''); setSBatch(''); setSQ(''); }}>
+                Clear
+              </button>
+            )}
           </div>
 
           {sLoading ? (
