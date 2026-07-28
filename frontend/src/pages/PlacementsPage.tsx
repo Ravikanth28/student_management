@@ -128,13 +128,14 @@ export function PlacementsPage({ onLogout }: Props) {
     const allRows = await fetchAllRecordsForExport();
     if (!allRows.length) return;
     
-    const headers = ['Student', 'Register No.', 'Company', 'Position', 'Package', 'Type', 'Offer', 'Date'];
+    const headers = ['Student', 'Register No.', 'Batch', 'Company', 'Position', 'Package', 'Type', 'Offer', 'Date'];
     const csvRows = [headers.join(',')];
     
     allRows.forEach((p) => {
       const row = [
         `"${(p.name ?? '').replace(/"/g, '""')}"`,
         p.register_number ?? '',
+        p.batch ?? '-',
         `"${p.company.replace(/"/g, '""')}"`,
         `"${(p.position ?? '').replace(/"/g, '""')}"`,
         `"${(p.package ?? '').replace(/"/g, '""')}"`,
@@ -177,10 +178,11 @@ export function PlacementsPage({ onLogout }: Props) {
     
     autoTable(doc, {
       startY: filters.length > 0 ? 26 : 22,
-      head: [['Student', 'Register No.', 'Company', 'Position', 'Package', 'Type', 'Date']],
+      head: [['Student', 'Register No.', 'Batch', 'Company', 'Position', 'Package', 'Type', 'Date']],
       body: allRows.map((p) => [
         p.name ?? '',
         p.register_number ?? '',
+        p.batch ?? '-',
         p.company,
         p.position ?? '-',
         p.package ?? '-',
@@ -255,7 +257,7 @@ export function PlacementsPage({ onLogout }: Props) {
                       onChange={toggleSelectAll}
                     />
                   </th>
-                  <th>Student</th><th>Register No.</th><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Date</th><th>Action</th>
+                  <th>Student</th><th>Register No.</th><th>Batch</th><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Date</th><th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -272,6 +274,7 @@ export function PlacementsPage({ onLogout }: Props) {
                       </td>
                       <td style={{ fontWeight: 600 }}>{p.name}</td>
                       <td className="td-muted">{p.register_number}</td>
+                      <td className="td-muted">{p.batch ?? '—'}</td>
                       <td>{p.company}</td>
                       <td className="td-muted">{p.position ?? '—'}</td>
                       <td className="td-muted">{p.package ?? '—'}</td>
