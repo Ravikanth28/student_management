@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
     // and backend update reflects automatically in installed apps — no rebuild
     // or reinstall needed for content changes. Override at build time with
     // CAP_SERVER_URL if the deployment URL changes.
-    url: process.env.CAP_SERVER_URL ?? 'https://student-portal-7udb.onrender.com',
+    url: process.env.CAP_SERVER_URL ?? 'https://student-management-uu4p.onrender.com',
     cleartext: false,
   },
 };

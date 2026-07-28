@@ -16,5 +16,5 @@ jobs:
         run: |
           echo "Pinging Render service..."
           curl -sS -m 30 -w "\nHTTP Status: %{http_code}\n" \
-            https://student-portal-7udb.onrender.com/health || true
+            https://student-management-uu4p.onrender.com/health || true
           echo "Ping complete."
