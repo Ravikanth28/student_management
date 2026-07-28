@@ -235,7 +235,7 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
   { to: '/import',        label: 'Bulk Import',      Icon: IconUploadNav,     roles: ['superadmin', 'admin'] },
   { to: '/users',         label: 'Users',            Icon: IconUsersCog,      roles: ['superadmin'] },
   { to: '/audit',         label: 'Audit Log',        Icon: IconActivity,      roles: ['superadmin'] },
-  { to: '/cr-activity',    label: 'CR Activity Log',  Icon: IconMonitor,       roles: ['superadmin'] },
+  { to: '/cr-activity',    label: 'CR Activity Log',  Icon: IconMonitor,       roles: ['superadmin', 'admin'] },
   { to: '/settings',      label: 'Settings',         Icon: IconSettings,      roles: ['superadmin'] },
 ];
 
