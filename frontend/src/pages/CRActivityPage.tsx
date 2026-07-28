@@ -250,7 +250,7 @@ export function CRActivityPage({ onLogout }: { onLogout: () => void }) {
 
           {total > limit && (
             <div style={{ marginTop: 16 }}>
-              <Pagination currentPage={page} totalCount={total} pageSize={limit} onPageChange={setPage} />
+              <Pagination page={page} totalPages={Math.ceil(total / limit)} total={total} limit={limit} onPage={setPage} noun="logs" />
             </div>
           )}
         </div>
