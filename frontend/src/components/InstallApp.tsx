@@ -1,4 +1,5 @@
 import { useState, useEffect, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { APK_DOWNLOAD_URL } from '../config';
 
 const DEFAULT_APK_LINK = APK_DOWNLOAD_URL || '/student-portal.apk';
@@ -51,7 +52,7 @@ export function InstallAppModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ width: '100%', maxWidth: 480, background: 'var(--surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', padding: 24, position: 'relative' }}>
         <button
@@ -111,7 +112,8 @@ export function InstallAppModal({ onClose }: { onClose: () => void }) {
           </ol>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
