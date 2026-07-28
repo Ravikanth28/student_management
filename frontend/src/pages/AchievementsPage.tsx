@@ -425,29 +425,6 @@ export function AchievementsPage({ onLogout }: Props) {
             <option value="III">III Year</option>
             <option value="IV">IV Year</option>
           </select>
-          <input className="form-control" style={{ height: 40, width: 120 }} placeholder="Batch" value={rBatch} onChange={(e) => { setPage(1); setRBatch(e.target.value); }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="month"
-              className="form-control"
-              style={{ height: 40, width: 130 }}
-              title="Select Month"
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val) {
-                  const [y, m] = val.split('-').map(Number);
-                  const start = `${y}-${String(m).padStart(2, '0')}-01`;
-                  const lastDay = new Date(y, m, 0).getDate();
-                  const end = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-                  setRFrom(start);
-                  setRTo(end);
-                }
-              }}
-            />
-            <input type="date" className="form-control" style={{ height: 40, width: 130 }} value={rFrom} onChange={(e) => { setPage(1); setRFrom(e.target.value); }} title="From Date" />
-            <span style={{ color: 'var(--text-3)' }}>to</span>
-            <input type="date" className="form-control" style={{ height: 40, width: 130 }} value={rTo} onChange={(e) => { setPage(1); setRTo(e.target.value); }} title="To Date" />
-          </div>
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
             <button className="btn btn-outline" style={{ height: 40 }} onClick={exportRecordsCSV}>CSV</button>
             <button className="btn btn-outline" style={{ height: 40 }} onClick={exportRecordsPDF}>PDF</button>
