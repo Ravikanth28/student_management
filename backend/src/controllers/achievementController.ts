@@ -147,11 +147,6 @@ export const uploadAchievementPhotos = asyncWrap(async (req, res) => {
   }
 
   const updatedPhotos = [...existingPhotos, ...newPhotos];
-  await achievementRepo.updateAchievement(id, {
-    title: achievement.title, // keep the same
-    photos: updatedPhotos,
-    result: '', // mock required fields, updateAchievement only uses what's provided for others
-  } as any);
 
   // Re-run the update precisely for just photos
   await pool.query('UPDATE achievements SET photos = ? WHERE id = ?', [JSON.stringify(updatedPhotos), id]);
