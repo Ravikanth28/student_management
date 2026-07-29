@@ -107,12 +107,6 @@ export const uploadOfferLetter = asyncWrap(async (req, res) => {
   // Upload to Cloudinary
   const url = await uploadDocumentToCloudinary(file.buffer, 'student-portal/placements', `offer_${id}`);
 
-  // Update placement
-  await placementRepo.updatePlacement(id, {
-    offer_letter_url: url,
-    company: '', // mock required fields since we are just doing a targeted UPDATE via repo
-    placement_type: ''
-  } as any);
 
   // Re-run the update precisely for just offer_letter_url to avoid changing other fields by mistake
   const { pool } = await import('../config/db.js');
