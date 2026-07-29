@@ -471,7 +471,7 @@ export function AchievementsPage({ onLogout }: Props) {
                       onChange={toggleSelectAll}
                     />
                   </th>
-                  <th>Event Type</th><th>Event Name</th><th>Result</th><th>Position</th><th>Venue</th><th>Duration</th><th>Date</th><th>Prize</th><th>Members</th><th>Action</th>
+                  <th>Event Type</th><th>Event Name</th><th>Result</th><th>Position</th><th>Venue</th><th>Duration</th><th>Date</th><th>Prize</th><th>Members</th><th>Photos</th><th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -504,6 +504,19 @@ export function AchievementsPage({ onLogout }: Props) {
                             <span key={m.student_id} className="badge badge-blue">{m.name} <span style={{ opacity: 0.7 }}>({m.register_number}{m.batch ? ` · ${m.batch}` : ''}{m.year ? ` · ${YEAR_LABELS[m.year] ?? m.year}` : ''})</span></span>
                           ))}
                         </div>
+                      </td>
+                      <td>
+                        {a.photos && a.photos.length > 0 ? (
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 120 }}>
+                            {a.photos.map((url, i) => (
+                              <a key={i} href={url} target="_blank" rel="noreferrer" title="View photo">
+                                <img src={url} alt="Certificate" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border)' }} />
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="td-muted">—</span>
+                        )}
                       </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => setEditTarget(a)}>Edit</button>
@@ -538,7 +551,7 @@ export function AchievementsPage({ onLogout }: Props) {
           ) : (
             <div className="table-container">
               <table>
-                <thead><tr><th>Date</th><th>Event</th><th>Type</th><th>Result</th><th>Position</th></tr></thead>
+                <thead><tr><th>Date</th><th>Event</th><th>Type</th><th>Result</th><th>Position</th><th>Photos</th></tr></thead>
                 <tbody>
                   {viewAch.map((a) => (
                     <tr key={a.id}>
@@ -547,6 +560,17 @@ export function AchievementsPage({ onLogout }: Props) {
                       <td><span className="badge badge-navy">{EVENT_TYPE_LABELS[a.event_type ?? 'other'] ?? a.event_type}</span></td>
                       <td><span className={`badge ${a.result === 'winner' ? 'badge-green' : 'badge-gray'}`}>{a.result === 'winner' ? 'Winner' : 'Participated'}</span></td>
                       <td className="td-muted">{a.result === 'winner' ? (a.position ?? '—') : '—'}</td>
+                      <td>
+                        {a.photos && a.photos.length > 0 ? (
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            {a.photos.map((url, i) => (
+                              <a key={i} href={url} target="_blank" rel="noreferrer" title="View photo">
+                                <img src={url} alt="Certificate" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border)' }} />
+                              </a>
+                            ))}
+                          </div>
+                        ) : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

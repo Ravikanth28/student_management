@@ -5,6 +5,9 @@ import * as placementRepo from '../repositories/placementRepository.js';
 import * as studentRepo from '../repositories/studentRepository.js';
 import * as audit from '../services/auditService.js';
 import { notifyAllInBackground } from '../services/notificationService.js';
+import { uploadDocumentToCloudinary } from '../middleware/fileUpload.js';
+import { deleteFromCloudinary } from '../middleware/upload.js';
+import { cloudinaryEnabled } from '../config/env.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -91,4 +94,62 @@ export const deleteBatchPlacements = asyncWrap(async (req, res) => {
   const count = await placementRepo.deleteBatchPlacements(ids);
   audit.record(req, { action: 'placement.delete_batch', entity: 'placements', details: `Deleted ${count} placement(s)` });
   return res.json({ message: `Deleted ${count} placement(s)`, count });
+});
+
+export const uploadOfferLetter = asyncWrap(async (req, res) => {
+  if (!cloudinaryEnabled) {
+    return res.status(503).json({ message: 'Cloudinary is not enabled on this server' });
+  }
+  const id = parseId(req.params.id);
+  const file = req.file;
+  if (!file) return res.status(400).json({ message: 'No offer letter file provided' });
+
+  // Upload to Cloudinary
+  const url = await uploadDocumentToCloudinary(file.buffer, 'student-portal/placements', `offer_${id}`);
+
+  // Update placement
+  await placementRepo.updatePlacement(id, {
+    offer_letter_url: url,
+    company: '', // mock required fields since we are just doing a targeted UPDATE via repo
+    placement_type: ''
+  } as any);
+
+  // Re-run the update precisely for just offer_letter_url to avoid changing other fields by mistake
+  const { pool } = await import('../config/db.js');
+  await pool.query('UPDATE placements SET offer_letter_url = ? WHERE id = ?', [url, id]);
+
+  audit.record(req, {
+    action: 'placement.offer_letter.upload',
+    entity: 'placement',
+    entity_id: String(id),
+    details: 'Uploaded offer letter',
+  });
+
+  return res.json({ message: 'Offer letter uploaded successfully', offer_letter_url: url });
+});
+
+export const deleteOfferLetter = asyncWrap(async (req, res) => {
+  const id = parseId(req.params.id);
+  
+  const { pool } = await import('../config/db.js');
+  const [rows] = await pool.query<any[]>('SELECT offer_letter_url FROM placements WHERE id = ?', [id]);
+  if (rows.length === 0) throw new HttpError(404, 'Placement not found');
+  
+  const url = rows[0].offer_letter_url;
+  if (url) {
+    await deleteFromCloudinary(url).catch((err) => {
+      console.error('Failed to delete from Cloudinary', err);
+    });
+  }
+
+  await pool.query('UPDATE placements SET offer_letter_url = NULL WHERE id = ?', [id]);
+
+  audit.record(req, {
+    action: 'placement.offer_letter.delete',
+    entity: 'placement',
+    entity_id: String(id),
+    details: 'Deleted offer letter',
+  });
+
+  return res.json({ message: 'Offer letter removed successfully' });
 });

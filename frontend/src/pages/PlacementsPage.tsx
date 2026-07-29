@@ -257,7 +257,7 @@ export function PlacementsPage({ onLogout }: Props) {
                       onChange={toggleSelectAll}
                     />
                   </th>
-                  <th>Student</th><th>Register No.</th><th>Batch</th><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Date</th><th>Action</th>
+                  <th>Student</th><th>Register No.</th><th>Batch</th><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Date</th><th>Offer Letter</th><th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -281,6 +281,13 @@ export function PlacementsPage({ onLogout }: Props) {
                       <td><span className={`badge ${p.placement_type === 'on_campus' ? 'badge-green' : 'badge-blue'}`}>{PLACEMENT_TYPE_LABELS[p.placement_type] ?? p.placement_type}</span></td>
                       <td className="td-muted">{p.offer_type ? OFFER_TYPE_LABELS[p.offer_type] ?? p.offer_type : '—'}</td>
                       <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.placed_date)}</td>
+                      <td>
+                        {p.offer_letter_url ? (
+                          <a href={p.offer_letter_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>View</a>
+                        ) : (
+                          <span className="td-muted">—</span>
+                        )}
+                      </td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => setEditTarget(p)}>Edit</button>
                         <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(p)}>Delete</button>

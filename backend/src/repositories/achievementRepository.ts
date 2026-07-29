@@ -22,6 +22,7 @@ export interface Achievement {
   event_date: string | null;
   created_by: string | null;
   created_at: string;
+  photos?: string[] | null;
   members: AchievementMember[];
 }
 
@@ -34,6 +35,7 @@ export interface AchievementInput {
   position?: string | null;
   prize?: string | null;
   event_date?: string | null;
+  photos?: string[] | null;
 }
 
 export interface AchievementListResult {
@@ -50,8 +52,8 @@ export async function createAchievement(
   try {
     await conn.beginTransaction();
     const [result] = await conn.query<ResultSetHeader>(
-      `INSERT INTO achievements (event_type, title, venue, duration, result, position, prize, event_date, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO achievements (event_type, title, venue, duration, result, position, prize, event_date, created_by, photos)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.event_type ?? null,
         input.title,
@@ -62,6 +64,7 @@ export async function createAchievement(
         input.prize ?? null,
         input.event_date ?? null,
         createdBy,
+        input.photos ? JSON.stringify(input.photos) : null,
       ]
     );
     const achievementId = Number(result.insertId);
@@ -151,7 +154,7 @@ export async function listAchievements(f: AchievementFilters, page: number, limi
 
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
     `SELECT id, event_type, title, venue, duration, result, position, prize,
-            DATE_FORMAT(event_date, '%Y-%m-%d') AS event_date, created_by, created_at
+            DATE_FORMAT(event_date, '%Y-%m-%d') AS event_date, created_by, created_at, photos
      FROM achievements ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );
@@ -217,7 +220,7 @@ export async function summarizeByStudent(f: { year?: string; section?: string; b
 export async function listAchievementsByStudent(studentId: number): Promise<Achievement[]> {
   const [rows] = await pool.query<Array<Achievement & RowDataPacket>>(
     `SELECT a.id, a.event_type, a.title, a.venue, a.duration, a.result, a.position, a.prize,
-            DATE_FORMAT(a.event_date, '%Y-%m-%d') AS event_date, a.created_by, a.created_at
+            DATE_FORMAT(a.event_date, '%Y-%m-%d') AS event_date, a.created_by, a.created_at, a.photos
      FROM achievements a
      JOIN achievement_members am ON am.achievement_id = a.id
      WHERE am.student_id = ?
@@ -237,7 +240,7 @@ export async function updateAchievement(
     await conn.beginTransaction();
     const [res] = await conn.query<ResultSetHeader>(
       `UPDATE achievements
-       SET event_type = ?, title = ?, venue = ?, duration = ?, result = ?, position = ?, prize = ?, event_date = ?
+       SET event_type = ?, title = ?, venue = ?, duration = ?, result = ?, position = ?, prize = ?, event_date = ?, photos = COALESCE(?, photos)
        WHERE id = ?`,
       [
         input.event_type ?? null,
@@ -248,6 +251,7 @@ export async function updateAchievement(
         input.position ?? null,
         input.prize ?? null,
         input.event_date ?? null,
+        input.photos !== undefined ? (input.photos ? JSON.stringify(input.photos) : null) : null,
         id,
       ]
     );
@@ -340,6 +344,15 @@ export async function deleteBatchAchievements(ids: number[]): Promise<number> {
 }
 
 function normalize(a: Achievement & RowDataPacket, members: AchievementMember[]): Achievement {
+  let parsedPhotos = a.photos;
+  if (typeof a.photos === 'string') {
+    try {
+      parsedPhotos = JSON.parse(a.photos);
+    } catch {
+      parsedPhotos = [];
+    }
+  }
+
   return {
     id: Number(a.id),
     event_type: a.event_type ?? null,
@@ -352,6 +365,7 @@ function normalize(a: Achievement & RowDataPacket, members: AchievementMember[])
     event_date: a.event_date ?? null,
     created_by: a.created_by ?? null,
     created_at: a.created_at,
+    photos: parsedPhotos || [],
     members,
   };
 }

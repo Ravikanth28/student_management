@@ -4,6 +4,9 @@ import { achievementCreateSchema } from '../validators/activityValidator.js';
 import * as achievementRepo from '../repositories/achievementRepository.js';
 import * as audit from '../services/auditService.js';
 import { notifyAllInBackground } from '../services/notificationService.js';
+import { uploadDocumentToCloudinary } from '../middleware/fileUpload.js';
+import { deleteFromCloudinary } from '../middleware/upload.js';
+import { cloudinaryEnabled } from '../config/env.js';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -109,6 +112,93 @@ export const deleteBatchAchievements = asyncWrap(async (req, res) => {
   const count = await achievementRepo.deleteBatchAchievements(ids);
   audit.record(req, { action: 'achievement.delete_batch', entity: 'achievements', details: `Deleted ${count} achievement(s)` });
   return res.json({ message: `Deleted ${count} achievement(s)`, count });
+});
+
+export const uploadAchievementPhotos = asyncWrap(async (req, res) => {
+  if (!cloudinaryEnabled) {
+    return res.status(503).json({ message: 'Cloudinary is not enabled on this server' });
+  }
+  const id = parseId(req.params.id);
+  const files = req.files as Express.Multer.File[];
+  if (!files || files.length === 0) {
+    return res.status(400).json({ message: 'No photo files provided' });
+  }
+
+  // Get existing achievement
+  // Note: List queries return arrays. Let's create a quick DB call for this if needed, 
+  // or fetch via existing `listAchievements` though it's heavy.
+  // We'll just update it directly and assume the user has the current list.
+  const { pool } = await import('../config/db.js');
+  const [rows] = await pool.query<any[]>('SELECT photos, title FROM achievements WHERE id = ?', [id]);
+  if (rows.length === 0) throw new HttpError(404, 'Achievement not found');
+  const achievement = rows[0];
+
+  let existingPhotos: string[] = [];
+  if (typeof achievement.photos === 'string') {
+    try { existingPhotos = JSON.parse(achievement.photos); } catch {}
+  } else if (Array.isArray(achievement.photos)) {
+    existingPhotos = achievement.photos;
+  }
+
+  const newPhotos: string[] = [];
+  for (const file of files) {
+    const url = await uploadDocumentToCloudinary(file.buffer, 'student-portal/achievements', `ach_${id}`);
+    newPhotos.push(url);
+  }
+
+  const updatedPhotos = [...existingPhotos, ...newPhotos];
+  await achievementRepo.updateAchievement(id, {
+    title: achievement.title, // keep the same
+    photos: updatedPhotos,
+    result: '', // mock required fields, updateAchievement only uses what's provided for others
+  } as any);
+
+  // Re-run the update precisely for just photos
+  await pool.query('UPDATE achievements SET photos = ? WHERE id = ?', [JSON.stringify(updatedPhotos), id]);
+
+  audit.record(req, {
+    action: 'achievement.photo.upload',
+    entity: 'achievement',
+    entity_id: String(id),
+    details: `Uploaded ${files.length} photo(s)`,
+  });
+
+  return res.json({ message: 'Photos uploaded successfully', photos: updatedPhotos });
+});
+
+export const deleteAchievementPhoto = asyncWrap(async (req, res) => {
+  const id = parseId(req.params.id);
+  const { url } = req.body; // Safer to pass the full URL in body
+
+  if (!url) return res.status(400).json({ message: 'Photo URL is required' });
+
+  const { pool } = await import('../config/db.js');
+  const [rows] = await pool.query<any[]>('SELECT photos FROM achievements WHERE id = ?', [id]);
+  if (rows.length === 0) throw new HttpError(404, 'Achievement not found');
+  
+  let existingPhotos: string[] = [];
+  if (typeof rows[0].photos === 'string') {
+    try { existingPhotos = JSON.parse(rows[0].photos); } catch {}
+  } else if (Array.isArray(rows[0].photos)) {
+    existingPhotos = rows[0].photos;
+  }
+
+  const updatedPhotos = existingPhotos.filter((p) => p !== url);
+  await pool.query('UPDATE achievements SET photos = ? WHERE id = ?', [JSON.stringify(updatedPhotos), id]);
+
+  await deleteFromCloudinary(url).catch((err) => {
+    // Log but don't fail if Cloudinary deletion fails
+    console.error('Failed to delete from Cloudinary', err);
+  });
+
+  audit.record(req, {
+    action: 'achievement.photo.delete',
+    entity: 'achievement',
+    entity_id: String(id),
+    details: `Deleted 1 photo`,
+  });
+
+  return res.json({ message: 'Photo deleted successfully', photos: updatedPhotos });
 });
 
 // DELETE /api/achievements/:id/members/:studentId  (remove a student from an achievement)

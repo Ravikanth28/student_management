@@ -13,6 +13,7 @@ export interface Placement {
   placed_date: string | null;
   created_by: string | null;
   created_at: string;
+  offer_letter_url?: string | null;
   // joined student fields (list queries)
   name?: string;
   register_number?: string;
@@ -28,6 +29,7 @@ export interface PlacementInput {
   offer_type?: string | null;
   location?: string | null;
   placed_date?: string | null;
+  offer_letter_url?: string | null;
 }
 
 export interface PlacementListResult {
@@ -36,7 +38,7 @@ export interface PlacementListResult {
 }
 
 const SELECT_COLS = `p.id, p.student_id, p.company, p.position, p.package, p.placement_type, p.offer_type,
-  p.location, DATE_FORMAT(p.placed_date, '%Y-%m-%d') AS placed_date, p.created_by, p.created_at,
+  p.location, DATE_FORMAT(p.placed_date, '%Y-%m-%d') AS placed_date, p.offer_letter_url, p.created_by, p.created_at,
   s.name, s.register_number, s.section, s.batch`;
 
 function normalize(r: Placement & RowDataPacket): Placement {
@@ -50,6 +52,7 @@ function normalize(r: Placement & RowDataPacket): Placement {
     offer_type: r.offer_type ?? null,
     location: r.location ?? null,
     placed_date: r.placed_date ?? null,
+    offer_letter_url: r.offer_letter_url ?? null,
     created_by: r.created_by ?? null,
     created_at: r.created_at,
     name: r.name,
@@ -60,20 +63,53 @@ function normalize(r: Placement & RowDataPacket): Placement {
 }
 
 export async function createPlacement(studentId: number, input: PlacementInput, createdBy: string | null): Promise<number> {
-  const [result] = await pool.query<ResultSetHeader>(
-    `INSERT INTO placements (student_id, company, position, package, placement_type, offer_type, location, placed_date, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [studentId, input.company, input.position ?? null, input.package ?? null, input.placement_type, input.offer_type ?? null, input.location ?? null, input.placed_date ?? null, createdBy]
-  );
-  return Number(result.insertId);
+  const conn = await pool.getConnection();
+  try {
+    const [result] = await conn.query<ResultSetHeader>(
+      `INSERT INTO placements (student_id, company, position, package, placement_type, offer_type, location, placed_date, created_by, offer_letter_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        studentId,
+        input.company,
+        input.position ?? null,
+        input.package ?? null,
+        input.placement_type,
+        input.offer_type ?? null,
+        input.location ?? null,
+        input.placed_date ?? null,
+        createdBy,
+        input.offer_letter_url ?? null,
+      ]
+    );
+    return Number(result.insertId);
+  } finally {
+    conn.release();
+  }
 }
 
 export async function updatePlacement(id: number, input: PlacementInput): Promise<boolean> {
-  const [res] = await pool.query<ResultSetHeader>(
-    `UPDATE placements SET company=?, position=?, package=?, placement_type=?, offer_type=?, location=?, placed_date=? WHERE id=?`,
-    [input.company, input.position ?? null, input.package ?? null, input.placement_type, input.offer_type ?? null, input.location ?? null, input.placed_date ?? null, id]
-  );
-  return res.affectedRows > 0;
+  const conn = await pool.getConnection();
+  try {
+    const [res] = await conn.query<ResultSetHeader>(
+      `UPDATE placements
+       SET company = ?, position = ?, package = ?, placement_type = ?, offer_type = ?, location = ?, placed_date = ?, offer_letter_url = COALESCE(?, offer_letter_url)
+       WHERE id = ?`,
+      [
+        input.company,
+        input.position ?? null,
+        input.package ?? null,
+        input.placement_type,
+        input.offer_type ?? null,
+        input.location ?? null,
+        input.placed_date ?? null,
+        input.offer_letter_url !== undefined ? input.offer_letter_url : null,
+        id,
+      ]
+    );
+    return res.affectedRows > 0;
+  } finally {
+    conn.release();
+  }
 }
 
 export async function deletePlacement(id: number): Promise<boolean> {

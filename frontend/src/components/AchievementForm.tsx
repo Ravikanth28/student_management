@@ -32,6 +32,7 @@ export function AchievementForm({ initialMembers = [], lockedIds = [], edit, onS
       ? edit.members.map((m) => ({ id: m.student_id, name: m.name, register_number: m.register_number, section: m.section, batch: m.batch } as unknown as Student))
       : initialMembers
   );
+  const [photoFiles, setPhotoFiles] = useState<FileList | null>(null);
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
@@ -51,13 +52,23 @@ export function AchievementForm({ initialMembers = [], lockedIds = [], edit, onS
       member_ids: members.map((m) => m.id),
     };
     try {
+      let achievementId = edit?.id;
       if (edit) {
         await api.put(`/achievements/${edit.id}`, payload);
-        success('Achievement updated', `Saved for ${members.length} student(s).`);
       } else {
-        await api.post('/achievements', payload);
-        success('Achievement added', `Saved for ${members.length} student(s).`);
+        const res = await api.post<{ message: string; achievement: Achievement; id?: number }>('/achievements', payload);
+        achievementId = (res.data as any).id;
       }
+
+      if (photoFiles && photoFiles.length > 0 && achievementId) {
+        const formData = new FormData();
+        Array.from(photoFiles).forEach((file) => formData.append('photos', file));
+        await api.post(`/achievements/${achievementId}/photos`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+
+      success(edit ? 'Achievement updated' : 'Achievement added', `Saved for ${members.length} student(s).`);
       onSuccess();
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -129,6 +140,22 @@ export function AchievementForm({ initialMembers = [], lockedIds = [], edit, onS
       <div>
         <label style={label}>Event date</label>
         <input className="form-control" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+      </div>
+
+      <div>
+        <label style={label}>Photos / Certificates (Max 5)</label>
+        <input 
+          type="file" 
+          className="form-control" 
+          multiple 
+          accept="image/*,application/pdf" 
+          onChange={(e) => setPhotoFiles(e.target.files)} 
+        />
+        {edit?.photos && edit.photos.length > 0 && !photoFiles && (
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginTop: 4 }}>
+            {edit.photos.length} photo(s) already uploaded. Uploading new files will ADD to them.
+          </div>
+        )}
       </div>
 
       <div>

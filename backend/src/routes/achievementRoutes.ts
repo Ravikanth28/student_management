@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { createAchievement, listAchievements, achievementSummary, updateAchievement, deleteAchievement, deleteBatchAchievements, removeAchievementMember, clearAllAchievements } from '../controllers/achievementController.js';
+import { createAchievement, listAchievements, achievementSummary, updateAchievement, deleteAchievement, deleteBatchAchievements, removeAchievementMember, clearAllAchievements, uploadAchievementPhotos, deleteAchievementPhoto } from '../controllers/achievementController.js';
+import { multiPhotoUploadMiddleware } from '../middleware/fileUpload.js';
 
 export const achievementRoutes = Router();
 achievementRoutes.use(requireAuth, requireRole('superadmin', 'admin'));
@@ -10,6 +11,8 @@ achievementRoutes.post('/batch-delete', deleteBatchAchievements);
 achievementRoutes.get('/summary', achievementSummary);
 achievementRoutes.get('/', listAchievements);
 achievementRoutes.put('/:id', updateAchievement);
+achievementRoutes.post('/:id/photos', multiPhotoUploadMiddleware, uploadAchievementPhotos);
+achievementRoutes.delete('/:id/photos/:publicId', deleteAchievementPhoto);
 achievementRoutes.delete('/:id/members/:studentId', removeAchievementMember);
 achievementRoutes.delete('/:id', deleteAchievement);
 // Clear ALL achievements

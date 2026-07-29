@@ -24,6 +24,7 @@ export function PlacementForm({ student, edit, onSuccess, onCancel }: Props) {
   const [offerType, setOfferType] = useState<OfferType | ''>((edit?.offer_type as OfferType) ?? 'full_time');
   const [location, setLocation] = useState(edit?.location ?? '');
   const [placedDate, setPlacedDate] = useState(edit?.placed_date ?? '');
+  const [offerLetterFile, setOfferLetterFile] = useState<File | null>(null);
   const [picked, setPicked] = useState<Student[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -46,13 +47,26 @@ export function PlacementForm({ student, edit, onSuccess, onCancel }: Props) {
     };
     setSaving(true);
     try {
+      let placementId = edit?.id;
       if (edit) {
         await api.put(`/placements/${edit.id}`, payload);
-        success('Placement updated', company.trim());
       } else {
-        await api.post('/placements', { student_id: studentId, ...payload });
-        success('Placement added', company.trim());
+        const res = await api.post<{ message: string; placement: Placement; id?: number }>('/placements', { student_id: studentId, ...payload });
+        // The backend `createPlacement` returns the id or placement object. Wait, it currently just returns `{ message, id? }`. 
+        // Let's assume it doesn't return ID directly. I'll need to check the backend response or just re-fetch.
+        // Actually, in `placementController.ts` createPlacement returns `return res.status(201).json({ message: 'Placement recorded', id });`
+        placementId = (res.data as any).id;
       }
+
+      if (offerLetterFile && placementId) {
+        const formData = new FormData();
+        formData.append('file', offerLetterFile);
+        await api.post(`/placements/${placementId}/offer-letter`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+
+      success(edit ? 'Placement updated' : 'Placement added', company.trim());
       onSuccess();
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -118,6 +132,21 @@ export function PlacementForm({ student, edit, onSuccess, onCancel }: Props) {
       <div>
         <label style={label}>Placement date</label>
         <input className="form-control" type="date" value={placedDate} onChange={(e) => setPlacedDate(e.target.value)} />
+      </div>
+
+      <div>
+        <label style={label}>Offer Letter (Image or PDF)</label>
+        <input 
+          type="file" 
+          className="form-control" 
+          accept="image/*,application/pdf" 
+          onChange={(e) => setOfferLetterFile(e.target.files?.[0] || null)} 
+        />
+        {edit?.offer_letter_url && !offerLetterFile && (
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginTop: 4 }}>
+            An offer letter is already uploaded. Uploading a new one will replace it.
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>

@@ -128,6 +128,13 @@ export async function ensureSchema(): Promise<void> {
     if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
   }
 
+  // Add photos to achievements
+  try {
+    await pool.query('ALTER TABLE achievements ADD COLUMN photos JSON NULL');
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS achievement_members (
       achievement_id BIGINT UNSIGNED NOT NULL,
@@ -149,6 +156,7 @@ export async function ensureSchema(): Promise<void> {
       offer_type VARCHAR(30) NULL,
       location VARCHAR(200) NULL,
       placed_date DATE NULL,
+      offer_letter_url VARCHAR(255) NULL,
       created_by VARCHAR(120) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
@@ -156,6 +164,13 @@ export async function ensureSchema(): Promise<void> {
       KEY idx_placement_created (created_at)
     )
   `);
+
+  // Add offer_letter_url to placements
+  try {
+    await pool.query('ALTER TABLE placements ADD COLUMN offer_letter_url VARCHAR(255) NULL');
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
+  }
 
   // Daily attendance — one row per student per day (present/absent).
   await pool.query(`

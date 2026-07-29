@@ -214,6 +214,7 @@ export type Achievement = {
   position: string | null;
   prize: string | null;
   event_date: string | null;
+  photos?: string[];
   created_by: string | null;
   created_at: string;
   members: AchievementMember[];
@@ -247,6 +248,7 @@ export type Placement = {
   offer_type: string | null;
   location: string | null;
   placed_date: string | null;
+  offer_letter_url?: string;
   created_by: string | null;
   created_at: string;
   name?: string;
