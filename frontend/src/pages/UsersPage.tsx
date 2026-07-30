@@ -13,6 +13,7 @@ const ROLE_BADGE: Record<Role, string> = {
   admin: 'badge-blue',
   cr: 'badge-green',
   user: 'badge-gray',
+  student: 'badge-purple',
 };
 
 const SYSTEM_PASSWORDS: Record<string, string> = {
