@@ -366,9 +366,9 @@ export function StudentDetailPage({ onLogout }: Props) {
   const loadActivity = useCallback(() => {
     if (!id) return;
     api.get<{ data: LateRecord[] }>(`/students/${id}/late-records`).then((r) => setLateRecords(r.data.data)).catch(() => {});
-    if (staff) api.get<{ data: DisciplineRecord[] }>(`/students/${id}/discipline-records`).then((r) => setDisciplineRecords(r.data.data)).catch(() => {});
+    api.get<{ data: DisciplineRecord[] }>(`/students/${id}/discipline-records`).then((r) => setDisciplineRecords(r.data.data)).catch(() => {});
     api.get<{ data: Achievement[] }>(`/students/${id}/achievements`).then((r) => setAchievements(r.data.data)).catch(() => {});
-    if (staff) api.get<{ data: Placement[] }>(`/students/${id}/placements`).then((r) => setPlacements(r.data.data)).catch(() => {});
+    api.get<{ data: Placement[] }>(`/students/${id}/placements`).then((r) => setPlacements(r.data.data)).catch(() => {});
   }, [id, staff]);
 
   useEffect(() => { loadActivity(); }, [loadActivity]);
@@ -549,28 +549,28 @@ export function StudentDetailPage({ onLogout }: Props) {
           )}
         </div>
 
-        {/* Disciplinary Records (staff only) */}
-        {staff && (
-          <div className="card card-padded" style={{ marginTop: 16 }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12 }}>
-              Disciplinary Records {disciplineRecords.length > 0 && <span className="badge badge-amber" style={{ marginLeft: 6 }}>{disciplineRecords.length}</span>}
-            </h3>
-            {disciplineRecords.length === 0 ? (
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No disciplinary issues recorded.</p>
-            ) : (
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr><th>Date</th><th>Time</th><th>Issue / Reason</th><th>Remarks</th><th>Marked By</th><th>Action</th></tr>
-                  </thead>
-                  <tbody>
-                    {disciplineRecords.map((d) => (
-                      <tr key={d.id}>
-                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{fmtDate(d.record_date)}</td>
-                        <td className="td-muted">{d.record_time ?? '—'}</td>
-                        <td><span className="badge badge-amber">⚠️ {d.reason}</span></td>
-                        <td className="td-muted">{d.details || '—'}</td>
-                        <td className="td-muted">{d.marked_by ?? 'system'}</td>
+        {/* Disciplinary Records */}
+        <div className="card card-padded" style={{ marginTop: 16 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12 }}>
+            Disciplinary Records {disciplineRecords.length > 0 && <span className="badge badge-amber" style={{ marginLeft: 6 }}>{disciplineRecords.length}</span>}
+          </h3>
+          {disciplineRecords.length === 0 ? (
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No disciplinary issues recorded.</p>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr><th>Date</th><th>Time</th><th>Issue / Reason</th><th>Remarks</th><th>Marked By</th>{staff && <th>Action</th>}</tr>
+                </thead>
+                <tbody>
+                  {disciplineRecords.map((d) => (
+                    <tr key={d.id}>
+                      <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{fmtDate(d.record_date)}</td>
+                      <td className="td-muted">{d.record_time ?? '—'}</td>
+                      <td><span className="badge badge-amber">⚠️ {d.reason}</span></td>
+                      <td className="td-muted">{d.details || '—'}</td>
+                      <td className="td-muted">{d.marked_by ?? 'system'}</td>
+                      {staff && (
                         <td style={{ textAlign: 'right' }}>
                           <button
                             className="btn btn-danger btn-sm"
@@ -581,14 +581,14 @@ export function StudentDetailPage({ onLogout }: Props) {
                             <IconTrashPhoto />
                           </button>
                         </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* Achievements */}
         <div className="card card-padded" style={{ marginTop: 16 }}>
@@ -639,38 +639,36 @@ export function StudentDetailPage({ onLogout }: Props) {
           )}
         </div>
 
-        {/* Placements (staff only) */}
-        {staff && (
-          <div className="card card-padded" style={{ marginTop: 16 }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12 }}>
-              Placements {placements.length > 0 && <span className="badge badge-green" style={{ marginLeft: 6 }}>{placements.length}</span>}
-            </h3>
-            {placements.length === 0 ? (
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No placements yet.</p>
-            ) : (
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Location</th><th>Date</th></tr>
-                  </thead>
-                  <tbody>
-                    {placements.map((p) => (
-                      <tr key={p.id}>
-                        <td style={{ fontWeight: 600 }}>{p.company}</td>
-                        <td className="td-muted">{p.position ?? '—'}</td>
-                        <td className="td-muted">{p.package ?? '—'}</td>
-                        <td><span className={`badge ${p.placement_type === 'on_campus' ? 'badge-green' : 'badge-blue'}`}>{PLACEMENT_TYPE_LABELS[p.placement_type] ?? p.placement_type}</span></td>
-                        <td className="td-muted">{p.offer_type ? OFFER_TYPE_LABELS[p.offer_type] ?? p.offer_type : '—'}</td>
-                        <td className="td-muted">{p.location ?? '—'}</td>
-                        <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{p.placed_date ? fmtDate(p.placed_date) : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Placements */}
+        <div className="card card-padded" style={{ marginTop: 16 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12 }}>
+            Placements {placements.length > 0 && <span className="badge badge-green" style={{ marginLeft: 6 }}>{placements.length}</span>}
+          </h3>
+          {placements.length === 0 ? (
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No placements yet.</p>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr><th>Company</th><th>Position</th><th>Package</th><th>Type</th><th>Offer</th><th>Location</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                  {placements.map((p) => (
+                    <tr key={p.id}>
+                      <td style={{ fontWeight: 600 }}>{p.company}</td>
+                      <td className="td-muted">{p.position ?? '—'}</td>
+                      <td className="td-muted">{p.package ?? '—'}</td>
+                      <td><span className={`badge ${p.placement_type === 'on_campus' ? 'badge-green' : 'badge-blue'}`}>{PLACEMENT_TYPE_LABELS[p.placement_type] ?? p.placement_type}</span></td>
+                      <td className="td-muted">{p.offer_type ? OFFER_TYPE_LABELS[p.offer_type] ?? p.offer_type : '—'}</td>
+                      <td className="td-muted">{p.location ?? '—'}</td>
+                      <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{p.placed_date ? fmtDate(p.placed_date) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
         </>
       ) : (
         <div className="card card-padded">
