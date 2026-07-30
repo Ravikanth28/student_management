@@ -180,3 +180,13 @@ CREATE TABLE IF NOT EXISTS users (
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_username (username)
 );
+
+CREATE TABLE IF NOT EXISTS feedback (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  student_id BIGINT UNSIGNED NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_feedback_student (student_id),
+  KEY idx_feedback_created_at (created_at)
+);

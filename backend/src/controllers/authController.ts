@@ -21,6 +21,32 @@ export async function login(req: Request, res: Response) {
   const passwordMatches = await bcrypt.compare(password, hash);
 
   if (!user || !passwordMatches) {
+    const { pool } = await import('../config/db.js');
+    const [rows] = await pool.query<any[]>('SELECT * FROM students WHERE enrollment_number = ? LIMIT 1', [username]);
+    
+    if (rows.length > 0) {
+      const student = rows[0];
+      if (student.dob) {
+        const { toDateString } = await import('../lib/studentFields.js');
+        const dobStr = toDateString(student.dob);
+        if (dobStr) {
+          const expectedPassword = `${dobStr.slice(8, 10)}${dobStr.slice(5, 7)}${dobStr.slice(0, 4)}`; // DDMMYYYY
+          if (password === expectedPassword) {
+            const token = jwt.sign(
+              { sub: `student_${student.id}`, username: student.enrollment_number, name: student.name, role: 'student', student_id: student.id },
+              env.JWT_SECRET,
+              { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions
+            );
+            audit.record(req, { action: 'auth.login', status: 'success', actor: student.enrollment_number });
+            return res.json({
+              token,
+              user: { username: student.enrollment_number, name: student.name, role: 'student', student_id: student.id },
+            });
+          }
+        }
+      }
+    }
+
     audit.record(req, { action: 'auth.login', status: 'failure', actor: username, details: 'Invalid credentials' });
     return res.status(401).json({ message: 'Invalid credentials' });
   }

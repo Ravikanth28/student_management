@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import type { Request, Response, NextFunction } from 'express';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth, requireRole, requireSelfOrStaff } from '../middleware/auth.js';
 import { uploadMiddleware } from '../middleware/upload.js';
 import {
   createStudent,
@@ -62,20 +62,21 @@ studentRoutes.use(requireAuth);
 // Staff = superadmin + admin. View-only "user" role can read but not mutate.
 const staff = requireRole('superadmin', 'admin');
 const superadmin = requireRole('superadmin');
+const anyStaff = requireRole('superadmin', 'admin', 'user', 'cr');
 
 // ΓöÇΓöÇ Aggregate / special routes (MUST be before /:id) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-studentRoutes.get('/stats',   getStats);
+studentRoutes.get('/stats',   anyStaff, getStats);
 studentRoutes.get('/year-counts',      superadmin, getYearCounts);
 studentRoutes.post('/promote',         superadmin, promoteStudents);
 studentRoutes.post('/promote/revert',  superadmin, revertPromotion);
 studentRoutes.get('/lookup',  staff, lookupStudent);           // scanner
-studentRoutes.get('/search',  searchStudents);
-studentRoutes.get('/filter',  filterStudents);
-studentRoutes.get('/birthdays/upcoming', getUpcomingBirthdays);
-studentRoutes.get('/birthdays', getBirthdays);
-studentRoutes.get('/export',  exportStudents);
-studentRoutes.get('/meta',    getFilterMeta);
-studentRoutes.get('/meta/sections', getFilteredSections);
+studentRoutes.get('/search',  anyStaff, searchStudents);
+studentRoutes.get('/filter',  anyStaff, filterStudents);
+studentRoutes.get('/birthdays/upcoming', anyStaff, getUpcomingBirthdays);
+studentRoutes.get('/birthdays', anyStaff, getBirthdays);
+studentRoutes.get('/export',  anyStaff, exportStudents);
+studentRoutes.get('/meta',    anyStaff, getFilterMeta);
+studentRoutes.get('/meta/sections', anyStaff, getFilteredSections);
 studentRoutes.post('/import', staff, importUpload, importStudents);
 studentRoutes.post('/import-photos-drive', staff, importPhotosFromDrive);
 studentRoutes.get('/import-history', staff, getImportHistory);
@@ -83,15 +84,15 @@ studentRoutes.delete('/import-history/:id', staff, deleteImportHistory);
 studentRoutes.get('/import-progress/:id', staff, getImportProgress);
 
 // ΓöÇΓöÇ CRUD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-studentRoutes.get('/',         listStudents);
+studentRoutes.get('/',         anyStaff, listStudents);
 studentRoutes.post('/',        staff, createStudent);
-studentRoutes.get('/:id',      getStudentById);
+studentRoutes.get('/:id',      requireSelfOrStaff, getStudentById);
 studentRoutes.put('/:id',      staff, updateStudent);
 studentRoutes.delete('/:id',   staff, deleteStudent);
-studentRoutes.get('/:id/late-records',  getStudentLateRecords);
-studentRoutes.get('/:id/achievements',  getStudentAchievements);
-studentRoutes.get('/:id/placements',     staff, getStudentPlacements);
-studentRoutes.get('/:id/discipline-records', staff, getStudentDisciplineRecords);
+studentRoutes.get('/:id/late-records',  requireSelfOrStaff, getStudentLateRecords);
+studentRoutes.get('/:id/achievements',  requireSelfOrStaff, getStudentAchievements);
+studentRoutes.get('/:id/placements',    requireSelfOrStaff, getStudentPlacements);
+studentRoutes.get('/:id/discipline-records', requireSelfOrStaff, getStudentDisciplineRecords);
 
 // ΓöÇΓöÇ Photo (Cloudinary) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 studentRoutes.post('/:id/photo',   staff, uploadMiddleware, uploadStudentPhoto);

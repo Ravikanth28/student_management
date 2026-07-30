@@ -40,7 +40,7 @@ export type StudentListResponse = {
   };
 };
 
-export type Role = 'superadmin' | 'admin' | 'user' | 'cr';
+export type Role = 'superadmin' | 'admin' | 'user' | 'cr' | 'student';
 
 export type LoginResponse = {
   token: string;
@@ -48,6 +48,7 @@ export type LoginResponse = {
     username: string;
     name: string | null;
     role: Role;
+    student_id?: number;
   };
 };
 
@@ -56,6 +57,7 @@ export type AppUser = {
   username: string;
   name: string | null;
   role: Role;
+  student_id?: number;
   created_by: string | null;
   created_at: string;
 };
@@ -319,4 +321,17 @@ export type AttendanceRangeRow = {
   year: string | null;
   section: string | null;
   marked_by: string | null;
+};
+
+export type Feedback = {
+  id: number;
+  content: string;
+  created_at: string;
+  student_id: number;
+  student_name: string;
+  register_number: string;
+  department: string;
+  year: string | null;
+  section: string;
+  photo_url: string | null;
 };

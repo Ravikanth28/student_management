@@ -6,12 +6,13 @@ import { InstallAppModal } from './InstallApp';
 import type { Role } from '../types';
 
 function roleLabel(r: Role): string {
-  return r === 'superadmin' ? 'Super Admin' : r === 'admin' ? 'Admin' : r === 'cr' ? 'Class Rep' : 'User';
+  return r === 'superadmin' ? 'Super Admin' : r === 'admin' ? 'Admin' : r === 'cr' ? 'Class Rep' : r === 'student' ? 'Student' : 'User';
 }
 const ROLE_COLORS: Record<Role, { bg: string; fg: string; dot: string }> = {
   superadmin: { bg: 'rgba(129,140,248,0.16)', fg: '#c7d2fe', dot: '#818cf8' },
   admin:      { bg: 'rgba(96,165,250,0.16)',  fg: '#bfdbfe', dot: '#60a5fa' },
   cr:         { bg: 'rgba(52,211,153,0.16)',  fg: '#a7f3d0', dot: '#34d399' },
+  student:    { bg: 'rgba(251,191,36,0.16)',  fg: '#fde68a', dot: '#f59e0b' },
   user:       { bg: 'rgba(255,255,255,0.10)', fg: 'rgba(255,255,255,0.78)', dot: 'rgba(255,255,255,0.6)' },
 };
 function rolePill(r: Role): CSSProperties {
@@ -219,9 +220,17 @@ function IconMonitor() {
   );
 }
 
+function IconMessage() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  );
+}
+
 // ─── Nav Items ───────────────────────────────────────────────
 const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; roles: Role[] }> = [
-  { to: '/dashboard',     label: 'Dashboard',        Icon: IconGrid,          roles: ['superadmin', 'admin', 'user'] },
+  { to: '/dashboard',     label: 'Dashboard',        Icon: IconGrid,          roles: ['superadmin', 'admin', 'user', 'student'] },
   { to: '/students',      label: 'Student Records',  Icon: IconUsers,         roles: ['superadmin', 'admin', 'user'] },
   { to: '/blood-groups',  label: 'Blood Groups',     Icon: IconDroplet,       roles: ['superadmin', 'admin', 'user'] },
   { to: '/scanner',       label: 'Scanner',          Icon: IconScan,          roles: ['superadmin', 'admin'] },
@@ -237,6 +246,7 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
   { to: '/audit',         label: 'Audit Log',        Icon: IconActivity,      roles: ['superadmin'] },
   { to: '/cr-activity',    label: 'CR Activity Log',  Icon: IconMonitor,       roles: ['superadmin', 'admin'] },
   { to: '/settings',      label: 'Settings',         Icon: IconSettings,      roles: ['superadmin'] },
+  { to: '/feedback',      label: 'Feedback',         Icon: IconMessage,       roles: ['superadmin', 'student'] },
 ];
 
 
@@ -250,10 +260,16 @@ function IconPhone() {
 
 // ─── Sidebar Content ─────────────────────────────────────────
 function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?: () => void }) {
-  const { role, displayName } = useAuth();
+  const { role, displayName, studentId } = useAuth();
   const { theme, toggle } = useTheme();
   const [showAppModal, setShowAppModal] = useState(false);
-  const items = NAV_ITEMS.filter((i) => role && i.roles.includes(role));
+  
+  const items = NAV_ITEMS.filter((i) => role && i.roles.includes(role)).map((i) => {
+    if (i.to === '/dashboard' && role === 'student' && studentId) {
+      return { ...i, to: `/students/${studentId}`, label: 'My Profile' };
+    }
+    return i;
+  });
 
   return (
     <>

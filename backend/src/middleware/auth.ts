@@ -11,7 +11,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
   try {
     const token = header.slice(7);
-    req.user = jwt.verify(token, env.JWT_SECRET) as { sub: string; username: string; role: string };
+    req.user = jwt.verify(token, env.JWT_SECRET) as { sub: string; username: string; role: string; student_id?: number };
     return next();
   } catch (err) {
     // Never log the token/header itself — only the failure reason.
@@ -29,4 +29,20 @@ export function requireRole(...allowed: string[]) {
     }
     return next();
   };
+}
+
+/** Ensure the user is either staff (superadmin/admin) or the specific student requested */
+export function requireSelfOrStaff(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) return res.status(401).json({ message: 'Authentication required' });
+  const isStaff = req.user.role === 'superadmin' || req.user.role === 'admin';
+  if (isStaff) return next();
+
+  if (req.user.role === 'student') {
+    const requestedId = Number(req.params.id);
+    if (req.user.student_id === requestedId) {
+      return next();
+    }
+  }
+
+  return res.status(403).json({ message: 'You do not have permission to view this resource' });
 }

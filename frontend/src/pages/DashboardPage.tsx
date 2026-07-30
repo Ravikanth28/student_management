@@ -83,7 +83,7 @@ type Props = { onLogout: () => void };
 
 export function DashboardPage({ onLogout }: Props) {
   const navigate = useNavigate();
-  const { role, displayName } = useAuth();
+  const { role, displayName, studentId } = useAuth();
   const staff = isStaff(role);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,15 @@ export function DashboardPage({ onLogout }: Props) {
       .then((res) => { if (active) setBirthdays(res.data.data); })
       .catch(() => { if (active) setBirthdays([]); });
     return () => { active = false; };
-  }, []);
+  }, [role]);
+
+  useEffect(() => {
+    if (role === 'student' && studentId) {
+      navigate(`/students/${studentId}`, { replace: true });
+    }
+  }, [role, studentId, navigate]);
+
+  if (role === 'student') return null;
 
   const statValues: Record<string, number> = {
     totalStudents:    stats?.totalStudents ?? 0,
