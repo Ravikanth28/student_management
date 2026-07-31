@@ -308,6 +308,92 @@ export async function ensureSchema(): Promise<void> {
     )
   `);
 
+  // ── Semester Exam Card System ─────────────────────────────────
+  // exam_cards: top-level card assigned to a year
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS exam_cards (
+      id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      title        VARCHAR(200)    NOT NULL,
+      semester     VARCHAR(60)     NOT NULL,
+      year_assigned VARCHAR(16)   NOT NULL,
+      status       VARCHAR(16)    NOT NULL DEFAULT 'active',
+      created_by   VARCHAR(120)   NULL,
+      created_at   TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at   TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_ec_year (year_assigned),
+      KEY idx_ec_status (status)
+    )
+  `);
+
+  // exam_subjects: subjects inside a card
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS exam_subjects (
+      id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      card_id      BIGINT UNSIGNED NOT NULL,
+      subject_name VARCHAR(200)    NOT NULL,
+      display_order INT            NOT NULL DEFAULT 0,
+      PRIMARY KEY (id),
+      KEY idx_es_card (card_id)
+    )
+  `);
+
+  // exam_tests: tests (CAT1, CAT2, Model…) under a subject
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS exam_tests (
+      id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      subject_id   BIGINT UNSIGNED NOT NULL,
+      test_name    VARCHAR(100)    NOT NULL,
+      total_marks  INT             NOT NULL DEFAULT 100,
+      display_order INT            NOT NULL DEFAULT 0,
+      PRIMARY KEY (id),
+      KEY idx_et_subject (subject_id)
+    )
+  `);
+
+  // exam_mark_splits: mark split components per test (e.g. "2 Mark × 5 questions")
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS exam_mark_splits (
+      id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      test_id        BIGINT UNSIGNED NOT NULL,
+      label          VARCHAR(60)     NOT NULL,
+      marks_each     INT             NOT NULL DEFAULT 1,
+      total_questions INT            NOT NULL DEFAULT 0,
+      question_count INT             NOT NULL DEFAULT 1,
+      display_order  INT             NOT NULL DEFAULT 0,
+      PRIMARY KEY (id),
+      KEY idx_ems_test (test_id)
+    )
+  `);
+
+  // exam_student_marks: one row per student per split (their score)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS exam_student_marks (
+      id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      split_id   BIGINT UNSIGNED NOT NULL,
+      student_id BIGINT UNSIGNED NOT NULL,
+      score      DECIMAL(6,2)    NOT NULL DEFAULT 0,
+      question_scores JSON       NULL,
+      updated_at TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_esm_split_student (split_id, student_id),
+      KEY idx_esm_student (student_id),
+      KEY idx_esm_split (split_id)
+    )
+  `);
+
+  try {
+    await pool.query('ALTER TABLE exam_student_marks ADD COLUMN question_scores JSON NULL AFTER score');
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
+  }
+
+  try {
+    await pool.query('ALTER TABLE exam_mark_splits ADD COLUMN total_questions INT NOT NULL DEFAULT 0 AFTER marks_each');
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
+  }
+
   logger.info('Database schema verified.');
 }
 

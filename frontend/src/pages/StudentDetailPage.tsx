@@ -5,6 +5,7 @@ import { Shell } from '../components/Shell';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { ExportStudentModal } from '../components/ExportStudentModal';
 import { useToast } from '../components/Toast';
+import { ExamMarksSection } from '../components/ExamMarksSection';
 import { proxiedImage } from '../lib/img';
 import { useAuth } from '../state/auth';
 import { isStaff } from '../lib/roles';
@@ -669,6 +670,9 @@ export function StudentDetailPage({ onLogout }: Props) {
             </div>
           )}
         </div>
+
+        {/* Exam Marks — visible to student role */}
+        {role === 'student' && student && <ExamMarksSection studentId={student.id} />}
         </>
       ) : (
         <div className="card card-padded">

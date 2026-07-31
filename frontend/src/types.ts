@@ -335,3 +335,97 @@ export type Feedback = {
   section: string;
   photo_url: string | null;
 };
+
+// ─── Exam Card System ─────────────────────────────────────────
+
+export type ExamMarkSplit = {
+  id: number;
+  test_id?: number;
+  label: string;
+  marks_each: number;
+  total_questions: number;
+  question_count: number;
+  display_order: number;
+  /** Only present in student view — their saved score */
+  score?: number | null;
+  /** Only present in student view — individual scores per question */
+  question_scores?: (number | null)[] | null;
+};
+
+export type ExamTest = {
+  id: number;
+  subject_id?: number;
+  test_name: string;
+  total_marks: number;
+  display_order: number;
+  splits: ExamMarkSplit[];
+};
+
+export type ExamSubject = {
+  id: number;
+  card_id?: number;
+  subject_name: string;
+  display_order: number;
+  tests: ExamTest[];
+};
+
+export type ExamCard = {
+  id: number;
+  title: string;
+  semester: string;
+  year_assigned: string;
+  status: 'active' | 'disabled';
+  created_by: string | null;
+  created_at: string;
+  subjects?: ExamSubject[];
+};
+
+/** Student row in the superadmin marks view */
+export type ExamStudentMarksRow = {
+  student_id: number;
+  name: string;
+  register_number: string;
+  section: string;
+  splits: Array<{
+    split_id: number;
+    label: string;
+    marks_each: number;
+    question_count: number;
+    max: number;
+    score: number | null;
+  }>;
+  total: number;
+  out_of_100: number;
+};
+
+/** Full response for /api/exam-cards/:cardId/marks */
+export type ExamTestMarksResponse = {
+  test_name: string;
+  total_marks: number;
+  year_assigned: string;
+  splits: ExamMarkSplit[];
+  rows: ExamStudentMarksRow[];
+};
+
+/** Input types for mark split, test, subject when creating a card */
+export type ExamMarkSplitInput = {
+  id?: string | number;
+  label: string;
+  marks_each: number;
+  total_questions: number;
+  question_count: number;
+};
+
+export type ExamTestInput = {
+  id?: string | number;
+  test_name: string;
+  total_marks: number;
+  splits: ExamMarkSplitInput[];
+};
+
+export type ExamSubjectInput = {
+  id?: string | number;
+  subject_name: string;
+  tests: ExamTestInput[];
+};
+

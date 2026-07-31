@@ -26,6 +26,8 @@ import { PlacementsPage } from './pages/PlacementsPage';
 import { UsersPage } from './pages/UsersPage';
 import { CRActivityPage } from './pages/CRActivityPage';
 import { FeedbackPage } from './pages/FeedbackPage';
+import { ExamCardsPage } from './pages/ExamCardsPage';
+import { StudentMarksPage } from './pages/StudentMarksPage';
 
 // Lazy-loaded: the scanner pulls in the heavy ZXing library, so only load it
 // when the scanner route is actually opened.
@@ -84,6 +86,8 @@ function AppRoutes() {
       <Route path="/cr-activity" element={<Protected roleKey="/cr-activity"><CRActivityPage onLogout={logout} /></Protected>} />
       <Route path="/settings" element={<Protected roleKey="/settings"><SettingsPage onLogout={logout} /></Protected>} />
       <Route path="/feedback" element={<Protected roleKey="/feedback"><FeedbackPage onLogout={logout} /></Protected>} />
+      <Route path="/exam-cards" element={<Protected roleKey="/exam-cards"><ExamCardsPage onLogout={logout} /></Protected>} />
+      <Route path="/my-exam-marks" element={<Protected roleKey="/my-exam-marks"><StudentMarksPage onLogout={logout} /></Protected>} />
 
       <Route path="*" element={<Navigate to={isAuthenticated ? defaultHome : '/login'} replace />} />
       </Routes>
