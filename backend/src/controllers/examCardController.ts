@@ -10,13 +10,16 @@ function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Prom
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MarkSplitInput {
+  id?: number | string;
   label: string;
   marks_each: number;
+  total_questions?: number;
   question_count: number;
   display_order?: number;
 }
 
 interface TestInput {
+  id?: number | string;
   test_name: string;
   total_marks: number;
   display_order?: number;
@@ -24,6 +27,7 @@ interface TestInput {
 }
 
 interface SubjectInput {
+  id?: number | string;
   subject_name: string;
   display_order?: number;
   tests: TestInput[];
