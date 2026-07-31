@@ -1,20 +1,105 @@
-name: Keep Render awake
+name: Keep Render Awake
 
 # Pings the deployed backend every 5 minutes so the free Render instance
-# never spins down due to inactivity (Render suspends after 15 min idle).
-# GitHub cron is best-effort; pinging more frequently compensates for delays.
+# never spins down due to inactivity (Render suspends after ~15 min idle).
+#
+# GitHub's cron scheduler is best-effort and can be delayed by several minutes
+# during busy periods. To compensate, each job run fires THREE pings spaced
+# 4 minutes apart — so even if this job triggers late, we cover a full
+# ~12-minute window every run, guaranteeing the service is touched well
+# within Render's 15-minute sleep threshold.
+
 on:
   schedule:
-    - cron: '*/5 * * * *'
-  workflow_dispatch:
+    - cron: '*/5 * * * *'   # Every 5 minutes (GitHub best-effort)
+  workflow_dispatch:          # Allow manual trigger from GitHub Actions UI
 
 jobs:
   ping:
+    name: Ping Render Service
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      SERVICE_URL: https://student-management-uu4p.onrender.com/health
+
     steps:
-      - name: Ping /health (keep Render free tier alive)
+      - name: Ping 1 of 3
+        id: ping1
         run: |
-          echo "Pinging Render service..."
-          curl -sS -m 30 -w "\nHTTP Status: %{http_code}\n" \
-            https://student-management-uu4p.onrender.com/health || true
-          echo "Ping complete."
+          echo "::group::Ping 1 — $(date -u '+%H:%M:%S UTC')"
+          HTTP_CODE=$(curl -sS -o /tmp/resp1.json -w "%{http_code}" \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-connrefused \
+            "$SERVICE_URL")
+          echo "HTTP status: $HTTP_CODE"
+          cat /tmp/resp1.json || true
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+          echo "::endgroup::"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Ping 1 returned HTTP $HTTP_CODE (service may be waking up)"
+          fi
+
+      - name: Wait 4 minutes before ping 2
+        run: sleep 240
+
+      - name: Ping 2 of 3
+        id: ping2
+        run: |
+          echo "::group::Ping 2 — $(date -u '+%H:%M:%S UTC')"
+          HTTP_CODE=$(curl -sS -o /tmp/resp2.json -w "%{http_code}" \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-connrefused \
+            "$SERVICE_URL")
+          echo "HTTP status: $HTTP_CODE"
+          cat /tmp/resp2.json || true
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+          echo "::endgroup::"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Ping 2 returned HTTP $HTTP_CODE"
+          fi
+
+      - name: Wait 4 minutes before ping 3
+        run: sleep 240
+
+      - name: Ping 3 of 3
+        id: ping3
+        run: |
+          echo "::group::Ping 3 — $(date -u '+%H:%M:%S UTC')"
+          HTTP_CODE=$(curl -sS -o /tmp/resp3.json -w "%{http_code}" \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-connrefused \
+            "$SERVICE_URL")
+          echo "HTTP status: $HTTP_CODE"
+          cat /tmp/resp3.json || true
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+          echo "::endgroup::"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Ping 3 returned HTTP $HTTP_CODE — service may be down!"
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🏓 Keep-Alive Ping Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Ping | HTTP Status | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|-------------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          P1="${{ steps.ping1.outputs.http_code }}"
+          P2="${{ steps.ping2.outputs.http_code }}"
+          P3="${{ steps.ping3.outputs.http_code }}"
+          [ "$P1" = "200" ] && R1="✅ OK" || R1="⚠️ $P1"
+          [ "$P2" = "200" ] && R2="✅ OK" || R2="⚠️ $P2"
+          [ "$P3" = "200" ] && R3="✅ OK" || R3="⚠️ $P3"
+          echo "| Ping 1 | \`$P1\` | $R1 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Ping 2 | \`$P2\` | $R2 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Ping 3 | \`$P3\` | $R3 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "_Service URL: \`$SERVICE_URL\`_" >> "$GITHUB_STEP_SUMMARY"
