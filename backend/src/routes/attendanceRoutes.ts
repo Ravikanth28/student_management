@@ -7,7 +7,6 @@ import {
   getSummary,
   deleteDay,
   getStudentAttendance,
-  submitCRAttendance,
   getAttendanceRangeReport,
   removeAbsentees,
 } from '../controllers/attendanceController.js';
@@ -16,10 +15,8 @@ export const attendanceRoutes = Router();
 attendanceRoutes.use(requireAuth);
 
 const staff = requireRole('superadmin', 'admin');
-const staffAndCR = requireRole('superadmin', 'admin', 'cr');
 
-attendanceRoutes.get('/roster', staffAndCR, getRoster);
-attendanceRoutes.post('/cr-submit', staffAndCR, submitCRAttendance);
+attendanceRoutes.get('/roster', staff, getRoster);
 
 attendanceRoutes.get('/day', staff, getDay);
 attendanceRoutes.get('/summary', staff, getSummary);

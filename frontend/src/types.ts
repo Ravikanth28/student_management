@@ -40,7 +40,7 @@ export type StudentListResponse = {
   };
 };
 
-export type Role = 'superadmin' | 'admin' | 'user' | 'cr' | 'student';
+export type Role = 'superadmin' | 'admin' | 'user' | 'student';
 
 export type LoginResponse = {
   token: string;

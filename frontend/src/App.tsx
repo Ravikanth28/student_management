@@ -19,12 +19,10 @@ import { AuditLogPage } from './pages/AuditLogPage';
 import { LateComersPage } from './pages/LateComersPage';
 import { DisciplinaryPage } from './pages/DisciplinaryPage';
 import { AttendancePage } from './pages/AttendancePage';
-import { CRAttendancePage } from './pages/CRAttendancePage';
 import { CircularsPage } from './pages/CircularsPage';
 import { AchievementsPage } from './pages/AchievementsPage';
 import { PlacementsPage } from './pages/PlacementsPage';
 import { UsersPage } from './pages/UsersPage';
-import { CRActivityPage } from './pages/CRActivityPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { ExamCardsPage } from './pages/ExamCardsPage';
 import { ExamReportPage } from './pages/ExamReportPage';
@@ -39,7 +37,6 @@ const ScannerPage = lazy(() => import('./pages/ScannerPage').then((m) => ({ defa
 function Protected({ roleKey, children }: { roleKey: string; children: ReactNode }) {
   const { isAuthenticated, role } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (role === 'cr' && roleKey !== '/cr-attendance' && roleKey !== '/circulars') return <Navigate to="/cr-attendance" replace />;
   if (!canAccess(roleKey, role)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
@@ -50,7 +47,7 @@ function AppRoutes() {
   // Ensure axios always has the latest token on every render
   setAuthToken(token);
 
-  const defaultHome = role === 'cr' ? '/cr-attendance' : '/dashboard';
+  const defaultHome = '/dashboard';
 
   return (
     <>
@@ -76,7 +73,6 @@ function AppRoutes() {
         }
       />
       <Route path="/attendance" element={<Protected roleKey="/attendance"><AttendancePage onLogout={logout} /></Protected>} />
-      <Route path="/cr-attendance" element={<Protected roleKey="/cr-attendance"><CRAttendancePage onLogout={logout} /></Protected>} />
       <Route path="/circulars" element={<Protected roleKey="/circulars"><CircularsPage onLogout={logout} /></Protected>} />
       <Route path="/late-comers" element={<Protected roleKey="/late-comers"><LateComersPage onLogout={logout} /></Protected>} />
       <Route path="/disciplinary" element={<Protected roleKey="/disciplinary"><DisciplinaryPage onLogout={logout} /></Protected>} />
@@ -84,7 +80,6 @@ function AppRoutes() {
       <Route path="/placements" element={<Protected roleKey="/placements"><PlacementsPage onLogout={logout} /></Protected>} />
       <Route path="/users" element={<Protected roleKey="/users"><UsersPage onLogout={logout} /></Protected>} />
       <Route path="/audit" element={<Protected roleKey="/audit"><AuditLogPage onLogout={logout} /></Protected>} />
-      <Route path="/cr-activity" element={<Protected roleKey="/cr-activity"><CRActivityPage onLogout={logout} /></Protected>} />
       <Route path="/settings" element={<Protected roleKey="/settings"><SettingsPage onLogout={logout} /></Protected>} />
       <Route path="/feedback" element={<Protected roleKey="/feedback"><FeedbackPage onLogout={logout} /></Protected>} />
       <Route path="/exam-cards" element={<Protected roleKey="/exam-cards"><ExamCardsPage onLogout={logout} /></Protected>} />

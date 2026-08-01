@@ -1,7 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { HttpError } from '../middleware/error.js';
 import * as attendanceRepo from '../repositories/attendanceRepository.js';
-import * as crActivityRepo from '../repositories/crActivityRepository.js';
 import * as audit from '../services/auditService.js';
 import { notifyAllInBackground } from '../services/notificationService.js';
 
@@ -96,55 +95,6 @@ export const getSummary = asyncWrap(async (req, res) => {
   return res.json({ data: rows });
 });
 
-// POST /api/attendance/cr-submit  { att_date?, year, section, absent_student_ids: number[] }
-export const submitCRAttendance = asyncWrap(async (req, res) => {
-  const year = String(req.body?.year ?? '').trim();
-  const section = String(req.body?.section ?? '').trim();
-  const date = String(req.body?.att_date ?? req.body?.date ?? '').trim() || today();
-  const absentStudentIds: number[] = Array.isArray(req.body?.absent_student_ids)
-    ? req.body.absent_student_ids.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n > 0)
-    : Array.isArray(req.body?.absentee_ids)
-      ? req.body.absentee_ids.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n > 0)
-      : [];
-
-  if (!year || !section) throw new HttpError(400, 'year and section are required');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, 'att_date must be YYYY-MM-DD');
-
-  const result = await attendanceRepo.saveDay(date, year, section, absentStudentIds, req.user?.username ?? null);
-  if (result.present === 0 && result.absent === 0) {
-    throw new HttpError(404, 'No students found for that year and section');
-  }
-
-  audit.record(req, {
-    action: 'attendance.cr_submit',
-    entity: 'attendance',
-    details: `CR ${req.user?.username ?? 'system'} submitted absentees for ${date} — Year ${year} Sec ${section}: ${result.absent} absent, ${result.present} present`,
-  });
-
-  const rawIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || req.socket.remoteAddress || '';
-  const clientIp = rawIp.replace('::ffff:', '') === '::1' ? '127.0.0.1 (Localhost)' : rawIp.replace('::ffff:', '');
-
-  // Fire-and-forget: log CR device info (never blocks the response)
-  void crActivityRepo.insertCRActivity({
-    att_date: date,
-    year,
-    section,
-    absentIds: absentStudentIds,
-    ip: clientIp || null,
-    userAgent: req.headers['user-agent'] ?? null,
-  }).catch(() => { /* swallow — logging must never break the submit */ });
-
-  notifyAllInBackground(
-    {
-      title: '📌 CR Absentees Submitted',
-      body: `Year ${year} Sec ${section} · ${date} — ${result.absent} absent (submitted by ${req.user?.username ?? 'CR'})`,
-      data: { type: 'cr_attendance', date, year, section },
-    },
-    req.user?.username ?? null,
-  );
-
-  return res.status(201).json({ date, year, section, ...result });
-});
 
 // GET /api/attendance/range?from=&to=&year=&section=  (Detailed absentee range export report)
 export const getAttendanceRangeReport = asyncWrap(async (req, res) => {

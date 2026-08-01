@@ -19,7 +19,7 @@ import { settingsRoutes } from './routes/settingsRoutes.js';
 import { attendanceRoutes } from './routes/attendanceRoutes.js';
 import { disciplineRoutes } from './routes/disciplineRoutes.js';
 import circularRoutes from './routes/circularRoutes.js';
-import { crActivityRoutes } from './routes/crActivityRoutes.js';
+
 import { feedbackRoutes } from './routes/feedbackRoutes.js';
 import { examCardRoutes } from './routes/examCardRoutes.js';
 import { examReportRoutes } from './routes/examReportRoutes.js';
@@ -92,7 +92,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/discipline-records', disciplineRoutes);
 app.use('/api/circulars', circularRoutes);
-app.use('/api/cr-activity', crActivityRoutes);
+
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/exam-cards', examCardRoutes);
 app.use('/api/exam-report', examReportRoutes);

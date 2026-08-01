@@ -2,7 +2,6 @@ import type { Role } from '../types';
 
 export const isStaff = (r?: Role | null): boolean => r === 'superadmin' || r === 'admin';
 export const isSuperadmin = (r?: Role | null): boolean => r === 'superadmin';
-export const isCR = (r?: Role | null): boolean => r === 'cr';
 export const isStudent = (r?: Role | null): boolean => r === 'student';
 
 /** Roles allowed to open each route/nav path. */
@@ -14,15 +13,13 @@ export const PATH_ROLES: Record<string, Role[]> = {
   '/students/:id/edit': ['superadmin', 'admin'],
   '/scanner':       ['superadmin', 'admin'],
   '/attendance':    ['superadmin', 'admin'],
-  '/cr-attendance': ['cr'],
-  '/circulars':     ['superadmin', 'admin', 'cr', 'user'],
+  '/circulars':     ['superadmin', 'admin', 'user'],
   '/late-comers':   ['superadmin', 'admin'],
   '/disciplinary':  ['superadmin', 'admin'],
   '/achievements':  ['superadmin', 'admin'],
   '/placements':    ['superadmin', 'admin'],
   '/import':        ['superadmin', 'admin'],
   '/audit':         ['superadmin'],
-  '/cr-activity':    ['superadmin', 'admin'],
   '/settings':      ['superadmin'],
   '/users':         ['superadmin'],
   '/feedback':      ['superadmin', 'student'],
