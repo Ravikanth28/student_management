@@ -59,10 +59,20 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
     return getTests(cardId).find((t) => t.id === testId) ?? null;
   };
 
-  const handleScore = (testId: number, splitId: number, qIndex: number, val: string) =>
+  const handleScore = (testId: number, splitId: number, qIndex: number, val: string, ansQs: number, totalQs: number) =>
     setScores((prev) => {
-      const splitArr = [...(prev[testId]?.[splitId] || [])];
+      const splitArr = [...(prev[testId]?.[splitId] || Array(totalQs).fill(''))];
       splitArr[qIndex] = val;
+      
+      const filledCount = splitArr.filter(v => v !== '').length;
+      if (filledCount >= ansQs) {
+         for (let i = 0; i < totalQs; i++) {
+            if (splitArr[i] === '') {
+               splitArr[i] = '0';
+            }
+         }
+      }
+      
       return { ...prev, [testId]: { ...(prev[testId] ?? {}), [splitId]: splitArr } };
     });
 
@@ -92,14 +102,12 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
   if (loading) return null;
   if (cards.length === 0) return (
     <div className="card card-padded" style={{ marginTop: 16 }}>
-      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 8 }}>📝 Exam Marks</h3>
       <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>No active exam cards assigned to your year.</p>
     </div>
   );
 
   return (
     <div style={{ marginTop: 16 }}>
-      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 12, color: 'var(--text-1)' }}>📝 Exam Marks</h3>
       {cards.map((card) => {
         const isOpen = expandedCard === card.id;
         const test = getSelectedTest(card.id);
@@ -139,8 +147,8 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
                         setSelectedTest((p) => ({ ...p, [card.id]: 0 }));
                       }}
                     >
-                      <option value="">— Select Subject —</option>
-                      {getSubjects(card).map((s) => <option key={s.id} value={s.id}>{s.subject_name}</option>)}
+                      <option value="" style={{ background: 'var(--surface-1)', color: 'var(--text-1)' }}>— Select Subject —</option>
+                      {getSubjects(card).map((s) => <option key={s.id} value={s.id} style={{ background: 'var(--surface-1)', color: 'var(--text-1)' }}>{s.subject_name}</option>)}
                     </select>
                   </div>
                   <div style={{ flex: 1, minWidth: 180 }}>
@@ -151,8 +159,8 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
                       onChange={(e) => setSelectedTest((p) => ({ ...p, [card.id]: Number(e.target.value) }))}
                       disabled={!selectedSubject[card.id]}
                     >
-                      <option value="">— Select Test —</option>
-                      {getTests(card.id).map((t) => <option key={t.id} value={t.id}>{t.test_name} (Total: {t.total_marks})</option>)}
+                      <option value="" style={{ background: 'var(--surface-1)', color: 'var(--text-1)' }}>— Select Test —</option>
+                      {getTests(card.id).map((t) => <option key={t.id} value={t.id} style={{ background: 'var(--surface-1)', color: 'var(--text-1)' }}>{t.test_name} (Total: {t.total_marks})</option>)}
                     </select>
                   </div>
                 </div>
@@ -204,7 +212,7 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
                                             value={val}
                                             placeholder={`Q${qIndex + 1}`}
                                             title={`Question ${qIndex + 1} (Max: ${maxPerQ})`}
-                                            onChange={(e) => handleScore(test.id, sp.id, qIndex, e.target.value)}
+                                            onChange={(e) => handleScore(test.id, sp.id, qIndex, e.target.value, ansQs, totalQs)}
                                             style={{
                                               width: 50, padding: '6px', borderRadius: 6, textAlign: 'center',
                                               border: `1px solid ${over ? '#f87171' : 'var(--border)'}`,

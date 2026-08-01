@@ -8,7 +8,6 @@ export function StudentMarksPage({ onLogout }: { onLogout: () => void }) {
   return (
     <Shell onLogout={onLogout} title="My Marks">
       <div style={{ padding: '24px 32px', maxWidth: 1200, margin: '0 auto' }}>
-        <h1 style={{ margin: '0 0 24px', fontSize: '1.8rem', color: 'var(--text-1)' }}>My Exam Marks</h1>
         
         {studentId ? (
           <ExamMarksSection studentId={studentId} />
