@@ -394,6 +394,20 @@ export async function ensureSchema(): Promise<void> {
     if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
   }
 
+  // exam_teacher_marks: total marks uploaded by teacher/admin
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS exam_teacher_marks (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      test_id BIGINT UNSIGNED NOT NULL,
+      student_id BIGINT UNSIGNED NOT NULL,
+      teacher_score DECIMAL(6,2) NULL,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_etm_test_student (test_id, student_id),
+      KEY idx_etm_student (student_id)
+    )
+  `);
+
   logger.info('Database schema verified.');
 }
 

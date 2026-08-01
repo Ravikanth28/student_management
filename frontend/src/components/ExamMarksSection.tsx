@@ -139,7 +139,7 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
                   <div style={{ flex: 1, minWidth: 180 }}>
                     <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Subject</label>
                     <select
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-1)', color: 'var(--text-1)', fontSize: '0.88rem' }}
+                      className="form-control"
                       value={selectedSubject[card.id] ?? ''}
                       onChange={(e) => {
                         const v = Number(e.target.value);
@@ -147,20 +147,20 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
                         setSelectedTest((p) => ({ ...p, [card.id]: 0 }));
                       }}
                     >
-                      <option value="" style={{ background: 'var(--surface-1)', color: 'var(--text-1)' }}>— Select Subject —</option>
-                      {getSubjects(card).map((s) => <option key={s.id} value={s.id} style={{ background: 'var(--surface-1)', color: 'var(--text-1)' }}>{s.subject_name}</option>)}
+                      <option value="">— Select Subject —</option>
+                      {getSubjects(card).map((s) => <option key={s.id} value={s.id}>{s.subject_name}</option>)}
                     </select>
                   </div>
                   <div style={{ flex: 1, minWidth: 180 }}>
                     <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Test</label>
                     <select
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-1)', color: 'var(--text-1)', fontSize: '0.88rem' }}
+                      className="form-control"
                       value={selectedTest[card.id] ?? ''}
                       onChange={(e) => setSelectedTest((p) => ({ ...p, [card.id]: Number(e.target.value) }))}
                       disabled={!selectedSubject[card.id]}
                     >
-                      <option value="" style={{ background: 'var(--surface-1)', color: 'var(--text-1)' }}>— Select Test —</option>
-                      {getTests(card.id).map((t) => <option key={t.id} value={t.id} style={{ background: 'var(--surface-1)', color: 'var(--text-1)' }}>{t.test_name} (Total: {t.total_marks})</option>)}
+                      <option value="">— Select Test —</option>
+                      {getTests(card.id).map((t) => <option key={t.id} value={t.id}>{t.test_name} (Total: {t.total_marks})</option>)}
                     </select>
                   </div>
                 </div>

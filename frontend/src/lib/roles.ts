@@ -26,6 +26,7 @@ export const PATH_ROLES: Record<string, Role[]> = {
   '/settings':      ['superadmin'],
   '/users':         ['superadmin'],
   '/feedback':      ['superadmin', 'student'],
+  '/exam-report':   ['superadmin', 'admin'],
   '/my-exam-marks': ['student'],
 };
 

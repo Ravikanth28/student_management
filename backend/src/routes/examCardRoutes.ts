@@ -16,12 +16,13 @@ export const examCardRoutes = Router();
 examCardRoutes.use(requireAuth);
 
 const superadminOnly = requireRole('superadmin');
+const adminOrSuperadmin = requireRole('superadmin', 'admin');
 const staffOrStudent  = requireRole('superadmin', 'admin', 'student');
 
 // Superadmin CRUD
-examCardRoutes.get('/',               superadminOnly, listCards);
+examCardRoutes.get('/',               adminOrSuperadmin, listCards);
 examCardRoutes.post('/',              superadminOnly, createCard);
-examCardRoutes.get('/:id(\\d+)',      superadminOnly, getCard);
+examCardRoutes.get('/:id(\\d+)',      adminOrSuperadmin, getCard);
 examCardRoutes.put('/:id(\\d+)',      superadminOnly, updateCard);
 examCardRoutes.patch('/:id/status',   superadminOnly, updateStatus);
 examCardRoutes.delete('/:id',         superadminOnly, deleteCard);
