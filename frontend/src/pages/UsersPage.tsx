@@ -11,7 +11,7 @@ type Props = { onLogout: () => void };
 const ROLE_BADGE: Record<Role, string> = {
   superadmin: 'badge-navy',
   admin: 'badge-blue',
-  cr: 'badge-green',
+
   user: 'badge-gray',
   student: 'badge-purple',
 };
@@ -19,7 +19,7 @@ const ROLE_BADGE: Record<Role, string> = {
 const SYSTEM_PASSWORDS: Record<string, string> = {
   superadmin: 'Hodaids@smvec',
   admin: 'Staffaids@smvec',
-  cr: 'Cr@aids123',
+
   viewer: 'viewer@aids123',
   user: 'viewer@aids123',
 };

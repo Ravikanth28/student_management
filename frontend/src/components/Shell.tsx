@@ -6,12 +6,12 @@ import { InstallAppModal } from './InstallApp';
 import type { Role } from '../types';
 
 function roleLabel(r: Role): string {
-  return r === 'superadmin' ? 'Super Admin' : r === 'admin' ? 'Admin' : r === 'cr' ? 'Class Rep' : r === 'student' ? 'Student' : 'User';
+  return r === 'superadmin' ? 'Super Admin' : r === 'admin' ? 'Admin' : r === 'student' ? 'Student' : 'User';
 }
 const ROLE_COLORS: Record<Role, { bg: string; fg: string; dot: string }> = {
   superadmin: { bg: 'rgba(129,140,248,0.16)', fg: '#c7d2fe', dot: '#818cf8' },
   admin:      { bg: 'rgba(96,165,250,0.16)',  fg: '#bfdbfe', dot: '#60a5fa' },
-  cr:         { bg: 'rgba(52,211,153,0.16)',  fg: '#a7f3d0', dot: '#34d399' },
+
   student:    { bg: 'rgba(251,191,36,0.16)',  fg: '#fde68a', dot: '#f59e0b' },
   user:       { bg: 'rgba(255,255,255,0.10)', fg: 'rgba(255,255,255,0.78)', dot: 'rgba(255,255,255,0.6)' },
 };
