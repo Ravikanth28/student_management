@@ -123,7 +123,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
               // Retry without high accuracy
               fetchLocation(false);
             } else {
-              toastError('Location Error', 'Failed to get location. Please enable GPS and allow location access.');
+              toastError('Location Error', 'Failed to get location. Please enable GPS and allow location permissions for this browser in your phone settings.');
               setLocationVerified(false);
             }
           },
