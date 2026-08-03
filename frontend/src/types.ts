@@ -377,6 +377,7 @@ export type ExamCard = {
   status: 'active' | 'disabled';
   created_by: string | null;
   created_at: string;
+  exams_posted?: string;
   subjects?: ExamSubject[];
 };
 

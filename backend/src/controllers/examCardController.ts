@@ -116,8 +116,11 @@ export const createCard = asyncWrap(async (req, res) => {
 // GET /api/exam-cards
 export const listCards = asyncWrap(async (_req, res) => {
   const [cards] = await pool.query<RowDataPacket[]>(
-    `SELECT id, title, semester, year_assigned, status, created_by, created_at
-     FROM exam_cards ORDER BY created_at DESC`
+    `SELECT c.id, c.title, c.semester, c.year_assigned, c.status, c.created_by, c.created_at,
+            (SELECT GROUP_CONCAT(DISTINCT t.test_name SEPARATOR ', ') 
+             FROM exam_tests t JOIN exam_subjects s ON s.id = t.subject_id 
+             WHERE s.card_id = c.id) as exams_posted
+     FROM exam_cards c ORDER BY c.created_at DESC`
   );
   return res.json({ data: cards });
 });

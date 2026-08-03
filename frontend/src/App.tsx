@@ -47,6 +47,12 @@ function ActivityRedirect() {
   return <Navigate to="/activity/circulars" replace />;
 }
 
+function ExamsRedirect() {
+  const { role } = useAuth();
+  if (role === 'superadmin') return <Navigate to="/exams/cards" replace />;
+  return <Navigate to="/exams/report" replace />;
+}
+
 function AppRoutes() {
   const { isAuthenticated, logout, token, role } = useAuth();
 
@@ -90,8 +96,8 @@ function AppRoutes() {
       <Route path="/audit" element={<Protected roleKey="/audit"><AuditLogPage onLogout={logout} /></Protected>} />
       <Route path="/settings" element={<Protected roleKey="/settings"><SettingsPage onLogout={logout} /></Protected>} />
       <Route path="/activity/feedback" element={<Protected roleKey="/feedback"><FeedbackPage onLogout={logout} /></Protected>} />
-      <Route path="/exams" element={<Navigate to="/exams/cards" replace />} />
-      <Route path="/exams/cards" element={<Protected roleKey="/exams"><ExamCardsPage onLogout={logout} /></Protected>} />
+      <Route path="/exams" element={<ExamsRedirect />} />
+      <Route path="/exams/cards" element={<Protected roleKey="/exams/cards"><ExamCardsPage onLogout={logout} /></Protected>} />
       <Route path="/exams/report" element={<Protected roleKey="/exams"><ExamReportPage onLogout={logout} /></Protected>} />
       <Route path="/my-exam-marks" element={<Protected roleKey="/my-exam-marks"><StudentMarksPage onLogout={logout} /></Protected>} />
 

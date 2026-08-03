@@ -3,6 +3,7 @@ import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { SlideTabs } from '../components/SlideTabs';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../state/auth';
 import type {
   ExamCard,
   ExamSubject,
@@ -52,6 +53,21 @@ function IconEdit() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+function IconFolder() {
+  return (
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--blue)' }}>
+      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+    </svg>
+  );
+}
+function IconClipboardBig() {
+  return (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-3)' }}>
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
     </svg>
   );
 }
@@ -157,8 +173,13 @@ function ViewMarksModal({ card, onClose }: { card: ExamCard; onClose: () => void
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
           {loading && <p style={{ color: 'var(--text-2)', textAlign: 'center', padding: 40 }}>Loading…</p>}
           {!loading && !data && (
-            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-2)' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📋</div>
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-2)', background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ marginBottom: 12 }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-3)' }}>
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                </svg>
+              </div>
               <p>Select a subject and test to view marks</p>
             </div>
           )}
@@ -212,11 +233,10 @@ function ViewMarksModal({ card, onClose }: { card: ExamCard; onClose: () => void
 }
 
 // ─── Create/Edit Card Modal ────────────────────────────────────────────────────────
-function CreateCardModal({ editCardId, onClose, onCreated }: { editCardId?: number | null; onClose: () => void; onCreated: () => void }) {
+function CreateCardModal({ editCardId, initialYear, onClose, onCreated }: { editCardId?: number | null; initialYear?: string; onClose: () => void; onCreated: () => void }) {
   const { success, error: toastError } = useToast();
-  const [title, setTitle]       = useState('');
   const [semester, setSemester] = useState('');
-  const [yearAssigned, setYearAssigned] = useState('1');
+  const [yearAssigned, setYearAssigned] = useState(initialYear || '1');
   const [subjects, setSubjects] = useState<SubjectDraft[]>([emptySubject()]);
   const [saving, setSaving]     = useState(false);
 
@@ -224,7 +244,6 @@ function CreateCardModal({ editCardId, onClose, onCreated }: { editCardId?: numb
     if (editCardId) {
       api.get(`/exam-cards/${editCardId}`).then((res) => {
         const c = res.data.data;
-        setTitle(c.title);
         setSemester(c.semester);
         setYearAssigned(String(c.year_assigned));
         setSubjects(c.subjects.map((s: any) => ({
@@ -293,12 +312,11 @@ function CreateCardModal({ editCardId, onClose, onCreated }: { editCardId?: numb
       : s));
 
   const handleSave = async () => {
-    if (!title.trim()) { toastError('Validation', 'Card title is required'); return; }
     if (!semester.trim()) { toastError('Validation', 'Semester label is required'); return; }
     setSaving(true);
     try {
       const payload = {
-        title: title.trim(), semester: semester.trim(), year_assigned: yearAssigned,
+        title: semester.trim(), semester: semester.trim(), year_assigned: yearAssigned,
         subjects: subjects.map(s => ({
           id: s.id,
           subject_name: s.subject_name.trim(),
@@ -338,21 +356,9 @@ function CreateCardModal({ editCardId, onClose, onCreated }: { editCardId?: numb
 
         <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
           {/* Card meta */}
-          <div style={styles.formSection}>
-            <label style={styles.label}>Card Title *</label>
-            <input style={styles.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Semester 3 Internal Marks" />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-            <div>
-              <label style={styles.label}>Semester Label *</label>
-              <input style={styles.input} value={semester} onChange={(e) => setSemester(e.target.value)} placeholder="e.g. Semester 3 / ODD 2024" />
-            </div>
-            <div>
-              <label style={styles.label}>Assign to Year *</label>
-              <select style={styles.select} value={yearAssigned} onChange={(e) => setYearAssigned(e.target.value)}>
-                {yearOptions.map((y) => <option key={y.value} value={y.value}>{y.label}</option>)}
-              </select>
-            </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={styles.label}>Semester Label *</label>
+            <input style={styles.input} value={semester} onChange={(e) => setSemester(e.target.value)} placeholder="e.g. Semester 3 / ODD 2024" />
           </div>
 
           {/* Subjects */}
@@ -479,10 +485,13 @@ function CreateCardModal({ editCardId, onClose, onCreated }: { editCardId?: numb
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export function ExamCardsPage({ onLogout }: { onLogout: () => void }) {
+  const { role } = useAuth();
+  const isSuperadmin = role === 'superadmin';
   const { success, error: toastError } = useToast();
   const [cards, setCards]           = useState<ExamCard[]>([]);
   const [loading, setLoading]       = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [editCardId, setEditCardId] = useState<number | null>(null);
   const [viewCard, setViewCard]     = useState<ExamCard | null>(null);
   const [deleteId, setDeleteId]     = useState<number | null>(null);
@@ -528,25 +537,50 @@ export function ExamCardsPage({ onLogout }: { onLogout: () => void }) {
   return (
     <Shell title="Exams" tabs={<SlideTabs />} onLogout={onLogout}
       actions={
-        <button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={() => { setEditCardId(null); setShowCreate(true); }}>
-          <IconPlus /> New Card
-        </button>
+        isSuperadmin && selectedYear !== null ? (
+          <button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={() => { setEditCardId(null); setShowCreate(true); }}>
+            <IconPlus /> New Card
+          </button>
+        ) : undefined
       }
     >
       <div style={{ padding: '24px 0' }}>
         {loading && <p style={{ color: 'var(--text-2)', textAlign: 'center', padding: 60 }}>Loading…</p>}
-        {!loading && cards.length === 0 && (
-          <div style={styles.emptyState}>
-            <div style={{ fontSize: '3rem', marginBottom: 12 }}>📋</div>
-            <h3 style={{ margin: '0 0 8px', color: 'var(--text-1)' }}>No exam cards yet</h3>
-            <p style={{ margin: 0, color: 'var(--text-2)' }}>Create your first semester exam card to get started.</p>
-            <button style={{ ...styles.btn, ...styles.btnPrimary, marginTop: 20 }} onClick={() => setShowCreate(true)}>
-              <IconPlus /> Create First Card
-            </button>
+        {!loading && selectedYear === null ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+            {['1', '2', '3', '4'].map((year) => {
+              const yearCards = cards.filter(c => String(c.year_assigned) === year);
+              return (
+                <div key={year} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', transition: 'all 0.2s ease', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
+                     onClick={() => setSelectedYear(year)}
+                     onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow)'; e.currentTarget.style.borderColor = 'var(--border-focus)'; }}
+                     onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.borderColor = 'var(--border)'; }}>
+                  <div style={{ marginBottom: '16px' }}><IconFolder /></div>
+                  <h3 style={{ margin: '0 0 8px', fontSize: '1.4rem', color: 'var(--text-1)' }}>{YEAR_LABELS[year] ?? `${year} Year`}</h3>
+                  <p style={{ margin: 0, color: 'var(--text-2)', fontSize: '0.95rem' }}>{yearCards.length} Exam Card{yearCards.length !== 1 ? 's' : ''}</p>
+                </div>
+              );
+            })}
           </div>
-        )}
-        <div style={styles.grid}>
-          {cards.map((card) => (
+        ) : !loading && selectedYear !== null ? (
+          <>
+            <div style={{ marginBottom: 20 }}>
+              <button style={styles.btn} onClick={() => setSelectedYear(null)}>← Back to Years</button>
+            </div>
+            {cards.filter(c => String(c.year_assigned) === selectedYear).length === 0 ? (
+              <div style={styles.emptyState}>
+                <div style={{ marginBottom: 16 }}><IconClipboardBig /></div>
+                <h3 style={{ margin: '0 0 8px', color: 'var(--text-1)' }}>No exam cards yet</h3>
+                <p style={{ margin: 0, color: 'var(--text-2)' }}>Create your first semester exam card for this year.</p>
+                {isSuperadmin && (
+                  <button style={{ ...styles.btn, ...styles.btnPrimary, marginTop: 20 }} onClick={() => setShowCreate(true)}>
+                    <IconPlus /> Create First Card
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={styles.grid}>
+                {cards.filter(c => String(c.year_assigned) === selectedYear).map((card) => (
             <div key={card.id} style={styles.cardBox}>
               <div style={{ ...styles.statusBar, background: card.status === 'active' ? 'linear-gradient(90deg,#34d399,#059669)' : 'linear-gradient(90deg,#6b7280,#4b5563)' }} />
               <div style={{ padding: '18px 20px' }}>
@@ -567,28 +601,40 @@ export function ExamCardsPage({ onLogout }: { onLogout: () => void }) {
                   <span style={styles.chip}>📅 {YEAR_LABELS[card.year_assigned] ?? card.year_assigned}</span>
                   <span style={styles.chip}>🕐 {new Date(card.created_at).toLocaleDateString('en-IN')}</span>
                 </div>
+                {card.exams_posted && (
+                  <div style={{ marginBottom: 16, fontSize: '0.85rem', color: 'var(--text-2)', background: 'var(--surface-hover)', padding: '8px 12px', borderRadius: 6 }}>
+                    <strong>Tests:</strong> {card.exams_posted}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button style={{ ...styles.btn, flex: 1 }} onClick={() => openView(card)}><IconEye /> View Marks</button>
-                  <button style={{ ...styles.btn, flex: 1, ...(card.status === 'active' ? styles.btnWarning : styles.btnSuccess) }}
-                    onClick={() => toggleStatus(card)}>
-                    {card.status === 'active' ? '⊘ Disable' : '✓ Enable'}
-                  </button>
-                  <button style={{ ...styles.btn, padding: '8px 12px' }}
-                    onClick={() => { setEditCardId(card.id); setShowCreate(true); }}>
-                    <IconEdit />
-                  </button>
-                  <button style={{ ...styles.btn, ...styles.btnDanger, padding: '8px 12px' }}
-                    onClick={() => { setDeleteId(card.id); setConfirmText(''); setTimeout(() => confirmRef.current?.focus(), 50); }}>
-                    <IconTrash />
-                  </button>
+                  {isSuperadmin && (
+                    <>
+                      <button style={{ ...styles.btn, flex: 1, ...(card.status === 'active' ? styles.btnWarning : styles.btnSuccess) }}
+                        onClick={() => toggleStatus(card)}>
+                        {card.status === 'active' ? '⊘ Disable' : '✓ Enable'}
+                      </button>
+                      <button style={{ ...styles.btn, padding: '8px 12px' }}
+                        onClick={() => { setEditCardId(card.id); setShowCreate(true); }}>
+                        <IconEdit />
+                      </button>
+                      <button style={{ ...styles.btn, ...styles.btnDanger, padding: '8px 12px' }}
+                        onClick={() => { setDeleteId(card.id); setConfirmText(''); setTimeout(() => confirmRef.current?.focus(), 50); }}>
+                        <IconTrash />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           ))}
-        </div>
+              </div>
+            )}
+          </>
+        ) : null}
       </div>
 
-      {showCreate && <CreateCardModal editCardId={editCardId} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); fetchCards(); }} />}
+      {showCreate && <CreateCardModal initialYear={selectedYear ?? undefined} editCardId={editCardId} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); fetchCards(); }} />}
       {viewCard && <ViewMarksModal card={viewCard} onClose={() => setViewCard(null)} />}
 
       {deleteId !== null && (
