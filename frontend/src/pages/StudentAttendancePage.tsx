@@ -108,9 +108,29 @@ export function StudentAttendancePage({ onLogout }: Props) {
     }
     
     try {
+      let stream: MediaStream;
+      try {
+        const video1 = {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          advanced: [{ focusMode: 'continuous' }],
+        } as unknown as MediaTrackConstraints;
+        stream = await navigator.mediaDevices.getUserMedia({ video: video1 });
+      } catch (err1) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        } catch (err2) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+      }
+
       if (videoRef.current) {
-        await codeReader.current.decodeFromConstraints(
-          { video: { facingMode: 'environment' } },
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        await videoRef.current.play();
+        
+        await codeReader.current.decodeFromVideoElement(
           videoRef.current,
           (result, err) => {
             if (result) {
@@ -329,7 +349,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
 
                     <div style={{ background: '#000', borderRadius: 12, overflow: 'hidden', height: 250, marginBottom: 20, position: 'relative' }}>
                       {!scannedEnrollment ? (
-                        <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <video ref={videoRef} playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#4ade80', flexDirection: 'column' }}>
                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
