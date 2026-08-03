@@ -35,14 +35,36 @@ export const getTestReport = async (req: Request, res: Response) => {
           FROM exam_student_marks esm
           JOIN exam_mark_splits ems ON esm.split_id = ems.id
           WHERE ems.test_id = ? AND esm.student_id = s.id
-        ) AS student_total
+        ) AS student_total,
+        (
+          SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+              'split_id', ems.id,
+              'label', ems.label,
+              'score', esm.score,
+              'marks_each', ems.marks_each,
+              'question_count', ems.question_count,
+              'total_questions', ems.total_questions,
+              'question_scores', esm.question_scores
+            )
+          )
+          FROM exam_student_marks esm
+          JOIN exam_mark_splits ems ON esm.split_id = ems.id
+          WHERE ems.test_id = ? AND esm.student_id = s.id
+        ) AS splits
       FROM students s
       LEFT JOIN exam_teacher_marks tm ON tm.student_id = s.id AND tm.test_id = ?
       WHERE s.year = ?
       ORDER BY s.name ASC
-    `, [testId, testId, yearAssigned]);
+    `, [testId, testId, testId, yearAssigned]);
 
-    res.json({ data: rows });
+    // Parse splits since JSON_ARRAYAGG returns string in some mysql versions/drivers
+    const data = rows.map(r => ({
+      ...r,
+      splits: typeof r.splits === 'string' ? JSON.parse(r.splits) : (r.splits || [])
+    }));
+
+    res.json({ data });
   } catch (error) {
     console.error('Error fetching test report:', error);
     res.status(500).json({ error: 'Failed to fetch test report' });
@@ -112,5 +134,37 @@ export const updateManualMark = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error updating mark manually:', error);
     res.status(500).json({ error: 'Failed to update mark' });
+  }
+};
+
+export const getDefaultReport = async (req: Request, res: Response) => {
+  const { year } = req.query;
+  try {
+    let query = `
+      SELECT 
+        s.id AS student_id,
+        s.name,
+        s.enrollment_number,
+        s.register_number,
+        s.section,
+        NULL AS teacher_score,
+        NULL AS student_total,
+        JSON_ARRAY() AS splits
+      FROM students s
+    `;
+    const params: any[] = [];
+    
+    if (year) {
+      query += ` WHERE s.year = ?`;
+      params.push(year);
+    }
+    
+    query += ` ORDER BY s.name ASC`;
+    
+    const [rows] = await pool.query<RowDataPacket[]>(query, params);
+    res.json({ data: rows });
+  } catch (error) {
+    console.error('Error fetching default report:', error);
+    res.status(500).json({ error: 'Failed to fetch default report' });
   }
 };

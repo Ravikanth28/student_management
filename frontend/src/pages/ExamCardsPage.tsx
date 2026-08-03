@@ -251,7 +251,29 @@ function CreateCardModal({ editCardId, onClose, onCreated }: { editCardId?: numb
     setSubjects((p) => p.map((s): SubjectDraft => s._id === sid ? { ...s, tests: s.tests.filter((t) => t._id !== tid) } : s));
   const updateTest = (sid: string, tid: string, field: keyof TestDraft, val: string | number) =>
     setSubjects((p) => p.map((s): SubjectDraft => s._id === sid
-      ? { ...s, tests: s.tests.map((t): TestDraft => t._id === tid ? { ...t, [field]: val } : t) }
+      ? { ...s, tests: s.tests.map((t): TestDraft => {
+          if (t._id !== tid) return t;
+          const newTest = { ...t, [field]: val };
+          if (field === 'test_name' && typeof val === 'string') {
+            const v = val.toUpperCase();
+            if (v.startsWith('CAT ')) {
+              newTest.total_marks = 50;
+              newTest.splits = [
+                { _id: crypto.randomUUID(), label: '2 Marks', marks_each: 2, total_questions: 5, question_count: 5 },
+                { _id: crypto.randomUUID(), label: '5 Marks', marks_each: 5, total_questions: 4, question_count: 4 },
+                { _id: crypto.randomUUID(), label: '10 Marks', marks_each: 10, total_questions: 3, question_count: 2 },
+              ];
+            } else if (v === 'MODEL') {
+              newTest.total_marks = 75;
+              newTest.splits = [
+                { _id: crypto.randomUUID(), label: '2 Marks', marks_each: 2, total_questions: 10, question_count: 10 },
+                { _id: crypto.randomUUID(), label: '5 Marks', marks_each: 5, total_questions: 5, question_count: 5 },
+                { _id: crypto.randomUUID(), label: '10 Marks', marks_each: 10, total_questions: 5, question_count: 3 },
+              ];
+            }
+          }
+          return newTest;
+        }) }
       : s));
 
   const addSplit = (sid: string, tid: string) =>
@@ -351,9 +373,29 @@ function CreateCardModal({ editCardId, onClose, onCreated }: { editCardId?: numb
                   <div key={test._id} style={styles.testBox}>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
                       <span style={{ ...styles.badge, background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', fontSize: '0.7rem' }}>Test {ti + 1}</span>
-                      <input style={{ ...styles.input, flex: 2, marginBottom: 0 }} value={test.test_name}
-                        onChange={(e) => updateTest(subj._id, test._id, 'test_name', e.target.value)}
-                        placeholder="Test name (e.g. CAT 1)" />
+                      
+                      <div style={{ flex: 2, display: 'flex', gap: 8 }}>
+                        <select 
+                          style={{ ...styles.select, flex: 1, marginBottom: 0 }}
+                          value={['CAT 1', 'CAT 2', 'Model'].includes(test.test_name) ? test.test_name : (test.test_name ? 'Other' : '')}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateTest(subj._id, test._id, 'test_name', val === 'Other' ? '' : val);
+                          }}
+                        >
+                          <option value="">— Select Type —</option>
+                          <option value="CAT 1">CAT 1</option>
+                          <option value="CAT 2">CAT 2</option>
+                          <option value="Model">Model</option>
+                          <option value="Other">Custom / Other</option>
+                        </select>
+
+                        {!['CAT 1', 'CAT 2', 'Model'].includes(test.test_name) && (
+                          <input style={{ ...styles.input, flex: 1, marginBottom: 0 }} value={test.test_name}
+                            onChange={(e) => updateTest(subj._id, test._id, 'test_name', e.target.value)}
+                            placeholder="Custom test name" />
+                        )}
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontSize: '0.78rem', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>Total Marks</span>
                         <input style={{ ...styles.input, width: 72, marginBottom: 0, textAlign: 'center' }}

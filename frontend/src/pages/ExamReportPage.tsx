@@ -3,6 +3,7 @@ import { Shell } from '../components/Shell';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import type { ExamCard, ExamSubject, ExamTest } from '../types';
+import { YEAR_OPTIONS, YEAR_LABELS } from '../types';
 import * as XLSX from 'xlsx';
 
 type ReportStudent = {
@@ -13,17 +14,20 @@ type ReportStudent = {
   section: string;
   student_total: number | null;
   teacher_score: number | null;
+  splits: { split_id: number; label: string; score: number | null; marks_each: number; question_count: number; total_questions: number; question_scores?: (number | null)[]; }[];
 };
 
 export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
   const [cards, setCards] = useState<ExamCard[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedCardId, setSelectedCardId] = useState<number | ''>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
   const [selectedTestId, setSelectedTestId] = useState<number | ''>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<number>>(new Set());
+  const [viewingStudent, setViewingStudent] = useState<ReportStudent | null>(null);
   
   const [reportData, setReportData] = useState<ReportStudent[]>([]);
   const [fetchingReport, setFetchingReport] = useState(false);
@@ -63,11 +67,17 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
     return (subj?.tests ?? []) as ExamTest[];
   };
 
-  const fetchReport = async (testId: number) => {
+  const fetchReport = async (testId: number | '') => {
     setFetchingReport(true);
     try {
-      const res = await api.get(`/exam-report/${testId}`);
-      setReportData(res.data.data);
+      if (testId) {
+        const res = await api.get(`/exam-report/${testId}`);
+        setReportData(res.data.data);
+      } else {
+        const url = selectedYear ? `/exam-report/default?year=${selectedYear}` : '/exam-report/default';
+        const res = await api.get(url);
+        setReportData(res.data.data);
+      }
     } catch {
       toastErr('Error', 'Failed to fetch exam report');
       setReportData([]);
@@ -77,14 +87,10 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
   };
 
   useEffect(() => {
-    if (selectedTestId) {
-      fetchReport(selectedTestId);
-    } else {
-      setReportData([]);
-    }
+    fetchReport(selectedTestId);
     setSelectedSection('');
     setSelectedStudentIds(new Set());
-  }, [selectedTestId]);
+  }, [selectedTestId, selectedYear]);
 
   useEffect(() => {
     setSelectedStudentIds(new Set());
@@ -227,31 +233,37 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
   const uniqueSections = Array.from(new Set(reportData.map(s => s.section))).filter(Boolean).sort();
   const displayedData = selectedSection ? reportData.filter(s => s.section === selectedSection) : reportData;
 
-  const headerActions = selectedTestId ? (
+  const headerActions = (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-      <button
-        className="btn btn-primary"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploading}
-      >
-        {uploading ? 'Uploading...' : 'Upload'}
-      </button>
-      <button className="btn btn-outline" onClick={handleDownloadExcel} title="Download Excel">
-        Download
-      </button>
-      <button className="btn btn-outline" onClick={() => fetchReport(selectedTestId as number)} disabled={fetchingReport}>
+      {selectedTestId && (
+        <>
+          <button
+            className="btn btn-primary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? 'Uploading...' : 'Upload'}
+          </button>
+          <button className="btn btn-outline" onClick={handleDownloadExcel} title="Download Excel">
+            Download
+          </button>
+        </>
+      )}
+      <button className="btn btn-outline" onClick={() => fetchReport(selectedTestId)} disabled={fetchingReport}>
         {fetchingReport ? 'Refreshing...' : 'Refresh'}
       </button>
-      <button 
-        className="btn btn-outline" 
-        style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
-        onClick={handleClearMarks} 
-        title="Clear marks for displayed students"
-      >
-        {selectedStudentIds.size > 0 ? `Clear ${selectedStudentIds.size} Selected` : selectedSection ? 'Clear Class' : 'Clear All'}
-      </button>
+      {selectedTestId && (
+        <button 
+          className="btn btn-outline" 
+          style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+          onClick={handleClearMarks} 
+          title="Clear marks for displayed students"
+        >
+          {selectedStudentIds.size > 0 ? `Clear ${selectedStudentIds.size} Selected` : selectedSection ? 'Clear Class' : 'Clear All'}
+        </button>
+      )}
     </div>
-  ) : undefined;
+  );
 
   return (
     <Shell onLogout={onLogout} title="Exam Report" actions={headerActions}>
@@ -259,6 +271,23 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
         
         <div className="card card-padded" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>Year</label>
+              <select
+                className="form-control"
+                value={selectedYear}
+                onChange={(e) => {
+                  setSelectedYear(e.target.value);
+                  setSelectedCardId('');
+                  setSelectedSubjectId('');
+                  setSelectedTestId('');
+                }}
+              >
+                <option value="">— All Years —</option>
+                {YEAR_OPTIONS.map(y => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
+              </select>
+            </div>
+            
             <div style={{ flex: 1, minWidth: 200 }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>Exam Card</label>
               <select
@@ -271,7 +300,7 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
                 }}
               >
                 <option value="">— Select Exam Card —</option>
-                {cards.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                {cards.filter(c => !selectedYear || String(c.year_assigned) === selectedYear).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
               </select>
             </div>
             
@@ -306,9 +335,8 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
 
-        {selectedTestId && (
-          <div className="card" style={{ overflow: 'hidden' }}>
-            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <div className="card" style={{ overflow: 'hidden' }}>
+          <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="file"
@@ -364,6 +392,7 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
                     </th>
                     <th style={{ padding: '12px 24px', fontSize: '0.75rem', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Enrollment No</th>
                     <th style={{ padding: '12px 24px', fontSize: '0.75rem', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</th>
+                    <th style={{ padding: '12px 24px', fontSize: '0.75rem', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Split Mark</th>
                     <th style={{ padding: '12px 24px', fontSize: '0.75rem', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Student Total</th>
                     <th style={{ padding: '12px 24px', fontSize: '0.75rem', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Teacher Total</th>
                   </tr>
@@ -398,6 +427,16 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
                         </td>
                         <td style={{ padding: '12px 24px', fontSize: '0.9rem', color: 'var(--text-1)' }}>{row.enrollment_number}</td>
                         <td style={{ padding: '12px 24px', fontSize: '0.9rem', color: 'var(--text-1)' }}>{row.name}</td>
+                        <td style={{ padding: '12px 24px', textAlign: 'center' }}>
+                          <button 
+                            className="btn btn-outline" 
+                            style={{ padding: '4px 12px', fontSize: '0.8rem' }}
+                            onClick={() => setViewingStudent(row)}
+                            disabled={!row.splits || row.splits.length === 0}
+                          >
+                            View
+                          </button>
+                        </td>
                         <td style={{ padding: '12px 24px', fontSize: '0.9rem', color: 'var(--text-2)', textAlign: 'center' }}>
                           {row.student_total !== null ? Number(row.student_total) : '-'}
                         </td>
@@ -425,7 +464,7 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
               </table>
             </div>
             
-            {displayedData.length > 0 && (
+            {displayedData.length > 0 && selectedTestId && (
               <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   className="btn-primary"
@@ -438,8 +477,36 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
               </div>
             )}
           </div>
-        )}
       </div>
+
+      {viewingStudent && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card card-padded" style={{ width: 400, maxWidth: '90%', backgroundColor: '#111827', border: '1px solid var(--border)' }}>
+            <h3 style={{ margin: '0 0 16px', color: 'var(--text-1)' }}>Split Marks - {viewingStudent.name}</h3>
+            <div style={{ marginBottom: 20, maxHeight: '60vh', overflowY: 'auto', paddingRight: 8 }}>
+              {viewingStudent.splits.map((sp, i) => (
+                <div key={i} style={{ marginBottom: 20 }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-1)', paddingBottom: 8, borderBottom: '1px solid var(--border)', marginBottom: 8 }}>
+                    {sp.label} <small style={{ color: 'var(--text-2)', fontWeight: 'normal' }}>(Max: {sp.marks_each * sp.question_count})</small>
+                  </div>
+                  {Array.from({ length: sp.total_questions }).map((_, qIdx) => {
+                    const qScore = sp.question_scores?.[qIdx] ?? null;
+                    return (
+                      <div key={qIdx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ color: 'var(--text-2)', fontSize: '0.9rem' }}>Question {qIdx + 1} <small>(Max: {sp.marks_each})</small></span>
+                        <strong style={{ color: 'var(--text-1)' }}>{qScore !== null ? qScore : '-'}</strong>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <button className="btn btn-primary" onClick={() => setViewingStudent(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }

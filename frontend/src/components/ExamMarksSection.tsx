@@ -59,22 +59,14 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
     return getTests(cardId).find((t) => t.id === testId) ?? null;
   };
 
-  const handleScore = (testId: number, splitId: number, qIndex: number, val: string, ansQs: number, totalQs: number) =>
+  const handleScore = (testId: number, splitId: number, qIndex: number, val: string, totalQs: number) =>
     setScores((prev) => {
       const splitArr = [...(prev[testId]?.[splitId] || Array(totalQs).fill(''))];
       splitArr[qIndex] = val;
-      
-      const filledCount = splitArr.filter(v => v !== '').length;
-      if (filledCount >= ansQs) {
-         for (let i = 0; i < totalQs; i++) {
-            if (splitArr[i] === '') {
-               splitArr[i] = '0';
-            }
-         }
-      }
-      
       return { ...prev, [testId]: { ...(prev[testId] ?? {}), [splitId]: splitArr } };
     });
+
+
 
   const handleSave = async (cardId: number) => {
     const test = getSelectedTest(cardId);
@@ -83,7 +75,11 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
     const entries = (test.splits as ExamMarkSplit[]).map((sp) => {
       const splitScores = testScores[sp.id] ?? [];
       const scoreSum = splitScores.reduce((sum, v) => sum + (Number(v) || 0), 0);
-      const qScores = splitScores.map((v) => (v === '' ? null : Number(v)));
+      const filledCount = splitScores.filter(v => v !== '').length;
+      const qScores = splitScores.map((v) => {
+        if (v !== '') return Number(v);
+        return (filledCount >= sp.question_count) ? 0 : null;
+      });
       return {
         split_id: sp.id,
         score: scoreSum,
@@ -200,31 +196,38 @@ export function ExamMarksSection({ studentId }: { studentId: number }) {
                                   {maxTotal}
                                 </td>
                                 <td style={{ padding: '8px 14px', textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-                                    {Array.from({ length: totalQs }).map((_, qIndex) => {
-                                      const val = splitScores[qIndex] ?? '';
-                                      const numVal = Number(val);
-                                      const over = val !== '' && numVal > maxPerQ;
-                                      return (
-                                        <div key={qIndex} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                          <input
-                                            type="number" min={0} max={maxPerQ}
-                                            value={val}
-                                            placeholder={`Q${qIndex + 1}`}
-                                            title={`Question ${qIndex + 1} (Max: ${maxPerQ})`}
-                                            onChange={(e) => handleScore(test.id, sp.id, qIndex, e.target.value, ansQs, totalQs)}
-                                            style={{
-                                              width: 50, padding: '6px', borderRadius: 6, textAlign: 'center',
-                                              border: `1px solid ${over ? '#f87171' : 'var(--border)'}`,
-                                              background: over ? 'rgba(239,68,68,0.08)' : 'var(--surface-1)',
-                                              color: over ? '#f87171' : 'var(--text-1)', fontSize: '0.85rem', fontWeight: 600,
-                                            }}
-                                          />
-                                          {over && <div style={{ fontSize: '0.65rem', color: '#f87171', marginTop: 2 }}>&gt;{maxPerQ}</div>}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
+                                    <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                      {Array.from({ length: totalQs }).map((_, qIndex) => {
+                                        const val = splitScores[qIndex] ?? '';
+                                        const numVal = Number(val);
+                                        const over = val !== '' && numVal > maxPerQ;
+                                        
+                                        const filledCount = splitScores.filter(v => v !== '').length;
+                                        const isDisabled = val === '' && filledCount >= ansQs;
+                                        
+                                        return (
+                                          <div key={qIndex} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <input
+                                              type="number" min={0} max={maxPerQ}
+                                              value={val}
+                                              placeholder={isDisabled ? '0' : `Q${qIndex + 1}`}
+                                              title={`Question ${qIndex + 1} (Max: ${maxPerQ})`}
+                                              onChange={(e) => handleScore(test.id, sp.id, qIndex, e.target.value, totalQs)}
+                                              disabled={isDisabled}
+                                              style={{
+                                                width: 50, padding: '6px', borderRadius: 6, textAlign: 'center',
+                                                border: `1px solid ${over ? '#f87171' : 'var(--border)'}`,
+                                                background: over ? 'rgba(239,68,68,0.08)' : (isDisabled ? 'rgba(0,0,0,0.2)' : 'var(--surface-1)'),
+                                                color: over ? '#f87171' : (isDisabled ? 'var(--text-3)' : 'var(--text-1)'), fontSize: '0.85rem', fontWeight: 600,
+                                                opacity: isDisabled ? 0.6 : 1,
+                                                cursor: isDisabled ? 'not-allowed' : 'text',
+                                              }}
+                                            />
+                                            {over && <div style={{ fontSize: '0.65rem', color: '#f87171', marginTop: 2 }}>&gt;{maxPerQ}</div>}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   {sumOver && <div style={{ fontSize: '0.75rem', color: '#f87171', marginTop: 6, fontWeight: 600 }}>Sum exceeds max ({maxTotal})</div>}
                                 </td>
                               </tr>
