@@ -250,7 +250,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
       setShowWizard(false);
       resetWizard();
     } catch (err: any) {
-      toastError('Failed to mark attendance', err.response?.data?.error || err.message);
+      toastError('Failed to mark attendance', err.response?.data?.message || err.message);
     } finally {
       setSubmitting(false);
     }
