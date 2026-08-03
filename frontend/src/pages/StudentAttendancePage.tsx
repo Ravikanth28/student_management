@@ -3,6 +3,35 @@ import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { useToast } from '../components/Toast';
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import { DecodeHintType, BarcodeFormat } from '@zxing/library';
+
+// ZXing fallback (when the native BarcodeDetector isn't available).
+const SCAN_HINTS = new Map<DecodeHintType, unknown>([
+  [DecodeHintType.TRY_HARDER, true],
+  [DecodeHintType.POSSIBLE_FORMATS, [
+    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93,
+    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+    BarcodeFormat.ITF, BarcodeFormat.QR_CODE,
+  ]],
+]);
+
+// Region of interest: the wide, short band where the barcode sits.
+const ROI = { x: 0.05, y: 0.28, w: 0.90, h: 0.44 };
+
+// Boost contrast on the cropped band so faint bars survive the glare.
+function enhance(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const contrast = 1.6;
+  const intercept = 128 * (1 - contrast);
+  for (let i = 0; i < d.length; i += 4) {
+    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    let v = gray * contrast + intercept;
+    v = v < 0 ? 0 : v > 255 ? 255 : v;
+    d[i] = d[i + 1] = d[i + 2] = v;
+  }
+  ctx.putImageData(img, 0, 0);
+}
 
 type StudentRosterRow = {
   id: number;
@@ -37,7 +66,12 @@ export function StudentAttendancePage({ onLogout }: Props) {
   const [scanLocationData, setScanLocationData] = useState<{lat: number, lng: number} | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const codeReader = useRef<BrowserMultiFormatReader | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const detectorRef = useRef<any>(null);
+  const runningRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
     loadRoster();
@@ -103,8 +137,16 @@ export function StudentAttendancePage({ onLogout }: Props) {
     }
 
     // Start Barcode Scanner
+    
+    const savedEngine = localStorage.getItem('scanner_pref');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const BD = (window as any).BarcodeDetector;
+    if (BD && !detectorRef.current && savedEngine !== 'fallback') {
+      try { detectorRef.current = new BD({ formats: ['code_128', 'qr_code', 'ean_13', 'code_39'] }); } catch { detectorRef.current = null; }
+    }
+    
     if (!codeReader.current) {
-      codeReader.current = new BrowserMultiFormatReader();
+      codeReader.current = new BrowserMultiFormatReader(SCAN_HINTS);
     }
     
     try {
@@ -130,16 +172,8 @@ export function StudentAttendancePage({ onLogout }: Props) {
         videoRef.current.setAttribute('playsinline', 'true');
         await videoRef.current.play();
         
-        await codeReader.current.decodeFromVideoElement(
-          videoRef.current,
-          (result, err) => {
-            if (result) {
-              setScannedEnrollment(result.getText());
-              // Stop scanning once we got a result
-              stopScanning();
-            }
-          }
-        );
+        runningRef.current = true;
+        void decodeLoop();
       }
     } catch (err) {
       console.error(err);
@@ -147,7 +181,48 @@ export function StudentAttendancePage({ onLogout }: Props) {
     }
   };
 
+  const decodeLoop = async () => {
+    if (!runningRef.current) return;
+    const v = videoRef.current;
+    if (v && v.videoWidth && v.readyState >= 2) {
+      const canvas = canvasRef.current ?? (canvasRef.current = document.createElement('canvas'));
+      const vw = v.videoWidth, vh = v.videoHeight;
+      const sw = Math.floor(vw * ROI.w), sh = Math.floor(vh * ROI.h);
+      canvas.width = sw; canvas.height = sh;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (ctx) {
+        ctx.drawImage(v, Math.floor(vw * ROI.x), Math.floor(vh * ROI.y), sw, sh, 0, 0, sw, sh);
+        enhance(ctx, sw, sh);
+        try {
+          let text: string | undefined;
+          if (detectorRef.current) {
+            try {
+              const codes = await detectorRef.current.detect(canvas);
+              text = codes?.[0]?.rawValue;
+            } catch (err) {
+              detectorRef.current = null;
+              if (!codeReader.current) codeReader.current = new BrowserMultiFormatReader(SCAN_HINTS);
+            }
+          }
+          
+          if (!detectorRef.current && codeReader.current) {
+            text = codeReader.current.decodeFromCanvas(canvas)?.getText?.();
+          }
+          
+          if (text) {
+            setScannedEnrollment(text);
+            stopScanning();
+            return;
+          }
+        } catch { /* no barcode this frame */ }
+      }
+    }
+    if (runningRef.current) timerRef.current = window.setTimeout(() => void decodeLoop(), 120);
+  };
+
   const stopScanning = () => {
+    runningRef.current = false;
+    if (timerRef.current) { window.clearTimeout(timerRef.current); timerRef.current = null; }
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
