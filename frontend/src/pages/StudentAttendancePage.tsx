@@ -108,23 +108,10 @@ export function StudentAttendancePage({ onLogout }: Props) {
     }
     
     try {
-      const videoInputDevices = await BrowserMultiFormatReader.listVideoInputDevices();
-      
-      let selectedDeviceId = undefined;
-      if (videoInputDevices.length > 0) {
-        // Look for rear/environment camera for mobile phones
-        const backCamera = videoInputDevices.find(device => 
-          device.label.toLowerCase().includes('back') || 
-          device.label.toLowerCase().includes('environment') ||
-          device.label.toLowerCase().includes('rear')
-        );
-        selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
-      }
-      
-      if (videoRef.current && selectedDeviceId) {
-        await codeReader.current.decodeFromVideoDevice(
-          selectedDeviceId, 
-          videoRef.current, 
+      if (videoRef.current) {
+        await codeReader.current.decodeFromConstraints(
+          { video: { facingMode: 'environment' } },
+          videoRef.current,
           (result, err) => {
             if (result) {
               setScannedEnrollment(result.getText());
@@ -227,20 +214,20 @@ export function StudentAttendancePage({ onLogout }: Props) {
           <div style={{ background: 'var(--surface-1)', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Reg No</th>
-                  <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Name</th>
-                  <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Section</th>
-                  <th style={{ padding: '12px 24px', textAlign: 'center', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Pooled</th>
+                <tr style={{ background: 'var(--surface-2)' }}>
+                  <th style={{ padding: '12px 12px', color: 'var(--text-3)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>Reg No</th>
+                  <th style={{ padding: '12px 12px', color: 'var(--text-3)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>Name</th>
+                  <th style={{ padding: '12px 12px', color: 'var(--text-3)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>Section</th>
+                  <th style={{ padding: '12px 12px', color: 'var(--text-3)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', textAlign: 'center' }}>Pooled</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRoster.map((student: StudentRosterRow) => (
                   <tr key={student.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '12px 24px', color: 'var(--text-1)', fontSize: '0.9rem' }}>{student.register_number}</td>
-                    <td style={{ padding: '12px 24px', color: 'var(--text-1)', fontSize: '0.9rem', fontWeight: 500 }}>{student.name}</td>
-                    <td style={{ padding: '12px 24px', color: 'var(--text-2)', fontSize: '0.9rem' }}>{student.section}</td>
-                    <td style={{ padding: '12px 24px', textAlign: 'center' }}>
+                    <td style={{ padding: '12px 12px', color: 'var(--text-1)', fontSize: '0.85rem' }}>{student.register_number}</td>
+                    <td style={{ padding: '12px 12px', color: 'var(--text-1)', fontSize: '0.85rem', fontWeight: 500 }}>{student.name}</td>
+                    <td style={{ padding: '12px 12px', color: 'var(--text-2)', fontSize: '0.85rem' }}>{student.section}</td>
+                    <td style={{ padding: '12px 12px', textAlign: 'center' }}>
                       {student.pooled ? (
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block' }}>
                           <polyline points="20 6 9 17 4 12"/>
@@ -253,7 +240,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
                 ))}
                 {filteredRoster.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-2)' }}>
+                    <td colSpan={4} style={{ padding: '40px 12px', textAlign: 'center', color: 'var(--text-2)' }}>
                       No students found matching your search.
                     </td>
                   </tr>
