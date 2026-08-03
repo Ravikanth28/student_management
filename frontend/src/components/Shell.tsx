@@ -12,7 +12,7 @@ const ROLE_COLORS: Record<Role, { bg: string; fg: string; dot: string }> = {
   superadmin: { bg: 'rgba(129,140,248,0.16)', fg: '#c7d2fe', dot: '#818cf8' },
   admin:      { bg: 'rgba(96,165,250,0.16)',  fg: '#bfdbfe', dot: '#60a5fa' },
 
-  student:    { bg: 'rgba(251,191,36,0.16)',  fg: '#fde68a', dot: '#f59e0b' },
+  student:    { bg: 'rgba(52,211,153,0.16)',  fg: '#6ee7b7', dot: '#10b981' },
   user:       { bg: 'rgba(255,255,255,0.10)', fg: 'rgba(255,255,255,0.78)', dot: 'rgba(255,255,255,0.6)' },
 };
 function rolePill(r: Role): CSSProperties {
@@ -242,6 +242,7 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
   { to: '/dashboard',     label: 'Dashboard',        Icon: IconGrid,          roles: ['superadmin', 'admin', 'user', 'student'] },
   { to: '/students',      label: 'Student Records',  Icon: IconUsers,         roles: ['superadmin', 'admin', 'user'] },
   { to: '/blood-groups',  label: 'Blood Groups',     Icon: IconDroplet,       roles: ['superadmin', 'admin', 'user'] },
+  { to: '/my-attendance', label: 'My Attendance',    Icon: IconClipboard,     roles: ['student'] },
   { to: '/scanner',       label: 'Scanner',          Icon: IconScan,          roles: ['superadmin', 'admin'] },
   { to: '/attendance',    label: 'Attendance',       Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
   { to: '/student-reports', label: 'Student Reports',Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
@@ -265,7 +266,7 @@ function IconPhone() {
 
 // ─── Sidebar Content ─────────────────────────────────────────
 function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?: () => void }) {
-  const { role, displayName, studentId } = useAuth();
+  const { role, displayName, studentId, photoUrl } = useAuth();
   const { theme, toggle } = useTheme();
   const [showAppModal, setShowAppModal] = useState(false);
   
@@ -309,8 +310,12 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
       <div className="sidebar-footer">
         {displayName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', marginBottom: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #4f7cc7, #2a4f7c)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '1rem', textTransform: 'uppercase', flexShrink: 0 }}>
-              {displayName.charAt(0)}
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #4f7cc7, #2a4f7c)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '1rem', textTransform: 'uppercase', flexShrink: 0, overflow: 'hidden' }}>
+              {photoUrl ? (
+                <img src={photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                displayName.charAt(0)
+              )}
             </div>
             <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
               <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>{displayName}</div>

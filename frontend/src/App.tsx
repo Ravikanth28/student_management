@@ -24,6 +24,7 @@ import { AchievementsPage } from './pages/AchievementsPage';
 import { PlacementsPage } from './pages/PlacementsPage';
 import { UsersPage } from './pages/UsersPage';
 import { FeedbackPage } from './pages/FeedbackPage';
+import { StudentAttendancePage } from './pages/StudentAttendancePage';
 import { ExamCardsPage } from './pages/ExamCardsPage';
 import { ExamReportPage } from './pages/ExamReportPage';
 import { StudentMarksPage } from './pages/StudentMarksPage';
@@ -85,6 +86,7 @@ function AppRoutes() {
         }
       />
       <Route path="/attendance" element={<Protected roleKey="/attendance"><AttendancePage onLogout={logout} /></Protected>} />
+      <Route path="/my-attendance" element={<Protected roleKey="/my-attendance"><StudentAttendancePage onLogout={logout} /></Protected>} />
       <Route path="/activity" element={<ActivityRedirect />} />
       <Route path="/activity/circulars" element={<Protected roleKey="/circulars"><CircularsPage onLogout={logout} /></Protected>} />
       <Route path="/student-reports" element={<Navigate to="/student-reports/late-comers" replace />} />

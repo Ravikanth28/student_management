@@ -33,14 +33,14 @@ export async function login(req: Request, res: Response) {
           const expectedPassword = `${dobStr.slice(8, 10)}${dobStr.slice(5, 7)}${dobStr.slice(0, 4)}`; // DDMMYYYY
           if (password === expectedPassword) {
             const token = jwt.sign(
-              { sub: `student_${student.id}`, username: student.enrollment_number, name: student.name, role: 'student', student_id: student.id },
+              { sub: `student_${student.id}`, username: student.enrollment_number, name: student.name, role: 'student', student_id: student.id, photo_url: student.photo_url },
               env.JWT_SECRET,
               { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions
             );
             audit.record(req, { action: 'auth.login', status: 'success', actor: student.enrollment_number });
             return res.json({
               token,
-              user: { username: student.enrollment_number, name: student.name, role: 'student', student_id: student.id },
+              user: { username: student.enrollment_number, name: student.name, role: 'student', student_id: student.id, photo_url: student.photo_url },
             });
           }
         }

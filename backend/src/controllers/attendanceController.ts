@@ -3,6 +3,8 @@ import { HttpError } from '../middleware/error.js';
 import * as attendanceRepo from '../repositories/attendanceRepository.js';
 import * as audit from '../services/auditService.js';
 import { notifyAllInBackground } from '../services/notificationService.js';
+import { pool } from '../config/db.js';
+import type { RowDataPacket } from 'mysql2/promise';
 
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
   return (req, res, next) => { fn(req, res, next).catch(next); };
@@ -131,3 +133,165 @@ export const removeAbsentees = asyncWrap(async (req, res) => {
   return res.json({ removed });
 });
 
+// --- NEW CONTROLLERS ---
+
+// GET /api/attendance/my-attendance/roster
+export const getStudentYearRoster = asyncWrap(async (req, res) => {
+  // Get student ID from token (assumes user is linked to a student profile if role=student)
+  // Or fallback to user logic. Wait, the frontend might not pass student ID if they just login.
+  // Actually, we can fetch all students for the student's year. 
+  // Let's assume req.user has the info, or we can look up the student based on req.user.id
+  // We need to fetch the student's year first.
+  const studentId = req.user?.student_id;
+  if (!studentId) {
+    throw new HttpError(403, 'No linked student profile found');
+  }
+
+  const [students] = await pool.query<RowDataPacket[]>(
+    `SELECT year FROM students WHERE id = ? LIMIT 1`,
+    [studentId]
+  );
+
+  if (!students.length) throw new HttpError(404, 'Student not found');
+  const year = students[0].year;
+  
+  if (!year) throw new HttpError(400, 'Student year is not set');
+
+  const currentDate = today();
+  // Fetch all students in that year and whether they have attendance for today
+  const [roster] = await pool.query<RowDataPacket[]>(
+    `SELECT s.id, s.name, s.section, s.year, s.register_number, s.enrollment_number,
+            IF(a.status = 'present', true, false) as pooled
+     FROM students s
+     LEFT JOIN attendance a ON s.id = a.student_id AND a.att_date = ?
+     WHERE s.year = ? 
+     ORDER BY s.section ASC, s.name ASC`,
+    [currentDate, year]
+  );
+
+  res.json({ roster });
+});
+
+// POST /api/attendance/my-attendance/verify-phone
+export const verifyPhone = asyncWrap(async (req, res) => {
+  const studentId = req.user?.student_id;
+  if (!studentId) {
+    throw new HttpError(403, 'No linked student profile found');
+  }
+
+  const { phone_number } = req.body;
+  if (!phone_number) {
+    throw new HttpError(400, 'Phone number is required');
+  }
+
+  const [students] = await pool.query<RowDataPacket[]>(
+    `SELECT phone FROM students WHERE id = ? LIMIT 1`,
+    [studentId]
+  );
+
+  if (!students.length) throw new HttpError(404, 'Student not found');
+  
+  if (students[0].phone !== phone_number) {
+    throw new HttpError(400, 'Phone number does not match our records');
+  }
+
+  res.json({ success: true });
+});
+
+// POST /api/attendance/my-attendance/mark
+export const markSelfAttendance = asyncWrap(async (req, res) => {
+  const studentId = req.user?.student_id;
+  if (!studentId) {
+    throw new HttpError(403, 'No linked student profile found');
+  }
+
+  const userId = req.user?.sub;
+  if (!userId) throw new HttpError(401, 'Unauthorized');
+
+  const { phone_number, enrollment_number, latitude, longitude } = req.body;
+  if (!phone_number || !enrollment_number || latitude == null || longitude == null) {
+    throw new HttpError(400, 'Missing required fields');
+  }
+
+  // Validate student exists and matches phone/enrollment
+  const [students] = await pool.query<RowDataPacket[]>(
+    `SELECT phone, enrollment_number, year, section FROM students WHERE id = ? LIMIT 1`,
+    [studentId]
+  );
+  if (!students.length) throw new HttpError(404, 'Student not found');
+
+  const student = students[0];
+  if (student.phone !== phone_number) {
+    throw new HttpError(400, 'Phone number mismatch');
+  }
+  if (student.enrollment_number !== enrollment_number) {
+    throw new HttpError(400, 'Enrollment number mismatch');
+  }
+
+  // Location validation (SMVEC approx 11.9338, 79.6225, 500m radius)
+  // Distance using Haversine
+  const toRad = (v: number) => v * Math.PI / 180;
+  const lat1 = 11.9338;
+  const lon1 = 79.6225;
+  const lat2 = Number(latitude);
+  const lon2 = Number(longitude);
+  const R = 6371e3; // metres
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+
+  if (distance > 500) {
+    throw new HttpError(400, 'Location is outside the permitted radius');
+  }
+
+  // Mark attendance
+  const currentDate = today();
+  await pool.query(
+    `INSERT INTO attendance (student_id, att_date, status, year, section, marked_by)
+     VALUES (?, ?, 'present', ?, ?, ?)
+     ON DUPLICATE KEY UPDATE status = 'present'`,
+    [studentId, currentDate, student.year, student.section, userId]
+  );
+
+  res.json({ success: true, message: 'Attendance marked successfully' });
+});
+
+// GET /api/attendance/class-summary?year=&date=
+export const getAttendanceClassSummary = asyncWrap(async (req, res) => {
+  const year = String(req.query.year ?? '').trim();
+  const date = String(req.query.date ?? today()).trim();
+  
+  if (!year) throw new HttpError(400, 'year is required');
+
+  // We need to group by class (section), count present, absent, and get list of absentees.
+  // We can do this efficiently in SQL
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT a.section, a.status, s.id as student_id, s.name, s.register_number
+     FROM attendance a
+     JOIN students s ON a.student_id = s.id
+     WHERE a.att_date = ? AND a.year = ?
+     ORDER BY a.section ASC, s.name ASC`,
+    [date, year]
+  );
+
+  const summaryMap = new Map<string, any>();
+  for (const r of rows) {
+    const sec = r.section || 'Unassigned';
+    if (!summaryMap.has(sec)) {
+      summaryMap.set(sec, { class: sec, present: 0, absent: 0, absentees: [] });
+    }
+    const classData = summaryMap.get(sec);
+    if (r.status === 'present') {
+      classData.present += 1;
+    } else if (r.status === 'absent') {
+      classData.absent += 1;
+      classData.absentees.push({ id: r.student_id, name: r.name, register_number: r.register_number });
+    }
+  }
+
+  res.json({ data: Array.from(summaryMap.values()) });
+});

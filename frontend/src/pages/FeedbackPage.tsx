@@ -186,7 +186,7 @@ export function FeedbackPage({ onLogout }: { onLogout: () => void }) {
             <div className="form-group">
               <label>Your Feedback</label>
               <textarea 
-                className="input" 
+                className="form-control" 
                 rows={6} 
                 placeholder="Type your feedback here..." 
                 value={content}

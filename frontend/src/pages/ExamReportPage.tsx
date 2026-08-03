@@ -462,14 +462,21 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
                           </td>
                         </tr>
                       ) : displayedData.map(row => {
+                        const selectedTest = getTests().find(t => t.id === selectedTestId);
+                        const testTotalMarks = selectedTest?.total_marks || 100;
+                        const studentVal100 = row.student_total != null ? Math.round((Number(row.student_total) / testTotalMarks) * 100) : null;
+                        
                         let bg = 'transparent';
                         if (showMatch) {
-                          const studentVal = row.student_total == null ? 0 : Number(row.student_total);
-                          if (row.teacher_score == null) {
-                            bg = 'rgba(120, 53, 15, 0.7)'; // Yellow (Warning)
+                          const hasStudent = studentVal100 != null;
+                          const hasTeacher = row.teacher_score != null;
+                          
+                          if (hasStudent && hasTeacher) {
+                            bg = studentVal100 === Number(row.teacher_score) ? 'rgba(20, 83, 45, 0.7)' : 'rgba(127, 29, 29, 0.7)';
+                          } else if (hasStudent || hasTeacher) {
+                            bg = 'rgba(88, 28, 135, 0.7)'; // Purple (one missing)
                           } else {
-                            const teacherVal = Number(row.teacher_score);
-                            bg = studentVal === teacherVal ? 'rgba(20, 83, 45, 0.7)' : 'rgba(127, 29, 29, 0.7)';
+                            bg = 'rgba(30, 64, 175, 0.5)'; // Blue (both missing)
                           }
                         }
                         
@@ -501,14 +508,14 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
                               </button>
                             </td>
                             <td style={{ padding: '12px 24px', fontSize: '0.9rem', color: 'var(--text-2)', textAlign: 'center' }}>
-                              {row.student_total !== null ? Number(row.student_total) : '-'}
+                              {studentVal100 !== null ? studentVal100 : '-'}
                             </td>
                             <td style={{ padding: '12px 24px', textAlign: 'center' }}>
                               <input
                                 type="number"
                                 className="form-control"
                                 style={{ width: 80, margin: '0 auto', textAlign: 'center' }}
-                                value={row.teacher_score !== null ? row.teacher_score : ''}
+                                value={row.teacher_score != null ? row.teacher_score : ''}
                                 onChange={(e) => handleLocalScoreChange(row.student_id, e.target.value)}
                                 placeholder="Mark"
                               />

@@ -34,7 +34,7 @@ const tokenKey = (s: string) => s.toUpperCase().split(/[^A-Z0-9]+/).filter(Boole
 
 export function AttendancePage({ onLogout }: Props) {
   const { success, error: toastError } = useToast();
-  const [tab, setTab] = useState<'mark' | 'summary' | 'export'>('mark');
+  const [tab, setTab] = useState<'class-summary' | 'mark' | 'summary' | 'export'>('class-summary');
 
   // Export state
   const [exportFrom, setExportFrom] = useState(todayIST);
@@ -144,6 +144,25 @@ export function AttendancePage({ onLogout }: Props) {
       void loadDateLog();
     }
   }, [tab, sumFrom, sumTo, sumYear, loadDateLog]);
+
+  // ── Class Summary state (Admin) ──
+  const [csYear, setCsYear] = useState('');
+  const [csDate, setCsDate] = useState(todayIST());
+  const [classSummary, setClassSummary] = useState<any[]>([]);
+  const [csLoading, setCsLoading] = useState(false);
+  const [csModalOpen, setCsModalOpen] = useState(false);
+  const [csModalAbsentees, setCsModalAbsentees] = useState<any[]>([]);
+  const [csModalClass, setCsModalClass] = useState('');
+
+  useEffect(() => {
+    if (tab === 'class-summary' && csYear) {
+      setCsLoading(true);
+      api.get<{ data: any[] }>('/attendance/class-summary', { params: { year: csYear, date: csDate } })
+        .then((r) => setClassSummary(r.data.data))
+        .catch(() => setClassSummary([]))
+        .finally(() => setCsLoading(false));
+    }
+  }, [tab, csYear, csDate]);
 
   const openPreview = () => {
     if (!year || !section) { toastError('Pick a class', 'Select the year and section first.'); return; }
@@ -276,10 +295,113 @@ export function AttendancePage({ onLogout }: Props) {
     <Shell title="Daily Attendance" subtitle="Mark absentees, view daily registers, and export absentee Excel reports" onLogout={onLogout}>
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button className={`btn ${tab === 'class-summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('class-summary')}>Class Summary</button>
         <button className={`btn ${tab === 'mark' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('mark')}>Mark & Daily Register</button>
-        <button className={`btn ${tab === 'summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('summary')}>Summary</button>
+        <button className={`btn ${tab === 'summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('summary')}>Student Summary</button>
         <button className={`btn ${tab === 'export' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('export')}>Export Report</button>
       </div>
+
+      {tab === 'class-summary' && (
+        <div className="card card-padded">
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 20 }}>
+            <div>
+              <label className="form-label">Select Year</label>
+              <select className="form-control" value={csYear} onChange={(e) => setCsYear(e.target.value)} style={{ minWidth: 150 }}>
+                <option value="">-- Choose Year --</option>
+                {YEAR_OPTIONS.filter((y) => y !== 'Alumni').map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Select Date</label>
+              <input type="date" className="form-control" value={csDate} onChange={(e) => setCsDate(e.target.value)} />
+            </div>
+          </div>
+
+          {!csYear ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Please select a year to view the summary.</div>
+          ) : csLoading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Loading class summary...</div>
+          ) : (
+            <div style={{ background: 'var(--surface-1)', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Class (Section)</th>
+                    <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Present</th>
+                    <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Absent</th>
+                    <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {classSummary.map((cls, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 24px', color: 'var(--text-1)', fontWeight: 500 }}>Section {cls.class}</td>
+                      <td style={{ padding: '12px 24px', color: '#10b981', fontWeight: 600 }}>{cls.present}</td>
+                      <td style={{ padding: '12px 24px', color: '#ef4444', fontWeight: 600 }}>{cls.absent}</td>
+                      <td style={{ padding: '12px 24px' }}>
+                        <button 
+                          className="btn btn-outline" 
+                          style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+                          onClick={() => {
+                            setCsModalClass(cls.class);
+                            setCsModalAbsentees(cls.absentees);
+                            setCsModalOpen(true);
+                          }}
+                        >
+                          View Absentees
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {classSummary.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-2)' }}>
+                        No attendance data recorded for this date.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Modal for Absentees */}
+          {csModalOpen && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: 'var(--surface-1)', width: 500, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
+                <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-2)' }}>
+                  <h2 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-1)' }}>Absentees - Section {csModalClass}</h2>
+                  <button onClick={() => setCsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+                <div style={{ padding: 24, overflowY: 'auto' }}>
+                  {csModalAbsentees.length > 0 ? (
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ padding: '8px', textAlign: 'left', color: 'var(--text-2)', fontSize: '0.8rem' }}>Reg No</th>
+                          <th style={{ padding: '8px', textAlign: 'left', color: 'var(--text-2)', fontSize: '0.8rem' }}>Name</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csModalAbsentees.map((s, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '8px', fontSize: '0.9rem', color: 'var(--text-1)' }}>{s.register_number}</td>
+                            <td style={{ padding: '8px', fontSize: '0.9rem', color: 'var(--text-1)', fontWeight: 500 }}>{s.name}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>Everyone was present!</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {tab === 'mark' && (
         <>
