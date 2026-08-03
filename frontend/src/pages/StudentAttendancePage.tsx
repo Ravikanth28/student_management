@@ -76,19 +76,28 @@ export function StudentAttendancePage({ onLogout }: Props) {
     
     // Start Geolocation
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
-          setLocationVerified(true);
-          success('Location Verified', 'SMVEC College, Madagadipet');
-        },
-        (error) => {
-          console.error(error);
-          toastError('Location Error', 'Failed to get location. Please enable GPS.');
-          setLocationVerified(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
+      const fetchLocation = (highAccuracy: boolean) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
+            setLocationVerified(true);
+            success('Location Verified', 'SMVEC College, Madagadipet');
+          },
+          (error) => {
+            console.error('Location error:', error);
+            if (highAccuracy) {
+              // Retry without high accuracy
+              fetchLocation(false);
+            } else {
+              toastError('Location Error', 'Failed to get location. Please enable GPS and allow location access.');
+              setLocationVerified(false);
+            }
+          },
+          { enableHighAccuracy: highAccuracy, timeout: 10000, maximumAge: 300000 }
+        );
+      };
+      
+      fetchLocation(true);
     } else {
       toastError('Location Error', 'Geolocation is not supported by your browser.');
     }
@@ -100,7 +109,17 @@ export function StudentAttendancePage({ onLogout }: Props) {
     
     try {
       const videoInputDevices = await BrowserMultiFormatReader.listVideoInputDevices();
-      const selectedDeviceId = videoInputDevices.length > 0 ? videoInputDevices[0].deviceId : undefined;
+      
+      let selectedDeviceId = undefined;
+      if (videoInputDevices.length > 0) {
+        // Look for rear/environment camera for mobile phones
+        const backCamera = videoInputDevices.find(device => 
+          device.label.toLowerCase().includes('back') || 
+          device.label.toLowerCase().includes('environment') ||
+          device.label.toLowerCase().includes('rear')
+        );
+        selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+      }
       
       if (videoRef.current && selectedDeviceId) {
         await codeReader.current.decodeFromVideoDevice(
@@ -187,16 +206,16 @@ export function StudentAttendancePage({ onLogout }: Props) {
             <h1 style={{ margin: '0 0 8px 0', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-1)' }}>My Attendance</h1>
             <p style={{ margin: 0, color: 'var(--text-2)', fontSize: '0.95rem' }}>View your classmates and mark your attendance for today.</p>
           </div>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
             <input 
               type="text" 
               placeholder="Search by name or reg no..." 
               className="form-control" 
               value={filterText} 
               onChange={e => setFilterText(e.target.value)} 
-              style={{ minWidth: 200 }}
+              style={{ flex: '1 1 200px', minWidth: 200 }}
             />
-            <button className="btn btn-primary" onClick={() => setShowWizard(true)}>
+            <button className="btn btn-primary" onClick={() => setShowWizard(true)} style={{ flex: '1 1 auto', whiteSpace: 'nowrap' }}>
               Summary / Mark Attendance
             </button>
           </div>
