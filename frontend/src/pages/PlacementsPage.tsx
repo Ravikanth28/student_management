@@ -4,6 +4,7 @@ import autoTable from 'jspdf-autotable';
 import { YEAR_LABELS } from '../types';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
+import { StudentReportTabs } from '../components/StudentReportTabs';
 import { Pagination } from '../components/Pagination';
 import { PlacementForm } from '../components/PlacementForm';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -198,7 +199,8 @@ export function PlacementsPage({ onLogout }: Props) {
 
   return (
     <Shell
-      title="Placements"
+      title="Student Reports"
+      tabs={<StudentReportTabs />}
       subtitle="Company offers — on & off campus"
       onLogout={onLogout}
       actions={<button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Add placement</button>}

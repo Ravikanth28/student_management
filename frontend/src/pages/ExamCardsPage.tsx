@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
+import { SlideTabs } from '../components/SlideTabs';
 import { useToast } from '../components/Toast';
 import type {
   ExamCard,
@@ -525,7 +526,7 @@ export function ExamCardsPage({ onLogout }: { onLogout: () => void }) {
   };
 
   return (
-    <Shell title="Exam Cards" subtitle="Manage semester internal exam cards" onLogout={onLogout}
+    <Shell title="Exams" tabs={<SlideTabs />} onLogout={onLogout}
       actions={
         <button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={() => { setEditCardId(null); setShowCreate(true); }}>
           <IconPlus /> New Card

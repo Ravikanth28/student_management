@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
+import { ActivityTabs } from '../components/ActivityTabs';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../state/auth';
 import { isSuperadmin } from '../lib/roles';
@@ -113,7 +114,8 @@ export function FeedbackPage({ onLogout }: { onLogout: () => void }) {
 
   return (
     <Shell
-      title="Feedback"
+      title="Activity"
+      tabs={<ActivityTabs />}
       subtitle={superadmin ? "Review student feedback" : "We value your thoughts and suggestions"}
       onLogout={onLogout}
     >

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../state/auth';
 import { Shell } from '../components/Shell';
+import { StudentReportTabs } from '../components/StudentReportTabs';
 import { Pagination } from '../components/Pagination';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
@@ -237,7 +238,8 @@ export function DisciplinaryPage({ onLogout }: Props) {
 
   return (
     <Shell
-      title="Disciplinary Records"
+      title="Student Reports"
+      tabs={<StudentReportTabs />}
       subtitle={view === 'records' ? 'All student discipline entries, violations, and details' : 'Aggregate per-student discipline violations report'}
       onLogout={onLogout}
       actions={

@@ -244,15 +244,10 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
   { to: '/blood-groups',  label: 'Blood Groups',     Icon: IconDroplet,       roles: ['superadmin', 'admin', 'user'] },
   { to: '/scanner',       label: 'Scanner',          Icon: IconScan,          roles: ['superadmin', 'admin'] },
   { to: '/attendance',    label: 'Attendance',       Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
-  { to: '/late-comers',   label: 'Late Comers',      Icon: IconClock,         roles: ['superadmin', 'admin'] },
-  { to: '/disciplinary',  label: 'Disciplinary',     Icon: IconAlertTriangle, roles: ['superadmin', 'admin'] },
-  { to: '/achievements',  label: 'Achievements',     Icon: IconTrophy,        roles: ['superadmin', 'admin'] },
-  { to: '/placements',    label: 'Placements',       Icon: IconBriefcase,     roles: ['superadmin', 'admin'] },
-  { to: '/circulars',     label: 'Circulars',        Icon: IconMegaphone,     roles: ['superadmin', 'admin', 'user'] },
+  { to: '/student-reports', label: 'Student Reports',Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
+  { to: '/activity',      label: 'Activity',         Icon: IconActivity,      roles: ['superadmin', 'admin', 'user', 'student'] },
   { to: '/import',        label: 'Bulk Import',      Icon: IconUploadNav,     roles: ['superadmin', 'admin'] },
-  { to: '/exam-cards',    label: 'Exam Cards',       Icon: IconBookOpen,      roles: ['superadmin'] },
-  { to: '/exam-report',   label: 'Exam Report',      Icon: IconBookOpen,      roles: ['superadmin', 'admin'] },
-  { to: '/feedback',      label: 'Feedback',         Icon: IconMessage,       roles: ['superadmin', 'student'] },
+  { to: '/exams',         label: 'Exams',            Icon: IconBookOpen,      roles: ['superadmin', 'admin'] },
   { to: '/my-exam-marks', label: 'My Marks',         Icon: IconClipboard,     roles: ['student'] },
   { to: '/audit',         label: 'Audit Log',        Icon: IconActivity,      roles: ['superadmin'] },
   { to: '/users',         label: 'Users',            Icon: IconUsersCog,      roles: ['superadmin'] },
@@ -357,10 +352,11 @@ type ShellProps = {
   subtitle?: string;
   onLogout: () => void;
   actions?: React.ReactNode;
+  tabs?: React.ReactNode;
   children: React.ReactNode;
 };
 
-export function Shell({ title, subtitle, onLogout, actions, children }: ShellProps) {
+export function Shell({ title, subtitle, onLogout, actions, tabs, children }: ShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggle } = useTheme();
   const location = useLocation();
@@ -415,6 +411,12 @@ export function Shell({ title, subtitle, onLogout, actions, children }: ShellPro
             </div>
           ) : null}
         </div>
+        
+        {tabs && (
+          <div style={{ padding: '0 24px', borderBottom: '1px solid var(--border)' }}>
+            {tabs}
+          </div>
+        )}
 
         {/* Page Body */}
         <main className="content-body">

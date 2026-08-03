@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useAuth } from '../state/auth';
 import { useToast } from '../components/Toast';
 import { Shell } from '../components/Shell';
+import { ActivityTabs } from '../components/ActivityTabs';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 function Spinner() {
@@ -194,7 +195,8 @@ export function CircularsPage({ onLogout }: { onLogout: () => void }) {
 
   return (
     <Shell
-      title="Circulars & Announcements"
+      title="Activity"
+      tabs={<ActivityTabs />}
       subtitle={canBroadcast ? 'Publish official notices to students and Class Representatives' : 'Official college notices and updates'}
       onLogout={onLogout}
       actions={

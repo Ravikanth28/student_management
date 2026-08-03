@@ -14,16 +14,13 @@ export const PATH_ROLES: Record<string, Role[]> = {
   '/scanner':       ['superadmin', 'admin'],
   '/attendance':    ['superadmin', 'admin'],
   '/circulars':     ['superadmin', 'admin', 'user'],
-  '/late-comers':   ['superadmin', 'admin'],
-  '/disciplinary':  ['superadmin', 'admin'],
-  '/achievements':  ['superadmin', 'admin'],
-  '/placements':    ['superadmin', 'admin'],
+  '/student-reports': ['superadmin', 'admin'],
   '/import':        ['superadmin', 'admin'],
   '/audit':         ['superadmin'],
   '/settings':      ['superadmin'],
   '/users':         ['superadmin'],
   '/feedback':      ['superadmin', 'student'],
-  '/exam-report':   ['superadmin', 'admin'],
+  '/exams':         ['superadmin', 'admin'],
   '/my-exam-marks': ['student'],
 };
 

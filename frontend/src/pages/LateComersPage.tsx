@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
+import { StudentReportTabs } from '../components/StudentReportTabs';
 import { Pagination } from '../components/Pagination';
 import { StudentActivityModal } from '../components/StudentActivityModal';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -225,7 +226,8 @@ export function LateComersPage({ onLogout }: Props) {
 
   return (
     <Shell
-      title="Late Comers"
+      title="Student Reports"
+      tabs={<StudentReportTabs />}
       subtitle={view === 'records' ? 'Students marked late, by date and period' : 'Per-student late totals — most late first'}
       onLogout={onLogout}
       actions={

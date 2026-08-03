@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Shell } from '../components/Shell';
+import { SlideTabs } from '../components/SlideTabs';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import type { ExamCard, ExamSubject, ExamTest } from '../types';
@@ -266,7 +267,7 @@ export function ExamReportPage({ onLogout }: { onLogout: () => void }) {
   );
 
   return (
-    <Shell onLogout={onLogout} title="Exam Report" actions={headerActions}>
+    <Shell onLogout={onLogout} title="Exams" tabs={<SlideTabs />} actions={headerActions}>
       <div style={{ padding: '24px 32px', maxWidth: 1200, margin: '0 auto' }}>
         
         <div className="card card-padded" style={{ marginBottom: 24 }}>

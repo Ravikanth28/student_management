@@ -4,6 +4,7 @@ import autoTable from 'jspdf-autotable';
 import { api } from '../api';
 import { useAuth } from '../state/auth';
 import { Shell } from '../components/Shell';
+import { StudentReportTabs } from '../components/StudentReportTabs';
 import { Pagination } from '../components/Pagination';
 import { AchievementForm } from '../components/AchievementForm';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -331,7 +332,8 @@ export function AchievementsPage({ onLogout }: Props) {
 
   return (
     <Shell
-      title="Achievements"
+      title="Student Reports"
+      tabs={<StudentReportTabs />}
       subtitle="Hackathons, competitions, and awards"
       onLogout={onLogout}
       actions={

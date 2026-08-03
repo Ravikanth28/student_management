@@ -41,6 +41,12 @@ function Protected({ roleKey, children }: { roleKey: string; children: ReactNode
   return <>{children}</>;
 }
 
+function ActivityRedirect() {
+  const { role } = useAuth();
+  if (role === 'student') return <Navigate to="/activity/feedback" replace />;
+  return <Navigate to="/activity/circulars" replace />;
+}
+
 function AppRoutes() {
   const { isAuthenticated, logout, token, role } = useAuth();
 
@@ -73,17 +79,20 @@ function AppRoutes() {
         }
       />
       <Route path="/attendance" element={<Protected roleKey="/attendance"><AttendancePage onLogout={logout} /></Protected>} />
-      <Route path="/circulars" element={<Protected roleKey="/circulars"><CircularsPage onLogout={logout} /></Protected>} />
-      <Route path="/late-comers" element={<Protected roleKey="/late-comers"><LateComersPage onLogout={logout} /></Protected>} />
-      <Route path="/disciplinary" element={<Protected roleKey="/disciplinary"><DisciplinaryPage onLogout={logout} /></Protected>} />
-      <Route path="/achievements" element={<Protected roleKey="/achievements"><AchievementsPage onLogout={logout} /></Protected>} />
-      <Route path="/placements" element={<Protected roleKey="/placements"><PlacementsPage onLogout={logout} /></Protected>} />
+      <Route path="/activity" element={<ActivityRedirect />} />
+      <Route path="/activity/circulars" element={<Protected roleKey="/circulars"><CircularsPage onLogout={logout} /></Protected>} />
+      <Route path="/student-reports" element={<Navigate to="/student-reports/late-comers" replace />} />
+      <Route path="/student-reports/late-comers" element={<Protected roleKey="/student-reports"><LateComersPage onLogout={logout} /></Protected>} />
+      <Route path="/student-reports/disciplinary" element={<Protected roleKey="/student-reports"><DisciplinaryPage onLogout={logout} /></Protected>} />
+      <Route path="/student-reports/achievements" element={<Protected roleKey="/student-reports"><AchievementsPage onLogout={logout} /></Protected>} />
+      <Route path="/student-reports/placements" element={<Protected roleKey="/student-reports"><PlacementsPage onLogout={logout} /></Protected>} />
       <Route path="/users" element={<Protected roleKey="/users"><UsersPage onLogout={logout} /></Protected>} />
       <Route path="/audit" element={<Protected roleKey="/audit"><AuditLogPage onLogout={logout} /></Protected>} />
       <Route path="/settings" element={<Protected roleKey="/settings"><SettingsPage onLogout={logout} /></Protected>} />
-      <Route path="/feedback" element={<Protected roleKey="/feedback"><FeedbackPage onLogout={logout} /></Protected>} />
-      <Route path="/exam-cards" element={<Protected roleKey="/exam-cards"><ExamCardsPage onLogout={logout} /></Protected>} />
-      <Route path="/exam-report" element={<Protected roleKey="/exam-report"><ExamReportPage onLogout={logout} /></Protected>} />
+      <Route path="/activity/feedback" element={<Protected roleKey="/feedback"><FeedbackPage onLogout={logout} /></Protected>} />
+      <Route path="/exams" element={<Navigate to="/exams/cards" replace />} />
+      <Route path="/exams/cards" element={<Protected roleKey="/exams"><ExamCardsPage onLogout={logout} /></Protected>} />
+      <Route path="/exams/report" element={<Protected roleKey="/exams"><ExamReportPage onLogout={logout} /></Protected>} />
       <Route path="/my-exam-marks" element={<Protected roleKey="/my-exam-marks"><StudentMarksPage onLogout={logout} /></Protected>} />
 
       <Route path="*" element={<Navigate to={isAuthenticated ? defaultHome : '/login'} replace />} />
