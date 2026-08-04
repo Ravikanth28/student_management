@@ -81,32 +81,28 @@ export function StudentAttendancePage({ onLogout }: Props) {
   };
 
   /**
-   * Main location detection function.
-   * Uses @capacitor/geolocation natively on Android - this already
-   * handles the "enable GPS" system dialog automatically.
+   * Location detection using a reliable two-step approach:
+   * 1. First try FAST network-based location (works indoors, instant)
+   * 2. Then optionally improve with GPS (accurate, but slow)
    */
   const startLocationDetection = async () => {
     setScanLocationData(null);
     setLocationStatus('detecting');
-    setLocationMessage('Checking GPS status...');
+    setLocationMessage('Checking location permission...');
 
     try {
       if (Capacitor.isNativePlatform()) {
-        // Step 1: Check current permission status
-        setLocationStatus('requesting-permission');
-        setLocationMessage('Requesting location permission...');
-
         const permStatus = await Geolocation.checkPermissions();
 
         if (permStatus.location === 'denied') {
-          // Permanently denied - user must go to settings
           setLocationStatus('permission-denied');
-          setLocationMessage('Location permission was denied. Please enable it in your phone Settings → Apps → Student Portal → Permissions.');
+          setLocationMessage('Location permission was denied. Please enable it in Settings → Apps → Student Portal → Permissions → Location.');
           return;
         }
 
         if (permStatus.location !== 'granted') {
-          // Not yet asked - request it
+          setLocationStatus('requesting-permission');
+          setLocationMessage('Please allow location access when prompted...');
           const requested = await Geolocation.requestPermissions();
           if (requested.location !== 'granted') {
             setLocationStatus('permission-denied');
@@ -116,73 +112,62 @@ export function StudentAttendancePage({ onLogout }: Props) {
         }
       }
 
-      // Step 2: Get position (Capacitor will automatically show "enable GPS" dialog if off)
+      // Step 1: Try network-based location FIRST — fast, works indoors
       setLocationStatus('detecting');
       setLocationMessage('Detecting your location...');
 
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      });
-
-      setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
-      setLocationStatus('success');
-      setLocationMessage('Location detected successfully.');
-
-    } catch (err: any) {
-      console.error('Location error code:', err?.code, 'message:', err?.message);
-
-      const code: number = err?.code ?? -1;
-      const msg: string = (err?.message ?? '').toLowerCase();
-
-      if (code === 1 || msg.includes('denied') || msg.includes('permission')) {
-        // Permission denied
-        setLocationStatus('permission-denied');
-        setLocationMessage('Location permission was denied. Please go to your phone Settings → Apps → Student Portal → Permissions and allow Location.');
-      } else if (code === 2 || msg.includes('unavailable') || msg.includes('disabled') || msg.includes('off')) {
-        // GPS is turned off
-        setLocationStatus('gps-off');
-        setLocationMessage('Your GPS / Location service is turned off. Please turn it on and tap "Retry" below.');
-      } else {
-        // Generic position error - retry with low accuracy as fallback
-        if (Capacitor.isNativePlatform()) {
-          try {
-            setLocationMessage('High-accuracy GPS unavailable. Trying network location...');
-            const fallback = await Geolocation.getCurrentPosition({
-              enableHighAccuracy: false,
-              timeout: 10000,
-              maximumAge: 30000,
-            });
-            setScanLocationData({ lat: fallback.coords.latitude, lng: fallback.coords.longitude });
-            setLocationStatus('success');
-            setLocationMessage('Location detected via network.');
-            return;
-          } catch {
-            // fallback also failed
-          }
-        } else if (navigator.geolocation) {
-          // Web fallback
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              setScanLocationData({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-              setLocationStatus('success');
-              setLocationMessage('Location detected successfully.');
-            },
-            () => {
-              setLocationStatus('gps-off');
-              setLocationMessage('Could not detect your location. Please turn on GPS and tap "Retry".');
-            },
-            { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-          );
-          return;
-        }
-
-        setLocationStatus('error');
-        setLocationMessage('Could not get your GPS location. Please ensure you are outdoors or near a window, then tap "Retry".');
+      try {
+        const networkPos = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: false,  // network/wifi based — fast
+          timeout: 10000,
+          maximumAge: 60000,          // accept up to 1 min old cached position
+        });
+        // Network location succeeded — use it immediately
+        setScanLocationData({ lat: networkPos.coords.latitude, lng: networkPos.coords.longitude });
+        setLocationStatus('success');
+        setLocationMessage('Location detected successfully.');
+        return;
+      } catch (networkErr: any) {
+        console.warn('Network location failed, trying GPS...', networkErr?.message);
+        // Don't give up — fall through to GPS attempt below
       }
+
+      // Step 2: Try high-accuracy GPS as second attempt
+      setLocationMessage('Trying GPS signal...');
+      try {
+        const gpsPos = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0,
+        });
+        setScanLocationData({ lat: gpsPos.coords.latitude, lng: gpsPos.coords.longitude });
+        setLocationStatus('success');
+        setLocationMessage('GPS location detected.');
+        return;
+      } catch (gpsErr: any) {
+        console.error('GPS also failed:', gpsErr?.code, gpsErr?.message);
+        const code: number = gpsErr?.code ?? -1;
+        const msg: string = (gpsErr?.message ?? '').toLowerCase();
+
+        if (code === 1 || msg.includes('denied') || msg.includes('permission')) {
+          setLocationStatus('permission-denied');
+          setLocationMessage('Location permission denied. Please allow it in Settings → Apps → Student Portal → Permissions.');
+        } else if (code === 2 || msg.includes('unavailable') || msg.includes('disabled')) {
+          setLocationStatus('gps-off');
+          setLocationMessage('Location service unavailable. Please make sure your GPS is turned on, then tap Retry.');
+        } else {
+          setLocationStatus('error');
+          setLocationMessage(`Could not get your location (code: ${code}). Please move outdoors or near a window, then tap Retry.`);
+        }
+      }
+
+    } catch (outerErr: any) {
+      console.error('Outer location error:', outerErr);
+      setLocationStatus('error');
+      setLocationMessage('An unexpected error occurred while fetching location. Please tap Retry.');
     }
   };
+
 
   const handleRetryLocation = () => {
     startLocationDetection();
