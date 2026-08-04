@@ -144,7 +144,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
     setScannedEnrollment('');
     setLocationVerified(false);
     setScanLocationData(null);
-    stopScanning();
+    setScanning(false);
   };
 
   const closeWizard = () => {

@@ -63,13 +63,30 @@ export function ScannerPage({ onLogout }: Props) {
         if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
         pushFeed(`Code ${value}`, 'Not registered', 'notfound');
         setNotFound(value);
+      }
+      setTimeout(() => { lockRef.current = false; }, 800);
+    } else {
+      // ── Standard mode: open student popup ──
+      try {
+        setLooking(true);
+        const res = await api.get<{ student: Student }>('/students/lookup', { params: { code: value } });
+        setStudent(res.data.student);
+        setScanning(false);
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+          setNotFound(value);
+        } else {
+          toastError('Error', err.response?.data?.error || 'Failed to lookup student.');
+        }
+      } finally {
+        setLooking(false);
+        lockRef.current = false;
+      }
+    }
   };
 
-  useEffect(() => {
-    void startScan();
-    return () => stopScan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
   // Live search by name / enrollment / register number.
   const onManualChange = (v: string) => {
