@@ -1,40 +1,10 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
 import { useToast } from '../components/Toast';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import { DecodeHintType, BarcodeFormat } from '@zxing/library';
 import { Geolocation } from '@capacitor/geolocation';
-import { Camera } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
-
-// ZXing fallback (when the native BarcodeDetector isn't available).
-const SCAN_HINTS = new Map<DecodeHintType, unknown>([
-  [DecodeHintType.TRY_HARDER, true],
-  [DecodeHintType.POSSIBLE_FORMATS, [
-    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93,
-    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
-    BarcodeFormat.ITF, BarcodeFormat.QR_CODE,
-  ]],
-]);
-
-// Region of interest: the wide, short band where the barcode sits.
-const ROI = { x: 0.05, y: 0.28, w: 0.90, h: 0.44 };
-
-// Boost contrast on the cropped band so faint bars survive the glare.
-function enhance(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  const img = ctx.getImageData(0, 0, w, h);
-  const d = img.data;
-  const contrast = 1.6;
-  const intercept = 128 * (1 - contrast);
-  for (let i = 0; i < d.length; i += 4) {
-    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    let v = gray * contrast + intercept;
-    v = v < 0 ? 0 : v > 255 ? 255 : v;
-    d[i] = d[i + 1] = d[i + 2] = v;
-  }
-  ctx.putImageData(img, 0, 0);
-}
+import { BarcodeScanner } from '../components/BarcodeScanner';
 
 type StudentRosterRow = {
   id: number;
@@ -69,14 +39,6 @@ export function StudentAttendancePage({ onLogout }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [scanLocationData, setScanLocationData] = useState<{lat: number, lng: number} | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const codeReader = useRef<BrowserMultiFormatReader | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const detectorRef = useRef<any>(null);
-  const runningRef = useRef(false);
-  const timerRef = useRef<number | null>(null);
-
   useEffect(() => {
     loadRoster();
   }, []);
@@ -102,7 +64,8 @@ export function StudentAttendancePage({ onLogout }: Props) {
       const res = await api.post('/attendance/my-attendance/verify-phone', { phone_number: phone });
       setExpectedEnrollment(res.data.enrollment_number);
       setStep(2);
-      startScanning();
+      setScanning(true);
+      fetchLocation();
     } catch (err: any) {
       toastError('Validation failed', err.response?.data?.message || 'Phone number is incorrect.');
     } finally {
@@ -110,160 +73,44 @@ export function StudentAttendancePage({ onLogout }: Props) {
     }
   };
 
-  const startScanning = async () => {
-    setScanning(true);
-
+  const fetchLocation = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        const camPerm = await Camera.checkPermissions();
-        if (camPerm.camera !== 'granted') {
-          const req = await Camera.requestPermissions({ permissions: ['camera'] });
-          if (req.camera !== 'granted') {
-            toastError('Camera Error', 'Camera permission denied. Cannot scan.');
+        const locPerm = await Geolocation.checkPermissions();
+        if (locPerm.location !== 'granted') {
+          const req = await Geolocation.requestPermissions();
+          if (req.location !== 'granted') {
+            toastError('Location Error', 'Location permission denied.');
+            setLocationVerified(false);
             return;
           }
         }
       }
-    } catch (e) {
-      console.error('Camera perm error', e);
-    }
-
-    // Start Geolocation
-    const fetchLocation = async () => {
-      try {
-        if (Capacitor.isNativePlatform()) {
-          const locPerm = await Geolocation.checkPermissions();
-          if (locPerm.location !== 'granted') {
-            const req = await Geolocation.requestPermissions();
-            if (req.location !== 'granted') {
-              toastError('Location Error', 'Location permission denied.');
-              setLocationVerified(false);
-              return;
-            }
-          }
-        }
-        
-        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
-        setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
-        setLocationVerified(true);
-      } catch (err) {
-        console.error('Location error:', err);
-        // Fallback for non-native / retry without high accuracy
-        if (!Capacitor.isNativePlatform() && navigator.geolocation) {
-           navigator.geolocation.getCurrentPosition(
-            (position) => {
-              setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
-              setLocationVerified(true);
-            },
-            (error) => {
-              console.error('Location error (fallback):', error);
-              toastError('Location Error', 'Failed to get location. Please enable GPS.');
-              setLocationVerified(false);
-            },
-            { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-           );
-        } else {
-           toastError('Location Error', 'Failed to get location. Please enable GPS.');
-           setLocationVerified(false);
-        }
-      }
-    };
-    
-    void fetchLocation();
-
-    // Start Barcode Scanner
-    
-    const savedEngine = localStorage.getItem('scanner_pref');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const BD = (window as any).BarcodeDetector;
-    if (BD && !detectorRef.current && savedEngine !== 'fallback') {
-      try { detectorRef.current = new BD({ formats: ['code_128', 'qr_code', 'ean_13', 'code_39'] }); } catch { detectorRef.current = null; }
-    }
-    
-    if (!codeReader.current) {
-      codeReader.current = new BrowserMultiFormatReader(SCAN_HINTS);
-    }
-    
-    try {
-      let stream: MediaStream;
-      try {
-        const video1 = {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          advanced: [{ focusMode: 'continuous' }],
-        } as unknown as MediaTrackConstraints;
-        stream = await navigator.mediaDevices.getUserMedia({ video: video1 });
-      } catch (err1) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        } catch (err2) {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        }
-      }
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute('playsinline', 'true');
-        await videoRef.current.play();
-        
-        runningRef.current = true;
-        void decodeLoop();
-      }
+      
+      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+      setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
+      setLocationVerified(true);
     } catch (err) {
-      console.error(err);
-      toastError('Camera Error', 'Could not access camera for scanning.');
-    }
-  };
-
-  const decodeLoop = async () => {
-    if (!runningRef.current) return;
-    const v = videoRef.current;
-    if (v && v.videoWidth && v.readyState >= 2) {
-      const canvas = canvasRef.current ?? (canvasRef.current = document.createElement('canvas'));
-      const vw = v.videoWidth, vh = v.videoHeight;
-      const sw = Math.floor(vw * ROI.w), sh = Math.floor(vh * ROI.h);
-      canvas.width = sw; canvas.height = sh;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (ctx) {
-        ctx.drawImage(v, Math.floor(vw * ROI.x), Math.floor(vh * ROI.y), sw, sh, 0, 0, sw, sh);
-        enhance(ctx, sw, sh);
-        try {
-          let text: string | undefined;
-          if (detectorRef.current) {
-            try {
-              const codes = await detectorRef.current.detect(canvas);
-              text = codes?.[0]?.rawValue;
-            } catch (err) {
-              detectorRef.current = null;
-              if (!codeReader.current) codeReader.current = new BrowserMultiFormatReader(SCAN_HINTS);
-            }
-          }
-          
-          if (!detectorRef.current && codeReader.current) {
-            text = codeReader.current.decodeFromCanvas(canvas)?.getText?.();
-          }
-          
-          if (text) {
-            setScannedEnrollment(text);
-            stopScanning();
-            return;
-          }
-        } catch { /* no barcode this frame */ }
+      console.error('Location error:', err);
+      // Fallback for non-native / retry without high accuracy
+      if (!Capacitor.isNativePlatform() && navigator.geolocation) {
+         navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
+            setLocationVerified(true);
+          },
+          (error) => {
+            console.error('Location error (fallback):', error);
+            toastError('Location Error', 'Failed to get location. Please enable GPS.');
+            setLocationVerified(false);
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+         );
+      } else {
+         toastError('Location Error', 'Failed to get location. Please enable GPS.');
+         setLocationVerified(false);
       }
     }
-    if (runningRef.current) timerRef.current = window.setTimeout(() => void decodeLoop(), 120);
-  };
-
-  const stopScanning = () => {
-    runningRef.current = false;
-    if (timerRef.current) { window.clearTimeout(timerRef.current); timerRef.current = null; }
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setScanning(false);
   };
 
   const handleSubmitAttendance = async () => {
@@ -457,21 +304,27 @@ export function StudentAttendancePage({ onLogout }: Props) {
                       Scan your ID Card barcode (Enrollment Number). Your location will also be verified.
                     </p>
 
-                    <div style={{ background: '#000', borderRadius: 12, overflow: 'hidden', height: 250, marginBottom: 20, position: 'relative' }}>
+                    <div style={{ marginBottom: 20 }}>
                       {!scannedEnrollment ? (
-                        <video ref={videoRef} playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <BarcodeScanner 
+                          active={scanning}
+                          onScan={(code) => {
+                            setScannedEnrollment(code);
+                            setScanning(false);
+                          }}
+                        />
                       ) : scannedEnrollment === expectedEnrollment ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#4ade80', flexDirection: 'column' }}>
+                        <div style={{ background: '#000', borderRadius: 12, overflow: 'hidden', height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', flexDirection: 'column' }}>
                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                           <span style={{ fontWeight: 500, fontSize: '1.1rem' }}>Barcode Scanned!</span>
                           <span style={{ color: '#fff', marginTop: 4 }}>{scannedEnrollment}</span>
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ef4444', flexDirection: 'column' }}>
+                        <div style={{ background: '#000', borderRadius: 12, overflow: 'hidden', height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', flexDirection: 'column' }}>
                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                           <span style={{ fontWeight: 500, fontSize: '1.1rem' }}>Wrong Barcode Scanned</span>
                           <span style={{ color: '#fff', marginTop: 4 }}>{scannedEnrollment}</span>
-                          <button onClick={() => { setScannedEnrollment(''); startScanning(); }} style={{ marginTop: 16, padding: '6px 16px', borderRadius: 20, border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}>Try Again</button>
+                          <button onClick={() => { setScannedEnrollment(''); setScanning(true); }} style={{ marginTop: 16, padding: '6px 16px', borderRadius: 20, border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}>Try Again</button>
                         </div>
                       )}
                     </div>
