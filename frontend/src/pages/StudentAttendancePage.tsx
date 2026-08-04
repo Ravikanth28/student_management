@@ -141,10 +141,9 @@ export function StudentAttendancePage({ onLogout }: Props) {
           }
         }
         
-        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
         setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
         setLocationVerified(true);
-        success('Location Verified', 'SMVEC College, Madagadipet');
       } catch (err) {
         console.error('Location error:', err);
         // Fallback for non-native / retry without high accuracy
@@ -153,7 +152,6 @@ export function StudentAttendancePage({ onLogout }: Props) {
             (position) => {
               setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
               setLocationVerified(true);
-              success('Location Verified', 'SMVEC College, Madagadipet');
             },
             (error) => {
               console.error('Location error (fallback):', error);
