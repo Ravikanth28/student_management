@@ -38,6 +38,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
   const [scanning, setScanning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [scanLocationData, setScanLocationData] = useState<{lat: number, lng: number} | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     loadRoster();
@@ -74,13 +75,14 @@ export function StudentAttendancePage({ onLogout }: Props) {
   };
 
   const fetchLocation = async () => {
+    setLocationError(null);
     try {
       if (Capacitor.isNativePlatform()) {
         const locPerm = await Geolocation.checkPermissions();
         if (locPerm.location !== 'granted') {
           const req = await Geolocation.requestPermissions();
           if (req.location !== 'granted') {
-            toastError('Location Error', 'Location permission denied.');
+            setLocationError('Location permission denied. Please allow it in settings.');
             setLocationVerified(false);
             return;
           }
@@ -90,6 +92,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
       const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
       setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
       setLocationVerified(true);
+      setLocationError(null);
     } catch (err) {
       console.error('Location error:', err);
       // Fallback for non-native / retry without high accuracy
@@ -98,16 +101,17 @@ export function StudentAttendancePage({ onLogout }: Props) {
           (position) => {
             setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
             setLocationVerified(true);
+            setLocationError(null);
           },
           (error) => {
             console.error('Location error (fallback):', error);
-            toastError('Location Error', 'Failed to get location. Please enable GPS.');
+            setLocationError('Please turn on your GPS / Location services to proceed.');
             setLocationVerified(false);
           },
           { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
          );
       } else {
-         toastError('Location Error', 'Failed to get location. Please enable GPS.');
+         setLocationError('Please turn on your GPS / Location services to proceed.');
          setLocationVerified(false);
       }
     }
@@ -144,6 +148,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
     setScannedEnrollment('');
     setLocationVerified(false);
     setScanLocationData(null);
+    setLocationError(null);
     setScanning(false);
   };
 
@@ -189,7 +194,8 @@ export function StudentAttendancePage({ onLogout }: Props) {
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Loading roster...</div>
         ) : (
           <div style={{ background: 'var(--surface-1)', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
               <thead>
                 <tr style={{ background: 'var(--surface-2)' }}>
                   <th style={{ padding: '12px 12px', color: 'var(--text-3)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>Reg No</th>
@@ -223,7 +229,8 @@ export function StudentAttendancePage({ onLogout }: Props) {
                   </tr>
                 )}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         )}
 
@@ -309,22 +316,20 @@ export function StudentAttendancePage({ onLogout }: Props) {
                         <BarcodeScanner 
                           active={scanning}
                           onScan={(code) => {
+                            if (code !== expectedEnrollment) {
+                              toastError('Validation Failed', 'Wrong Barcode Scanned');
+                              closeWizard();
+                              return;
+                            }
                             setScannedEnrollment(code);
                             setScanning(false);
                           }}
                         />
-                      ) : scannedEnrollment === expectedEnrollment ? (
+                      ) : (
                         <div style={{ background: '#000', borderRadius: 12, overflow: 'hidden', height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', flexDirection: 'column' }}>
                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                           <span style={{ fontWeight: 500, fontSize: '1.1rem' }}>Barcode Scanned!</span>
                           <span style={{ color: '#fff', marginTop: 4 }}>{scannedEnrollment}</span>
-                        </div>
-                      ) : (
-                        <div style={{ background: '#000', borderRadius: 12, overflow: 'hidden', height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', flexDirection: 'column' }}>
-                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                          <span style={{ fontWeight: 500, fontSize: '1.1rem' }}>Wrong Barcode Scanned</span>
-                          <span style={{ color: '#fff', marginTop: 4 }}>{scannedEnrollment}</span>
-                          <button onClick={() => { setScannedEnrollment(''); setScanning(true); }} style={{ marginTop: 16, padding: '6px 16px', borderRadius: 20, border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}>Try Again</button>
                         </div>
                       )}
                     </div>
@@ -332,13 +337,15 @@ export function StudentAttendancePage({ onLogout }: Props) {
                     <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'var(--surface-2)', borderRadius: 8 }}>
                       {locationVerified ? (
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      ) : locationError ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                       ) : (
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                       )}
                       <div>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-1)' }}>Location Status</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-2)' }}>
-                          {locationVerified ? 'Location fetched successfully.' : 'Fetching GPS location...'}
+                        <div style={{ fontSize: '0.9rem', fontWeight: 500, color: locationError ? '#ef4444' : 'var(--text-1)' }}>Location Status</div>
+                        <div style={{ fontSize: '0.8rem', color: locationError ? '#ef4444' : 'var(--text-2)' }}>
+                          {locationVerified ? 'Location fetched successfully.' : locationError || 'Fetching GPS location...'}
                         </div>
                         {locationVerified && (
                           <div style={{ fontSize: '0.8rem', color: '#4ade80', marginTop: 2, fontWeight: 500 }}>
