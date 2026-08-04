@@ -117,6 +117,30 @@ export function StudentAttendancePage({ onLogout }: Props) {
     }
   };
 
+  const requestLocationTurnOn = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cordova = (window as any).cordova;
+    if (cordova && cordova.plugins && cordova.plugins.locationAccuracy) {
+      cordova.plugins.locationAccuracy.request(
+        cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY,
+        () => {
+          // Success: GPS is now turned on! Retry fetching location.
+          setLocationError(null);
+          fetchLocation();
+        },
+        (error: any) => {
+          // Error/User denied
+          if (error && error.code !== cordova.plugins.locationAccuracy.ERROR_USER_DISAGREED) {
+            toastError('GPS Error', 'Failed to turn on GPS automatically. Please enable it in settings.');
+          }
+        }
+      );
+    } else {
+      // Fallback for web or if plugin isn't injected
+      toastError('Not Supported', 'Automatic GPS toggle is only available in the mobile app. Please turn on GPS manually.');
+    }
+  };
+
   const handleSubmitAttendance = async () => {
     if (!scanLocationData) {
       toastError('Validation failed', 'Location not yet verified.');
@@ -334,25 +358,37 @@ export function StudentAttendancePage({ onLogout }: Props) {
                       )}
                     </div>
 
-                    <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'var(--surface-2)', borderRadius: 8 }}>
-                      {locationVerified ? (
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      ) : locationError ? (
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      ) : (
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                      )}
-                      <div>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 500, color: locationError ? '#ef4444' : 'var(--text-1)' }}>Location Status</div>
-                        <div style={{ fontSize: '0.8rem', color: locationError ? '#ef4444' : 'var(--text-2)' }}>
-                          {locationVerified ? 'Location fetched successfully.' : locationError || 'Fetching GPS location...'}
-                        </div>
-                        {locationVerified && (
-                          <div style={{ fontSize: '0.8rem', color: '#4ade80', marginTop: 2, fontWeight: 500 }}>
-                            Location: SMVEC College, Madagadipet
-                          </div>
+                    <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 12, background: 'var(--surface-2)', borderRadius: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {locationVerified ? (
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        ) : locationError ? (
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        ) : (
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         )}
+                        <div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 500, color: locationError ? '#ef4444' : 'var(--text-1)' }}>Location Status</div>
+                          <div style={{ fontSize: '0.8rem', color: locationError ? '#ef4444' : 'var(--text-2)' }}>
+                            {locationVerified ? 'Location fetched successfully.' : locationError || 'Fetching GPS location...'}
+                          </div>
+                          {locationVerified && (
+                            <div style={{ fontSize: '0.8rem', color: '#4ade80', marginTop: 2, fontWeight: 500 }}>
+                              Ready for attendance
+                            </div>
+                          )}
+                        </div>
                       </div>
+
+                      {locationError && (
+                        <button 
+                          className="btn btn-primary btn-sm" 
+                          onClick={requestLocationTurnOn}
+                          style={{ whiteSpace: 'nowrap' }}
+                        >
+                          Turn On GPS
+                        </button>
+                      )}
                     </div>
 
                     {scannedEnrollment === expectedEnrollment && locationVerified && (
