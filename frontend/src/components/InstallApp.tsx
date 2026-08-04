@@ -1,5 +1,6 @@
 import { useState, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { Capacitor } from '@capacitor/core';
 import { APK_DOWNLOAD_URL } from '../config';
 
 const DEFAULT_APK_LINK = APK_DOWNLOAD_URL || '/student-portal.apk';
@@ -121,6 +122,8 @@ export function InstallAppModal({ onClose }: { onClose: () => void }) {
 export function InstallAppCard({ style }: { style?: CSSProperties } = {}) {
   const [showModal, setShowModal] = useState(false);
 
+  if (Capacitor.isNativePlatform()) return null;
+
   return (
     <>
       <div className="card card-padded" style={style}>
@@ -147,6 +150,8 @@ export function InstallAppCard({ style }: { style?: CSSProperties } = {}) {
 /** Link for the Login page. */
 export function GetAppLink() {
   const [showModal, setShowModal] = useState(false);
+
+  if (Capacitor.isNativePlatform()) return null;
 
   return (
     <>
