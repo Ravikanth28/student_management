@@ -61,6 +61,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
   // Wizard state
   const [step, setStep] = useState(1);
   const [phone, setPhone] = useState('');
+  const [expectedEnrollment, setExpectedEnrollment] = useState('');
   
   const [scannedEnrollment, setScannedEnrollment] = useState('');
   const [locationVerified, setLocationVerified] = useState(false);
@@ -98,7 +99,8 @@ export function StudentAttendancePage({ onLogout }: Props) {
 
     try {
       setSubmitting(true);
-      await api.post('/attendance/my-attendance/verify-phone', { phone_number: phone });
+      const res = await api.post('/attendance/my-attendance/verify-phone', { phone_number: phone });
+      setExpectedEnrollment(res.data.enrollment_number);
       setStep(2);
       startScanning();
     } catch (err: any) {
@@ -458,11 +460,18 @@ export function StudentAttendancePage({ onLogout }: Props) {
                     <div style={{ background: '#000', borderRadius: 12, overflow: 'hidden', height: 250, marginBottom: 20, position: 'relative' }}>
                       {!scannedEnrollment ? (
                         <video ref={videoRef} playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
+                      ) : scannedEnrollment === expectedEnrollment ? (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#4ade80', flexDirection: 'column' }}>
                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                           <span style={{ fontWeight: 500, fontSize: '1.1rem' }}>Barcode Scanned!</span>
                           <span style={{ color: '#fff', marginTop: 4 }}>{scannedEnrollment}</span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ef4444', flexDirection: 'column' }}>
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                          <span style={{ fontWeight: 500, fontSize: '1.1rem' }}>Wrong Barcode Scanned</span>
+                          <span style={{ color: '#fff', marginTop: 4 }}>{scannedEnrollment}</span>
+                          <button onClick={() => { setScannedEnrollment(''); startScanning(); }} style={{ marginTop: 16, padding: '6px 16px', borderRadius: 20, border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}>Try Again</button>
                         </div>
                       )}
                     </div>
@@ -486,7 +495,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
                       </div>
                     </div>
 
-                    {scannedEnrollment && locationVerified && (
+                    {scannedEnrollment === expectedEnrollment && locationVerified && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button 
                           onClick={handleSubmitAttendance} 

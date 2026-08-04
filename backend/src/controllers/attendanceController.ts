@@ -185,7 +185,7 @@ export const verifyPhone = asyncWrap(async (req, res) => {
   }
 
   const [students] = await pool.query<RowDataPacket[]>(
-    `SELECT phone FROM students WHERE id = ? LIMIT 1`,
+    `SELECT phone, enrollment_number FROM students WHERE id = ? LIMIT 1`,
     [studentId]
   );
 
@@ -195,7 +195,7 @@ export const verifyPhone = asyncWrap(async (req, res) => {
     throw new HttpError(400, 'Phone number does not match our records');
   }
 
-  res.json({ success: true });
+  res.json({ success: true, enrollment_number: students[0].enrollment_number });
 });
 
 // POST /api/attendance/my-attendance/mark
