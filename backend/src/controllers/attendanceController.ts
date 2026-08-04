@@ -228,11 +228,11 @@ export const markSelfAttendance = asyncWrap(async (req, res) => {
     throw new HttpError(400, 'Enrollment number mismatch');
   }
 
-  // Location validation (SMVEC approx 11.9146, 79.6358, 1500m radius)
+  // Location validation (SMVEC approx 11.9126650, 79.6350549, 100m radius)
   // Distance using Haversine
   const toRad = (v: number) => v * Math.PI / 180;
-  const lat1 = 11.9146;
-  const lon1 = 79.6358;
+  const lat1 = 11.9126650;
+  const lon1 = 79.6350549;
   const lat2 = Number(latitude);
   const lon2 = Number(longitude);
   const R = 6371e3; // metres
@@ -244,7 +244,7 @@ export const markSelfAttendance = asyncWrap(async (req, res) => {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   const distance = R * c;
 
-  if (distance > 1500) {
+  if (distance > 100) {
     throw new HttpError(400, 'Location is outside the permitted radius');
   }
 
