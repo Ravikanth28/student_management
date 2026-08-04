@@ -4,6 +4,9 @@ import { Shell } from '../components/Shell';
 import { useToast } from '../components/Toast';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { DecodeHintType, BarcodeFormat } from '@zxing/library';
+import { Geolocation } from '@capacitor/geolocation';
+import { Camera } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 
 // ZXing fallback (when the native BarcodeDetector isn't available).
 const SCAN_HINTS = new Map<DecodeHintType, unknown>([
@@ -107,34 +110,66 @@ export function StudentAttendancePage({ onLogout }: Props) {
 
   const startScanning = async () => {
     setScanning(true);
-    
-    // Start Geolocation
-    if (navigator.geolocation) {
-      const fetchLocation = (highAccuracy: boolean) => {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
-            setLocationVerified(true);
-            success('Location Verified', 'SMVEC College, Madagadipet');
-          },
-          (error) => {
-            console.error('Location error:', error);
-            if (highAccuracy) {
-              // Retry without high accuracy
-              fetchLocation(false);
-            } else {
-              toastError('Location Error', 'Failed to get location. Please enable GPS and allow location permissions for this browser in your phone settings.');
-              setLocationVerified(false);
-            }
-          },
-          { enableHighAccuracy: highAccuracy, timeout: 10000, maximumAge: 300000 }
-        );
-      };
-      
-      fetchLocation(true);
-    } else {
-      toastError('Location Error', 'Geolocation is not supported by your browser.');
+
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const camPerm = await Camera.checkPermissions();
+        if (camPerm.camera !== 'granted') {
+          const req = await Camera.requestPermissions({ permissions: ['camera'] });
+          if (req.camera !== 'granted') {
+            toastError('Camera Error', 'Camera permission denied. Cannot scan.');
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Camera perm error', e);
     }
+
+    // Start Geolocation
+    const fetchLocation = async () => {
+      try {
+        if (Capacitor.isNativePlatform()) {
+          const locPerm = await Geolocation.checkPermissions();
+          if (locPerm.location !== 'granted') {
+            const req = await Geolocation.requestPermissions();
+            if (req.location !== 'granted') {
+              toastError('Location Error', 'Location permission denied.');
+              setLocationVerified(false);
+              return;
+            }
+          }
+        }
+        
+        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+        setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setLocationVerified(true);
+        success('Location Verified', 'SMVEC College, Madagadipet');
+      } catch (err) {
+        console.error('Location error:', err);
+        // Fallback for non-native / retry without high accuracy
+        if (!Capacitor.isNativePlatform() && navigator.geolocation) {
+           navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setScanLocationData({ lat: position.coords.latitude, lng: position.coords.longitude });
+              setLocationVerified(true);
+              success('Location Verified', 'SMVEC College, Madagadipet');
+            },
+            (error) => {
+              console.error('Location error (fallback):', error);
+              toastError('Location Error', 'Failed to get location. Please enable GPS.');
+              setLocationVerified(false);
+            },
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+           );
+        } else {
+           toastError('Location Error', 'Failed to get location. Please enable GPS.');
+           setLocationVerified(false);
+        }
+      }
+    };
+    
+    void fetchLocation();
 
     // Start Barcode Scanner
     

@@ -296,8 +296,7 @@ export function AttendancePage({ onLogout }: Props) {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button className={`btn ${tab === 'class-summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('class-summary')}>Class Summary</button>
-        <button className={`btn ${tab === 'mark' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('mark')}>Mark & Daily Register</button>
-        <button className={`btn ${tab === 'summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('summary')}>Student Summary</button>
+
         <button className={`btn ${tab === 'export' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('export')}>Export Report</button>
       </div>
 
@@ -327,6 +326,7 @@ export function AttendancePage({ onLogout }: Props) {
                 <thead>
                   <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
                     <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Class (Section)</th>
+                    <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Total Students</th>
                     <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Present</th>
                     <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Absent</th>
                     <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-2)' }}>Action</th>
@@ -336,6 +336,7 @@ export function AttendancePage({ onLogout }: Props) {
                   {classSummary.map((cls, idx) => (
                     <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '12px 24px', color: 'var(--text-1)', fontWeight: 500 }}>Section {cls.class}</td>
+                      <td style={{ padding: '12px 24px', color: 'var(--text-1)', fontWeight: 600 }}>{cls.present + cls.absent}</td>
                       <td style={{ padding: '12px 24px', color: '#10b981', fontWeight: 600 }}>{cls.present}</td>
                       <td style={{ padding: '12px 24px', color: '#ef4444', fontWeight: 600 }}>{cls.absent}</td>
                       <td style={{ padding: '12px 24px' }}>
@@ -355,7 +356,7 @@ export function AttendancePage({ onLogout }: Props) {
                   ))}
                   {classSummary.length === 0 && (
                     <tr>
-                      <td colSpan={4} style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-2)' }}>
+                      <td colSpan={5} style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-2)' }}>
                         No attendance data recorded for this date.
                       </td>
                     </tr>
@@ -368,7 +369,7 @@ export function AttendancePage({ onLogout }: Props) {
           {/* Modal for Absentees */}
           {csModalOpen && (
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ background: 'var(--surface-1)', width: 500, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
+              <div style={{ background: 'var(--surface)', width: 500, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
                 <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-2)' }}>
                   <h2 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-1)' }}>Absentees - Section {csModalClass}</h2>
                   <button onClick={() => setCsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer' }}>
@@ -377,22 +378,13 @@ export function AttendancePage({ onLogout }: Props) {
                 </div>
                 <div style={{ padding: 24, overflowY: 'auto' }}>
                   {csModalAbsentees.length > 0 ? (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                          <th style={{ padding: '8px', textAlign: 'left', color: 'var(--text-2)', fontSize: '0.8rem' }}>Reg No</th>
-                          <th style={{ padding: '8px', textAlign: 'left', color: 'var(--text-2)', fontSize: '0.8rem' }}>Name</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {csModalAbsentees.map((s, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td style={{ padding: '8px', fontSize: '0.9rem', color: 'var(--text-1)' }}>{s.register_number}</td>
-                            <td style={{ padding: '8px', fontSize: '0.9rem', color: 'var(--text-1)', fontWeight: 500 }}>{s.name}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {csModalAbsentees.map((s, i) => (
+                        <div key={i} style={{ padding: '8px', borderBottom: '1px solid var(--border)', fontSize: '0.95rem', color: 'var(--text-1)', fontWeight: 500 }}>
+                          {i + 1}. {s.name}
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>Everyone was present!</div>
                   )}

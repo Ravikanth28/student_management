@@ -268,13 +268,14 @@ export const getAttendanceClassSummary = asyncWrap(async (req, res) => {
   if (!year) throw new HttpError(400, 'year is required');
 
   // We need to group by class (section), count present, absent, and get list of absentees.
-  // We can do this efficiently in SQL
+  // Using LEFT JOIN to ensure all students for the year are accounted for,
+  // even if they did not post their attendance yet.
   const [rows] = await pool.query<RowDataPacket[]>(
-    `SELECT a.section, a.status, s.id as student_id, s.name, s.register_number
-     FROM attendance a
-     JOIN students s ON a.student_id = s.id
-     WHERE a.att_date = ? AND a.year = ?
-     ORDER BY a.section ASC, s.name ASC`,
+    `SELECT s.section, a.status, s.id as student_id, s.name, s.register_number
+     FROM students s
+     LEFT JOIN attendance a ON s.id = a.student_id AND a.att_date = ?
+     WHERE s.year = ?
+     ORDER BY s.section ASC, s.name ASC`,
     [date, year]
   );
 
@@ -287,7 +288,7 @@ export const getAttendanceClassSummary = asyncWrap(async (req, res) => {
     const classData = summaryMap.get(sec);
     if (r.status === 'present') {
       classData.present += 1;
-    } else if (r.status === 'absent') {
+    } else {
       classData.absent += 1;
       classData.absentees.push({ id: r.student_id, name: r.name, register_number: r.register_number });
     }

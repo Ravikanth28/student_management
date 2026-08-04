@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { Shell } from '../components/Shell';
-import { BLOOD_GROUPS, type Student, type StudentListResponse } from '../types';
+import { BLOOD_GROUPS, YEAR_OPTIONS, YEAR_LABELS, type Student, type StudentListResponse } from '../types';
+
+const SECTIONS = ['A', 'B', 'C', 'D', 'E'];
 
 type Props = { onLogout: () => void };
 
@@ -10,6 +12,8 @@ export function BloodGroupsPage({ onLogout }: Props) {
   const navigate = useNavigate();
   const [groups, setGroups] = useState<string[]>([]);
   const [group, setGroup] = useState('');
+  const [year, setYear] = useState('');
+  const [section, setSection] = useState('');
   const [q, setQ] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,12 +33,14 @@ export function BloodGroupsPage({ onLogout }: Props) {
     setLoading(true);
     const params: Record<string, string | number> = { limit: 2000 };
     if (group) params.blood_group = group;
+    if (year) params.year = year;
+    if (section) params.section = section;
     api.get<StudentListResponse>('/students/filter', { params })
       .then((res) => { if (active) setStudents(res.data.data); })
       .catch(() => { if (active) setStudents([]); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [group]);
+  }, [group, year, section]);
 
   const filtered = students.filter((s) => {
     if (!q.trim()) return true;
@@ -89,13 +95,37 @@ export function BloodGroupsPage({ onLogout }: Props) {
                 : <>All blood groups</>}
               {!loading && <span style={{ marginLeft: 8, fontSize: '0.8rem', color: 'var(--text-2)', fontWeight: 500 }}>{filtered.length} student{filtered.length === 1 ? '' : 's'}</span>}
             </h2>
-            <input
-              className="form-control"
-              placeholder="Filter by name / number / section…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              style={{ maxWidth: 280 }}
-            />
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <select 
+                className="form-control" 
+                value={year} 
+                onChange={(e) => setYear(e.target.value)} 
+                style={{ minWidth: 120 }}
+              >
+                <option value="">All Years</option>
+                {YEAR_OPTIONS.filter((y) => y !== 'Alumni').map((y) => (
+                  <option key={y} value={y}>{YEAR_LABELS[y]}</option>
+                ))}
+              </select>
+              <select 
+                className="form-control" 
+                value={section} 
+                onChange={(e) => setSection(e.target.value)} 
+                style={{ minWidth: 120 }}
+              >
+                <option value="">All Sections</option>
+                {SECTIONS.map((s) => (
+                  <option key={s} value={s}>Section {s}</option>
+                ))}
+              </select>
+              <input
+                className="form-control"
+                placeholder="Filter by name / number / section…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                style={{ maxWidth: 280 }}
+              />
+            </div>
           </div>
 
           {loading ? (
