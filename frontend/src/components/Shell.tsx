@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../state/auth';
 import { useTheme } from '../state/theme';
 import { InstallAppModal } from './InstallApp';
+import { Capacitor } from '@capacitor/core';
 import type { Role } from '../types';
 
 function roleLabel(r: Role): string {
@@ -337,10 +338,12 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
             </button>
           </div>
         )}
-        <button className="logout-btn" type="button" onClick={() => setShowAppModal(true)} style={{ marginBottom: 6 }}>
-          <IconPhone />
-          Mobile App (APK)
-        </button>
+        {!Capacitor.isNativePlatform() && (
+          <button className="logout-btn" type="button" onClick={() => setShowAppModal(true)} style={{ marginBottom: 6 }}>
+            <IconPhone />
+            Mobile App (APK)
+          </button>
+        )}
         <button className="logout-btn" type="button" onClick={onLogout} id="logout-button">
           <IconLogout />
           Sign Out
