@@ -16,20 +16,6 @@ const SCAN_HINTS = new Map<DecodeHintType, unknown>([
 // Region of interest: the wide, short band where the barcode sits.
 const ROI = { x: 0.05, y: 0.28, w: 0.90, h: 0.44 };
 
-// Boost contrast on the cropped band so faint bars survive the glare.
-function enhance(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  const img = ctx.getImageData(0, 0, w, h);
-  const d = img.data;
-  const contrast = 1.6;
-  const intercept = 128 * (1 - contrast);
-  for (let i = 0; i < d.length; i += 4) {
-    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    let v = gray * contrast + intercept;
-    v = v < 0 ? 0 : v > 255 ? 255 : v;
-    d[i] = d[i + 1] = d[i + 2] = v;
-  }
-  ctx.putImageData(img, 0, 0);
-}
 
 type Props = {
   active: boolean;
@@ -86,7 +72,6 @@ export function BarcodeScanner({ active, onScan, isProcessing, notFound, onScanA
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (ctx) {
         ctx.drawImage(v, Math.floor(vw * ROI.x), Math.floor(vh * ROI.y), sw, sh, 0, 0, sw, sh);
-        enhance(ctx, sw, sh);
         try {
           let text: string | undefined;
           if (detectorRef.current) {
@@ -95,12 +80,11 @@ export function BarcodeScanner({ active, onScan, isProcessing, notFound, onScanA
               text = codes?.[0]?.rawValue;
             } catch (err) {
               detectorRef.current = null;
-              if (!readerRef.current) readerRef.current = new BrowserMultiFormatReader(SCAN_HINTS);
               setEngine('fallback');
             }
           }
           
-          if (!detectorRef.current && readerRef.current) {
+          if (!text && readerRef.current) {
             text = readerRef.current.decodeFromCanvas(canvas)?.getText?.();
           }
           
@@ -137,7 +121,7 @@ export function BarcodeScanner({ active, onScan, isProcessing, notFound, onScanA
     if (BD && !detectorRef.current && engine !== 'fallback' && savedEngine !== 'fallback') {
       try { detectorRef.current = new BD({ formats: ['code_128', 'qr_code', 'ean_13', 'code_39'] }); } catch { detectorRef.current = null; }
     }
-    if (!detectorRef.current && !readerRef.current) {
+    if (!readerRef.current) {
       readerRef.current = new BrowserMultiFormatReader(SCAN_HINTS);
     }
     setEngine(detectorRef.current ? 'native' : 'fallback');

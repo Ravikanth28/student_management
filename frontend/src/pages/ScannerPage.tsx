@@ -81,7 +81,7 @@ export function ScannerPage({ onLogout }: Props) {
         }
       } finally {
         setLooking(false);
-        lockRef.current = false;
+        setTimeout(() => { lockRef.current = false; }, 900); // debounce repeated scans
       }
     }
   };
