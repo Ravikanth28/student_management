@@ -28,6 +28,8 @@ export function StudentAttendancePage({ onLogout }: Props) {
   const [roster, setRoster] = useState<StudentRosterRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterText, setFilterText] = useState('');
+  const [filterYear, setFilterYear] = useState('');
+  const [filterSection, setFilterSection] = useState('');
   const [showWizard, setShowWizard] = useState(false);
 
   // Wizard state
@@ -211,15 +213,27 @@ export function StudentAttendancePage({ onLogout }: Props) {
     resetWizard();
   };
 
+  // Derive unique sorted year and section lists from roster for dropdowns
+  const uniqueYears = useMemo(() => [...new Set(roster.map(s => s.year))].sort(), [roster]);
+  const uniqueSections = useMemo(() => {
+    const base = filterYear ? roster.filter(s => s.year === filterYear) : roster;
+    return [...new Set(base.map(s => s.section))].sort();
+  }, [roster, filterYear]);
+
   const filteredRoster = useMemo(() => {
-    if (!filterText) return roster;
-    const lower = filterText.toLowerCase();
-    return roster.filter(s =>
-      s.name.toLowerCase().includes(lower) ||
-      s.register_number.toLowerCase().includes(lower) ||
-      s.enrollment_number.toLowerCase().includes(lower)
-    );
-  }, [roster, filterText]);
+    let result = roster;
+    if (filterYear) result = result.filter(s => s.year === filterYear);
+    if (filterSection) result = result.filter(s => s.section === filterSection);
+    if (filterText) {
+      const lower = filterText.toLowerCase();
+      result = result.filter(s =>
+        s.name.toLowerCase().includes(lower) ||
+        s.register_number.toLowerCase().includes(lower) ||
+        s.enrollment_number.toLowerCase().includes(lower)
+      );
+    }
+    return result;
+  }, [roster, filterText, filterYear, filterSection]);
 
   const locationVerified = locationStatus === 'success';
   const locationIsError = locationStatus === 'permission-denied' || locationStatus === 'gps-off' || locationStatus === 'error';
@@ -261,15 +275,33 @@ export function StudentAttendancePage({ onLogout }: Props) {
             <h1 style={{ margin: '0 0 8px 0', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-1)' }}>My Attendance</h1>
             <p style={{ margin: 0, color: 'var(--text-2)', fontSize: '0.95rem' }}>View your classmates and mark your attendance for today.</p>
           </div>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
             <input
               type="text"
               placeholder="Search by name or reg no..."
               className="form-control"
               value={filterText}
               onChange={e => setFilterText(e.target.value)}
-              style={{ flex: '1 1 200px', minWidth: 200 }}
+              style={{ flex: '2 1 180px', minWidth: 160 }}
             />
+            <select
+              className="form-control"
+              value={filterYear}
+              onChange={e => { setFilterYear(e.target.value); setFilterSection(''); }}
+              style={{ flex: '1 1 100px', minWidth: 90 }}
+            >
+              <option value="">All Years</option>
+              {uniqueYears.map(y => <option key={y} value={y}>Year {y}</option>)}
+            </select>
+            <select
+              className="form-control"
+              value={filterSection}
+              onChange={e => setFilterSection(e.target.value)}
+              style={{ flex: '1 1 110px', minWidth: 100 }}
+            >
+              <option value="">All Sections</option>
+              {uniqueSections.map(s => <option key={s} value={s}>Section {s}</option>)}
+            </select>
             <button className="btn btn-primary" onClick={() => setShowWizard(true)} style={{ flex: '1 1 auto', whiteSpace: 'nowrap' }}>
               Summary / Mark Attendance
             </button>
