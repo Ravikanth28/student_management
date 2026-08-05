@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "838637894799",
+    "firebase_url": "https://agriman-78a6b-default-rtdb.firebaseio.com",
+    "project_id": "agriman-78a6b",
+    "storage_bucket": "agriman-78a6b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:838637894799:android:b8b34f93145d0f7ace84fa",
+        "android_client_info": {
+          "package_name": "com.college.studentportal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYCnEi85pKmVhbIRupVDy6kwh6XB2GDYk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

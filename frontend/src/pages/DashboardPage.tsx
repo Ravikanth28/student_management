@@ -115,7 +115,19 @@ export function DashboardPage({ onLogout }: Props) {
     }
   }, [role, studentId, navigate]);
 
-  if (role === 'student') return null;
+  if (role === 'student') {
+    if (!studentId) {
+      return (
+        <Shell title="Dashboard" onLogout={onLogout}>
+          <div className="card" style={{ padding: 32, textAlign: 'center', margin: '40px auto', maxWidth: 400 }}>
+            <h2 style={{ marginBottom: 16 }}>No Student Record Linked</h2>
+            <p style={{ color: 'var(--text-2)' }}>Your account is not linked to any student record. Please contact the administrator.</p>
+          </div>
+        </Shell>
+      );
+    }
+    return null; // Redirects in useEffect
+  }
 
   const statValues: Record<string, number> = {
     totalStudents:    stats?.totalStudents ?? 0,
