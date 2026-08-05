@@ -88,48 +88,32 @@ jobs:
             echo "Keystore secret found — configuring SIGNED release build."
             echo "$KEYSTORE_BASE64" | base64 -d > android/app/student-portal.keystore
 
-            # Use Python to safely inject signingConfigs into build.gradle
-            python3 - <<'PYEOF'
-import os
-gradle_path = 'android/app/build.gradle'
-ks_password = os.environ['KEYSTORE_PASSWORD']
-key_alias   = os.environ['KEY_ALIAS']
-key_password= os.environ['KEY_PASSWORD']
+            GRADLE=android/app/build.gradle
 
-signing_block = f"""
-    signingConfigs {{
-        release {{
-            storeFile file('student-portal.keystore')
-            storePassword '{ks_password}'
-            keyAlias '{key_alias}'
-            keyPassword '{key_password}'
-        }}
-    }}
-"""
+            # Step 1: Insert signingConfigs block INSIDE android { }, right after the opening brace
+            # We use awk to find "android {" and insert signingConfigs after it
+            awk -v ksp="$KEYSTORE_PASSWORD" -v ka="$KEY_ALIAS" -v kp="$KEY_PASSWORD" '
+              /^android \{/ {
+                print $0
+                print "    signingConfigs {"
+                print "        release {"
+                print "            storeFile file(\"student-portal.keystore\")"
+                print "            storePassword \"" ksp "\""
+                print "            keyAlias \"" ka "\""
+                print "            keyPassword \"" kp "\""
+                print "        }"
+                print "    }"
+                next
+              }
+              /minifyEnabled false/ && !signed {
+                print "            signingConfig signingConfigs.release"
+                signed=1
+              }
+              { print }
+            ' "$GRADLE" > "${GRADLE}.new" && mv "${GRADLE}.new" "$GRADLE"
 
-with open(gradle_path, 'r') as f:
-    content = f.read()
-
-# Insert signingConfigs right after "android {" line
-content = content.replace(
-    "android {\n",
-    "android {" + signing_block,
-    1
-)
-
-# Wire signingConfig into the release buildType
-content = content.replace(
-    "        release {\n            minifyEnabled false",
-    "        release {\n            signingConfig signingConfigs.release\n            minifyEnabled false",
-    1
-)
-
-with open(gradle_path, 'w') as f:
-    f.write(content)
-
-print("✅ Signing config injected successfully.")
-PYEOF
-            echo "Signing configured."
+            echo "Signing configured. build.gradle:"
+            cat "$GRADLE"
           else
             echo "No KEYSTORE_BASE64 secret — building unsigned debug APK."
           fi
