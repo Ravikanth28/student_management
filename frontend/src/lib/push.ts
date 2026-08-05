@@ -16,19 +16,34 @@ export async function registerPush(): Promise<void> {
   try {
     const { PushNotifications } = await import('@capacitor/push-notifications');
 
-    let perm = await PushNotifications.checkPermissions();
+    // checkPermissions itself can throw if Firebase isn't configured — catch it
+    let perm;
+    try {
+      perm = await PushNotifications.checkPermissions();
+    } catch {
+      registered = false;
+      return; // Firebase not set up — silently skip, do NOT crash
+    }
+
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
-      perm = await PushNotifications.requestPermissions();
+      try {
+        perm = await PushNotifications.requestPermissions();
+      } catch {
+        registered = false;
+        return;
+      }
     }
     if (perm.receive !== 'granted') { registered = false; return; }
 
-    // Send the token to the backend once we get it.
-    await PushNotifications.addListener('registration', (token: any) => {
-      void api.post('/devices/register', { token: token.value, platform: 'android' }).catch(() => {});
-    });
-    await PushNotifications.addListener('registrationError', () => { registered = false; });
-
-    await PushNotifications.register();
+    try {
+      await PushNotifications.addListener('registration', (token: any) => {
+        void api.post('/devices/register', { token: token.value, platform: 'android' }).catch(() => {});
+      });
+      await PushNotifications.addListener('registrationError', () => { registered = false; });
+      await PushNotifications.register();
+    } catch {
+      registered = false; // Firebase not configured or registration failed — silent, no crash
+    }
   } catch {
     registered = false;
   }
