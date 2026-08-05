@@ -210,3 +210,41 @@ export async function removeAbsentees(entries: { student_id: number; att_date: s
   return res.affectedRows;
 }
 
+export interface ExportDataRow {
+  student_id: number;
+  name: string;
+  register_number: string;
+  enrollment_number: string;
+  section: string;
+  att_date: string | null;
+  status: string | null;
+}
+
+/** Fetches students and their attendance records for the Excel export. */
+export async function getExportData(params: {
+  from: string;
+  to: string;
+  year?: string;
+  section?: string;
+}): Promise<ExportDataRow[]> {
+  const cond: string[] = [];
+  const vals: unknown[] = [params.from, params.to];
+  if (params.year) { cond.push('s.year = ?'); vals.push(params.year); }
+  if (params.section) { cond.push('s.section = ?'); vals.push(params.section); }
+  const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
+
+  const [rows] = await pool.query<Array<ExportDataRow & RowDataPacket>>(
+    `SELECT s.id AS student_id, s.name, s.register_number, s.enrollment_number, s.section, 
+            DATE_FORMAT(a.att_date, '%Y-%m-%d') AS att_date, a.status
+       FROM students s
+       LEFT JOIN attendance a ON s.id = a.student_id AND a.att_date >= ? AND a.att_date <= ?
+       ${where}
+       ORDER BY s.section ASC, s.name ASC, a.att_date ASC`,
+    vals,
+  );
+  
+  return rows.map((r) => ({
+    ...r,
+    student_id: Number(r.student_id),
+  }));
+}

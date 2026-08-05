@@ -109,6 +109,45 @@ export const getAttendanceRangeReport = asyncWrap(async (req, res) => {
   return res.json({ data: rows });
 });
 
+// GET /api/attendance/export-data?from=&to=&year=&section= (Export data for excel)
+export const exportAttendanceData = asyncWrap(async (req, res) => {
+  const from = req.query.from ? String(req.query.from).trim() : '';
+  const to = req.query.to ? String(req.query.to).trim() : '';
+  
+  if (!from || !to) throw new HttpError(400, 'from and to dates are required');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    throw new HttpError(400, 'dates must be YYYY-MM-DD');
+  }
+
+  const rows = await attendanceRepo.getExportData({
+    from,
+    to,
+    year: req.query.year ? String(req.query.year).trim() : undefined,
+    section: req.query.section ? String(req.query.section).trim() : undefined,
+  });
+
+  // Transform rows to return an array of students with an attendance map
+  // Group by student_id
+  const studentMap = new Map<number, any>();
+  for (const r of rows) {
+    if (!studentMap.has(r.student_id)) {
+      studentMap.set(r.student_id, {
+        student_id: r.student_id,
+        name: r.name,
+        register_number: r.register_number,
+        enrollment_number: r.enrollment_number,
+        section: r.section,
+        attendance: {}
+      });
+    }
+    if (r.att_date && r.status) {
+      studentMap.get(r.student_id).attendance[r.att_date] = r.status;
+    }
+  }
+
+  return res.json({ data: Array.from(studentMap.values()) });
+});
+
 // POST /api/attendance/remove-absentees  { entries: Array<{ student_id: number; att_date: string }> }
 export const removeAbsentees = asyncWrap(async (req, res) => {
   const rawEntries = req.body?.entries;
@@ -283,11 +322,12 @@ export const getAttendanceClassSummary = asyncWrap(async (req, res) => {
   for (const r of rows) {
     const sec = r.section || 'Unassigned';
     if (!summaryMap.has(sec)) {
-      summaryMap.set(sec, { class: sec, present: 0, absent: 0, absentees: [] });
+      summaryMap.set(sec, { class: sec, present: 0, absent: 0, absentees: [], present_students: [] });
     }
     const classData = summaryMap.get(sec);
     if (r.status === 'present') {
       classData.present += 1;
+      classData.present_students.push({ id: r.student_id, name: r.name, register_number: r.register_number });
     } else {
       classData.absent += 1;
       classData.absentees.push({ id: r.student_id, name: r.name, register_number: r.register_number });

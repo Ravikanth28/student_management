@@ -12,7 +12,8 @@ import {
   getStudentYearRoster,
   verifyPhone,
   markSelfAttendance,
-  getAttendanceClassSummary
+  getAttendanceClassSummary,
+  exportAttendanceData
 } from '../controllers/attendanceController.js';
 
 export const attendanceRoutes = Router();
@@ -33,6 +34,7 @@ attendanceRoutes.get('/class-summary', staff, getAttendanceClassSummary);
 attendanceRoutes.get('/day', staff, getDay);
 attendanceRoutes.get('/summary', staff, getSummary);
 attendanceRoutes.get('/range', staff, getAttendanceRangeReport);
+attendanceRoutes.get('/export-data', staff, exportAttendanceData);
 attendanceRoutes.get('/student/:id', staff, getStudentAttendance);
 attendanceRoutes.post('/', staff, saveAttendance);
 attendanceRoutes.post('/remove-absentees', staff, removeAbsentees);

@@ -152,7 +152,13 @@ export function AttendancePage({ onLogout }: Props) {
   const [csLoading, setCsLoading] = useState(false);
   const [csModalOpen, setCsModalOpen] = useState(false);
   const [csModalAbsentees, setCsModalAbsentees] = useState<any[]>([]);
+  const [csModalPresent, setCsModalPresent] = useState<any[]>([]);
   const [csModalClass, setCsModalClass] = useState('');
+  const [csModalTab, setCsModalTab] = useState<'absent' | 'present'>('absent');
+
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportMonth, setExportMonth] = useState(() => todayIST().slice(0, 7));
+  const [exportStudentName, setExportStudentName] = useState('');
 
   useEffect(() => {
     if (tab === 'class-summary' && csYear) {
@@ -163,6 +169,108 @@ export function AttendancePage({ onLogout }: Props) {
         .finally(() => setCsLoading(false));
     }
   }, [tab, csYear, csDate]);
+
+  const handleExport = async () => {
+    if (!exportMonth) {
+      toastError('Month required', 'Please select a month.');
+      return;
+    }
+    setExporting(true);
+    try {
+      const parts = exportMonth.split('-');
+      const yearNum = parseInt(parts[0], 10);
+      const monthNum = parseInt(parts[1], 10);
+      
+      if (isNaN(yearNum) || isNaN(monthNum)) {
+        toastError('Invalid Month', 'Please select a valid month.');
+        setExporting(false);
+        return;
+      }
+
+      const startStr = `${yearNum}-${String(monthNum).padStart(2, '0')}-01`;
+      
+      const todayStr = todayIST(); // "YYYY-MM-DD"
+      const currentYearMonth = todayStr.slice(0, 7);
+      
+      let endStr: string;
+      let lastDayInLoop: number;
+      
+      if (exportMonth === currentYearMonth) {
+        endStr = todayStr;
+        lastDayInLoop = parseInt(todayStr.slice(8, 10), 10);
+      } else if (exportMonth > currentYearMonth) {
+        toastError('Future Month', 'Cannot export attendance for future months.');
+        setExporting(false);
+        return;
+      } else {
+        const lastDay = new Date(yearNum, monthNum, 0).getDate();
+        endStr = `${yearNum}-${String(monthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        lastDayInLoop = lastDay;
+      }
+
+      const res = await api.get<{ data: any[] }>('/attendance/export-data', {
+        params: { from: startStr, to: endStr, year: exportYear || undefined, section: exportSection || undefined }
+      });
+      let students = res.data.data;
+      
+      if (exportStudentName.trim()) {
+        const searchName = norm(exportStudentName);
+        students = students.filter((s: any) => norm(s.name).includes(searchName));
+      }
+
+      if (students.length === 0) {
+        toastError('No data', 'No students found for the selected filters.');
+        setExporting(false);
+        return;
+      }
+      
+      // Calculate date range columns
+      const startDate = new Date(yearNum, monthNum - 1, 1);
+      const endDate = new Date(yearNum, monthNum - 1, lastDayInLoop);
+      const dates: string[] = [];
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        dates.push(`${yearNum}-${String(monthNum).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      }
+
+      // Identify working days (days where at least one student has attendance)
+      const workingDays = new Set<string>();
+      for (const s of students) {
+        for (const date of dates) {
+          if (s.attendance[date]) workingDays.add(date);
+        }
+      }
+
+      // Build excel rows
+      const rows = students.map((s) => {
+        const row: Record<string, string> = {
+          Name: s.name,
+          'Enrollment Number': s.enrollment_number || '-',
+          'Register Number': s.register_number || '-',
+          'Section': s.section || '-'
+        };
+        for (const date of dates) {
+          const status = s.attendance[date];
+          if (status === 'present') {
+            row[date] = 'P';
+          } else if (status === 'absent') {
+            row[date] = 'A';
+          } else {
+            row[date] = workingDays.has(date) ? 'A' : '-';
+          }
+        }
+        return row;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+      XLSX.writeFile(wb, `Attendance_Export_${exportMonth}.xlsx`);
+    } catch (e: any) {
+      toastError('Export failed', e.response?.data?.message || 'Could not export data');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const openPreview = () => {
     if (!year || !section) { toastError('Pick a class', 'Select the year and section first.'); return; }
@@ -293,12 +401,7 @@ export function AttendancePage({ onLogout }: Props) {
 
   return (
     <Shell title="Daily Attendance" subtitle="Mark absentees, view daily registers, and export absentee Excel reports" onLogout={onLogout}>
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button className={`btn ${tab === 'class-summary' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('class-summary')}>Class Summary</button>
 
-        <button className={`btn ${tab === 'export' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('export')}>Export Report</button>
-      </div>
 
       {tab === 'class-summary' && (
         <div className="card card-padded">
@@ -313,6 +416,11 @@ export function AttendancePage({ onLogout }: Props) {
             <div>
               <label className="form-label">Select Date</label>
               <input type="date" className="form-control" value={csDate} onChange={(e) => setCsDate(e.target.value)} />
+            </div>
+            <div style={{ marginLeft: 'auto' }}>
+              <button className="btn btn-primary" onClick={() => setExportModalOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <IconDownload /> Export Data
+              </button>
             </div>
           </div>
 
@@ -346,10 +454,12 @@ export function AttendancePage({ onLogout }: Props) {
                           onClick={() => {
                             setCsModalClass(cls.class);
                             setCsModalAbsentees(cls.absentees);
+                            setCsModalPresent(cls.present_students || []);
+                            setCsModalTab('absent');
                             setCsModalOpen(true);
                           }}
                         >
-                          View Absentees
+                          View Details
                         </button>
                       </td>
                     </tr>
@@ -366,28 +476,126 @@ export function AttendancePage({ onLogout }: Props) {
             </div>
           )}
 
-          {/* Modal for Absentees */}
+          {/* Modal for Absentees/Present */}
           {csModalOpen && (
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ background: 'var(--surface)', width: 500, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
+              <div style={{ background: 'var(--surface)', width: 750, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
+
                 <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-2)' }}>
-                  <h2 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-1)' }}>Absentees - Section {csModalClass}</h2>
+                  <h2 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-1)' }}>Class Register - Section {csModalClass}</h2>
                   <button onClick={() => setCsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer' }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
+                
+                {/* KPI Cards */}
+                <div style={{ padding: '16px 24px', background: 'var(--surface)', display: 'flex', gap: 12, flexWrap: 'wrap', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-3)', marginBottom: 4 }}>Date</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-1)' }}>{csDate.split('-').reverse().join('-')}</div>
+                  </div>
+                  <div style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-3)', marginBottom: 4 }}>Section</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)' }}>{csModalClass}</div>
+                  </div>
+                  <div style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-3)', marginBottom: 4 }}>Total</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-1)' }}>{csModalPresent.length + csModalAbsentees.length}</div>
+                  </div>
+                  <div style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: 'rgba(16,185,129,0.1)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#10b981', marginBottom: 4 }}>Present</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#10b981' }}>{csModalPresent.length}</div>
+                  </div>
+                  <div style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#ef4444', marginBottom: 4 }}>Absent</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ef4444' }}>{csModalAbsentees.length}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+                  <button 
+                    onClick={() => setCsModalTab('absent')}
+                    style={{ flex: 1, padding: '12px', background: csModalTab === 'absent' ? 'var(--surface-2)' : 'transparent', border: 'none', borderBottom: csModalTab === 'absent' ? '2px solid #ef4444' : '2px solid transparent', color: csModalTab === 'absent' ? '#ef4444' : 'var(--text-2)', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Absent ({csModalAbsentees.length})
+                  </button>
+                  <button 
+                    onClick={() => setCsModalTab('present')}
+                    style={{ flex: 1, padding: '12px', background: csModalTab === 'present' ? 'var(--surface-2)' : 'transparent', border: 'none', borderBottom: csModalTab === 'present' ? '2px solid #10b981' : '2px solid transparent', color: csModalTab === 'present' ? '#10b981' : 'var(--text-2)', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Present ({csModalPresent.length})
+                  </button>
+                </div>
                 <div style={{ padding: 24, overflowY: 'auto' }}>
-                  {csModalAbsentees.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {csModalAbsentees.map((s, i) => (
-                        <div key={i} style={{ padding: '8px', borderBottom: '1px solid var(--border)', fontSize: '0.95rem', color: 'var(--text-1)', fontWeight: 500 }}>
-                          {i + 1}. {s.name}
-                        </div>
-                      ))}
-                    </div>
+                  {csModalTab === 'absent' ? (
+                    csModalAbsentees.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {csModalAbsentees.map((s, i) => (
+                          <div key={i} style={{ padding: '8px', borderBottom: '1px solid var(--border)', fontSize: '0.95rem', color: 'var(--text-1)', fontWeight: 500 }}>
+                            {i + 1}. {s.name}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>Everyone was present!</div>
+                    )
                   ) : (
-                    <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>Everyone was present!</div>
+                    csModalPresent.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {csModalPresent.map((s, i) => (
+                          <div key={i} style={{ padding: '8px', borderBottom: '1px solid var(--border)', fontSize: '0.95rem', color: 'var(--text-1)', fontWeight: 500 }}>
+                            {i + 1}. {s.name}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--text-2)' }}>No students marked present.</div>
+                    )
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Export Data Modal */}
+          {exportModalOpen && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: 'var(--surface)', width: 400, borderRadius: 16, overflow: 'hidden', padding: 24 }}>
+                <h3 style={{ margin: '0 0 16px 0', color: 'var(--text-1)' }}>Export Attendance Data</h3>
+                
+                <div style={{ marginBottom: 12 }}>
+                  <label className="form-label">Select Month</label>
+                  <input type="month" className="form-control" value={exportMonth} onChange={(e) => setExportMonth(e.target.value)} style={{ width: '100%' }} />
+                </div>
+                
+                <div style={{ marginBottom: 12 }}>
+                  <label className="form-label">Year (Optional)</label>
+                  <select className="form-control" value={exportYear} onChange={(e) => setExportYear(e.target.value)} style={{ width: '100%' }}>
+                    <option value="">All Years</option>
+                    {YEAR_OPTIONS.filter((y) => y !== 'Alumni').map((y) => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
+                  </select>
+                </div>
+                
+                <div style={{ marginBottom: 12 }}>
+                  <label className="form-label">Section (Optional)</label>
+                  <select className="form-control" value={exportSection} onChange={(e) => setExportSection(e.target.value)} style={{ width: '100%' }}>
+                    <option value="">All Sections</option>
+                    {SECTIONS.map((s) => (
+                      <option key={s} value={s}>Sec {s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: 24 }}>
+                  <label className="form-label">Student Name (Optional)</label>
+                  <input type="text" className="form-control" placeholder="Search by name" value={exportStudentName} onChange={(e) => setExportStudentName(e.target.value)} style={{ width: '100%' }} />
+                </div>
+                
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                  <button className="btn btn-outline" onClick={() => setExportModalOpen(false)}>Cancel</button>
+                  <button className="btn btn-primary" onClick={handleExport} disabled={exporting}>
+                    {exporting ? 'Exporting...' : 'Download Excel'}
+                  </button>
                 </div>
               </div>
             </div>
