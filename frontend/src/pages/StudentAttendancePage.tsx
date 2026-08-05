@@ -190,6 +190,7 @@ export function StudentAttendancePage({ onLogout }: Props) {
       success('Attendance Marked', 'Your attendance has been marked successfully.');
       setShowWizard(false);
       resetWizard();
+      void loadRoster();
     } catch (err: any) {
       toastError('Failed to mark attendance', err.response?.data?.message || err.message);
     } finally {
