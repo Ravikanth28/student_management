@@ -88,15 +88,50 @@ jobs:
             echo "Keystore secret found — configuring SIGNED release build."
             echo "$KEYSTORE_BASE64" | base64 -d > android/app/student-portal.keystore
 
-            # Inject signingConfigs block and wire it to the release buildType
-            GRADLE=android/app/build.gradle
-            # Insert signingConfigs before the android { block
-            sed -i "s|android {|signingConfigs {\n    release {\n        storeFile file('student-portal.keystore')\n        storePassword '${KEYSTORE_PASSWORD}'\n        keyAlias '${KEY_ALIAS}'\n        keyPassword '${KEY_PASSWORD}'\n    }\n}\nandroid {|" "$GRADLE"
-            # Wire signingConfig to the release buildType
-            sed -i "s|release {|release {\n            signingConfig signingConfigs.release|" "$GRADLE"
+            # Use Python to safely inject signingConfigs into build.gradle
+            python3 - <<'PYEOF'
+import os
+gradle_path = 'android/app/build.gradle'
+ks_password = os.environ['KEYSTORE_PASSWORD']
+key_alias   = os.environ['KEY_ALIAS']
+key_password= os.environ['KEY_PASSWORD']
+
+signing_block = f"""
+    signingConfigs {{
+        release {{
+            storeFile file('student-portal.keystore')
+            storePassword '{ks_password}'
+            keyAlias '{key_alias}'
+            keyPassword '{key_password}'
+        }}
+    }}
+"""
+
+with open(gradle_path, 'r') as f:
+    content = f.read()
+
+# Insert signingConfigs right after "android {" line
+content = content.replace(
+    "android {\n",
+    "android {" + signing_block,
+    1
+)
+
+# Wire signingConfig into the release buildType
+content = content.replace(
+    "        release {\n            minifyEnabled false",
+    "        release {\n            signingConfig signingConfigs.release\n            minifyEnabled false",
+    1
+)
+
+with open(gradle_path, 'w') as f:
+    f.write(content)
+
+print("✅ Signing config injected successfully.")
+PYEOF
             echo "Signing configured."
           else
-            echo "No KEYSTORE_BASE64 secret — building unsigned debug APK (Play Protect warnings expected)."
+            echo "No KEYSTORE_BASE64 secret — building unsigned debug APK."
           fi
 
       - name: Sync web assets into Android project
