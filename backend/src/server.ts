@@ -5,6 +5,7 @@ import { logger } from './config/logger.js';
 import { pool } from './config/db.js';
 import { ensureSchema, seedSuperadmin } from './config/initDb.js';
 import { startBirthdayScheduler } from './services/birthdayScheduler.js';
+import { initCronJobs } from './cron.js';
 
 const server = createServer(app);
 
@@ -17,6 +18,7 @@ ensureSchema()
       logger.info(`API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
     });
     startBirthdayScheduler();
+    initCronJobs();
   });
 
 /**

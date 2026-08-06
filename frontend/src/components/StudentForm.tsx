@@ -11,7 +11,7 @@ const emptyStudent: StudentDraft = {
   address: '', college_email: '', personal_email: '',
   // photo_url is managed via Cloudinary upload on the student profile page
   photo_url: '',
-  blood_group: '', dob: '',
+  blood_group: '', dob: '', github_username: '',
 };
 
 type FieldMeta = {
@@ -55,6 +55,7 @@ const SECTIONS: { title: string; fields: FieldMeta[] }[] = [
     fields: [
       { key: 'college_email',  label: 'College Email',  type: 'email', placeholder: 'student@college.edu' },
       { key: 'personal_email', label: 'Personal Email', type: 'email', placeholder: 'student@gmail.com' },
+      { key: 'github_username',label: 'GitHub Username',type: 'text', placeholder: 'octocat' },
     ],
   },
 ];

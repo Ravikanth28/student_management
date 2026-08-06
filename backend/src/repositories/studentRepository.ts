@@ -64,8 +64,19 @@ export async function listStudents(page: number, limit: number, term?: string): 
 }
 
 export async function getStudentById(id: number): Promise<StudentRecord | null> {
-  const [rows] = await pool.query<StudentRow[]>('SELECT * FROM students WHERE id = ? LIMIT 1', [id]);
-  return rows[0] ? rowToStudent(rows[0]) : null;
+  const [rows] = await pool.query<StudentRow[]>(
+    `SELECT s.*, g.github_username 
+     FROM students s 
+     LEFT JOIN github_stats g ON s.id = g.student_id 
+     WHERE s.id = ? LIMIT 1`, 
+    [id]
+  );
+  if (!rows[0]) return null;
+  const student = rowToStudent(rows[0]);
+  if (rows[0].github_username) {
+    (student as any).github_username = rows[0].github_username;
+  }
+  return student;
 }
 
 export async function createStudent(input: StudentInput): Promise<StudentRecord> {
@@ -101,14 +112,28 @@ export async function createStudent(input: StudentInput): Promise<StudentRecord>
 }
 
 export async function updateStudent(id: number, changes: Partial<StudentInput>): Promise<StudentRecord | null> {
-  const entries = Object.entries(changes).filter(([, value]) => value !== undefined);
-  if (entries.length === 0) {
-    return getStudentById(id);
+  const { github_username, ...studentChanges } = changes as any;
+  
+  if (github_username !== undefined) {
+    if (github_username.trim() === '') {
+      await pool.query('DELETE FROM github_stats WHERE student_id = ?', [id]);
+    } else {
+      await pool.query(
+        `INSERT INTO github_stats (student_id, github_username) 
+         VALUES (?, ?) 
+         ON DUPLICATE KEY UPDATE github_username = VALUES(github_username)`,
+        [id, github_username.trim()]
+      );
+    }
   }
 
-  const setClause = entries.map(([field]) => `${field} = ?`).join(', ');
-  const values = entries.map(([, value]) => value);
-  await pool.query(`UPDATE students SET ${setClause} WHERE id = ?`, [...values, id]);
+  const entries = Object.entries(studentChanges).filter(([, value]) => value !== undefined);
+  if (entries.length > 0) {
+    const setClause = entries.map(([field]) => `${field} = ?`).join(', ');
+    const values = entries.map(([, value]) => value);
+    await pool.query(`UPDATE students SET ${setClause} WHERE id = ?`, [...values, id]);
+  }
+  
   return getStudentById(id);
 }
 

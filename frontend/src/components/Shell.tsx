@@ -248,6 +248,7 @@ const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; rol
   { to: '/attendance',    label: 'Attendance',       Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
   { to: '/student-reports', label: 'Student Reports',Icon: IconClipboard,     roles: ['superadmin', 'admin'] },
   { to: '/activity',      label: 'Activity',         Icon: IconActivity,      roles: ['superadmin', 'admin', 'user', 'student'] },
+  { to: '/github-analytics', label: 'GitHub Action', Icon: IconActivity,      roles: ['superadmin', 'admin'] },
   { to: '/import',        label: 'Bulk Import',      Icon: IconUploadNav,     roles: ['superadmin', 'admin'] },
   { to: '/exams',         label: 'Exams',            Icon: IconBookOpen,      roles: ['superadmin', 'admin'] },
   { to: '/my-exam-marks', label: 'My Marks',         Icon: IconClipboard,     roles: ['student'] },

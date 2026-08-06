@@ -15,6 +15,7 @@ export type Student = {
   photo_url?: string;
   blood_group?: string;
   dob?: string;
+  github_username?: string;
   created_at: string;
   updated_at: string;
 };
@@ -430,3 +431,15 @@ export type ExamSubjectInput = {
   tests: ExamTestInput[];
 };
 
+export type GithubStatsRow = {
+  student_id: number;
+  name: string;
+  enrollment_number: string;
+  section: string;
+  year: string;
+  github_username: string;
+  total_repos: number;
+  total_commits: number;
+  last_active: string | null;
+  status: 'Active' | 'Inactive';
+};

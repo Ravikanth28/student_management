@@ -28,6 +28,7 @@ import { StudentAttendancePage } from './pages/StudentAttendancePage';
 import { ExamCardsPage } from './pages/ExamCardsPage';
 import { ExamReportPage } from './pages/ExamReportPage';
 import { StudentMarksPage } from './pages/StudentMarksPage';
+import { GithubAnalyticsPage } from './pages/GithubAnalyticsPage';
 
 // Lazy-loaded: the scanner pulls in the heavy ZXing library, so only load it
 // when the scanner route is actually opened.
@@ -102,6 +103,7 @@ function AppRoutes() {
       <Route path="/exams/cards" element={<Protected roleKey="/exams/cards"><ExamCardsPage onLogout={logout} /></Protected>} />
       <Route path="/exams/report" element={<Protected roleKey="/exams"><ExamReportPage onLogout={logout} /></Protected>} />
       <Route path="/my-exam-marks" element={<Protected roleKey="/my-exam-marks"><StudentMarksPage onLogout={logout} /></Protected>} />
+      <Route path="/github-analytics" element={<Protected roleKey="/github-analytics"><GithubAnalyticsPage onLogout={logout} /></Protected>} />
 
       <Route path="*" element={<Navigate to={isAuthenticated ? defaultHome : '/login'} replace />} />
       </Routes>

@@ -23,6 +23,7 @@ export const PATH_ROLES: Record<string, Role[]> = {
   '/exams':         ['superadmin', 'admin'],
   '/exams/cards':   ['superadmin'],
   '/my-exam-marks': ['student'],
+  '/github-analytics': ['superadmin', 'admin'],
 };
 
 export function canAccess(path: string, role?: Role | null): boolean {

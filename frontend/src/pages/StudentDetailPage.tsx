@@ -11,6 +11,13 @@ import { isStaff } from '../lib/roles';
 import { LATE_PERIOD_LABELS, EVENT_TYPE_LABELS, PLACEMENT_TYPE_LABELS, OFFER_TYPE_LABELS, YEAR_LABELS, type Student, type LateRecord, type Achievement, type Placement, type DisciplineRecord } from '../types';
 
 // ─── SVG Icons ──────────────────────────────────────────────
+function IconActivity() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
+}
 function IconCamera() {
   return (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -114,6 +121,7 @@ const FIELDS: { key: keyof Student; label: string; icon?: React.ReactNode; span?
   { key: 'parent_phone',      label: 'Parent Phone',  icon: <IconPhone /> },
   { key: 'college_email',     label: 'College Email', icon: <IconMail /> },
   { key: 'personal_email',    label: 'Personal Email',icon: <IconMail /> },
+  { key: 'github_username',   label: 'GitHub',        icon: <IconActivity /> },
   { key: 'address',           label: 'Address',       icon: <IconMapPin />, span: true },
 ];
 
@@ -331,10 +339,15 @@ export function StudentDetailPage({ onLogout }: Props) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
-  const { role } = useAuth();
+  const { role, studentId } = useAuth();
   const staff = isStaff(role);
 
   const [student, setStudent]   = useState<Student | null>(null);
+  
+  // GitHub Modal state
+  const [showGithubModal, setShowGithubModal] = useState(false);
+  const [githubUsername, setGithubUsername] = useState('');
+  const [updatingGithub, setUpdatingGithub] = useState(false);
   const [loading, setLoading]   = useState(true);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting]     = useState(false);
@@ -437,6 +450,11 @@ export function StudentDetailPage({ onLogout }: Props) {
                 </button>
               </>
             )}
+            {!staff && role === 'student' && studentId === student.id && (
+              <button className="btn btn-primary" type="button" onClick={() => { setGithubUsername(student.github_username || ''); setShowGithubModal(true); }}>
+                <IconActivity /> Link GitHub
+              </button>
+            )}
           </>
         ) : null
       }
@@ -485,8 +503,23 @@ export function StudentDetailPage({ onLogout }: Props) {
                       <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                         {icon}{label}
                       </span>
-                      <span className={`field-value${!value ? ' empty' : ''}`}>
-                        {value || 'Not provided'}
+                      <span className={`field-value${!value ? ' empty' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {key === 'github_username' && value ? (
+                          <a href={`https://github.com/${value}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                            @{value}
+                          </a>
+                        ) : value || 'Not provided'}
+                        
+                        {key === 'github_username' && (staff || (role === 'student' && studentId === student.id)) && (
+                           <button 
+                             className="btn-icon" 
+                             style={{ opacity: 0.5, padding: 2 }} 
+                             onClick={() => { setGithubUsername(student.github_username || ''); setShowGithubModal(true); }}
+                             title="Edit GitHub Username"
+                           >
+                             <IconEdit />
+                           </button>
+                        )}
                       </span>
                     </div>
                   );
@@ -709,6 +742,58 @@ export function StudentDetailPage({ onLogout }: Props) {
           filters={{}}
           studentId={student.id}
         />
+      )}
+      
+      {/* GitHub Update Modal */}
+      {showGithubModal && student && (
+        <div className="modal-overlay" onClick={() => setShowGithubModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-icon" aria-hidden="true">
+              <IconActivity />
+            </div>
+            <h2 className="modal-title">Link GitHub Profile</h2>
+            <p className="modal-desc">Enter your GitHub username or profile link to track your activity.</p>
+            
+            <div style={{ marginTop: 24, textAlign: 'left' }}>
+              <label className="form-label">GitHub Username / URL</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                value={githubUsername} 
+                onChange={(e) => setGithubUsername(e.target.value)} 
+                placeholder="e.g. octocat or https://github.com/octocat"
+                autoFocus
+              />
+            </div>
+            <div className="modal-actions" style={{ marginTop: 24 }}>
+              <button className="btn btn-outline" onClick={() => setShowGithubModal(false)} disabled={updatingGithub}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={async () => {
+                  setUpdatingGithub(true);
+                  try {
+                    await api.post(`/students/${student.id}/github`, { github_username: githubUsername });
+                    success('Saved', 'GitHub username updated.');
+                    // Extract just username for UI if URL was pasted
+                    let username = githubUsername.trim();
+                    if (username.includes('github.com/')) {
+                      username = username.split('github.com/')[1].split('/')[0];
+                    }
+                    setStudent(s => s ? { ...s, github_username: username } : null);
+                    setShowGithubModal(false);
+                  } catch (err: any) {
+                    toastError('Error', err.response?.data?.message || 'Failed to update GitHub username');
+                  } finally {
+                    setUpdatingGithub(false);
+                  }
+                }}
+                disabled={updatingGithub}
+              >
+                {updatingGithub ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </Shell>
   );

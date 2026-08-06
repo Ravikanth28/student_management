@@ -8,6 +8,8 @@ import * as lateRepo from '../repositories/lateRepository.js';
 import * as achievementRepo from '../repositories/achievementRepository.js';
 import * as placementRepo from '../repositories/placementRepository.js';
 import * as disciplineRepo from '../repositories/disciplineRepository.js';
+import { pool } from '../config/db.js';
+import { fetchGithubStatsForUser, getFullGithubProfile } from '../services/githubService.js';
 
 /** Wraps an async route handler so unhandled rejections go to Express error middleware */
 function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>): RequestHandler {
@@ -159,3 +161,86 @@ export const getStudentDisciplineRecords = asyncWrap(async (req, res) => {
   return res.json({ data: records });
 });
 
+// POST /api/students/:id/github
+export const updateGithubUsername = asyncWrap(async (req, res) => {
+  const { github_username } = req.body;
+  const id = parseId(req.params.id);
+  
+  if (!github_username) throw new HttpError(400, 'GitHub username is required');
+  
+  let username = github_username.trim();
+  if (username.includes('github.com/')) {
+    username = username.split('github.com/')[1].split('/')[0];
+  }
+  
+  // Fetch initial stats immediately
+  const { totalRepos, totalCommits, lastActive } = await fetchGithubStatsForUser(username);
+  const lastActiveFormatted = lastActive ? new Date(lastActive).toISOString().slice(0, 19).replace('T', ' ') : null;
+  
+  await pool.query(
+    `INSERT INTO github_stats (student_id, github_username, total_repos, total_commits, last_active) 
+     VALUES (?, ?, ?, ?, ?) 
+     ON DUPLICATE KEY UPDATE 
+       github_username = VALUES(github_username),
+       total_repos = VALUES(total_repos),
+       total_commits = VALUES(total_commits),
+       last_active = VALUES(last_active)`,
+    [id, username, totalRepos, totalCommits, lastActiveFormatted]
+  );
+  
+  res.json({ success: true, message: 'GitHub username saved and stats fetched' });
+});
+
+// GET /api/students/github/analytics
+export const getGithubAnalytics = asyncWrap(async (req, res) => {
+  const year = req.query.year ? String(req.query.year) : null;
+  const section = req.query.section ? String(req.query.section) : null;
+  
+  const cond: string[] = [];
+  const vals: any[] = [];
+  
+  if (year) { cond.push('s.year = ?'); vals.push(year); }
+  if (section) { cond.push('s.section = ?'); vals.push(section); }
+  
+  let where = '';
+  if (cond.length > 0) {
+    where = 'WHERE ' + cond.join(' AND ');
+  }
+  
+  const [rows] = await pool.query(
+    `SELECT 
+      s.id as student_id,
+      s.name,
+      s.enrollment_number,
+      s.section,
+      s.year,
+      g.github_username,
+      g.total_repos,
+      g.total_commits,
+      g.last_active,
+      CASE WHEN g.last_active >= DATE_SUB(NOW(), INTERVAL 48 HOUR) THEN 'Active' ELSE 'Inactive' END as status
+    FROM students s
+    JOIN github_stats g ON s.id = g.student_id
+    ${where}
+    ORDER BY g.last_active DESC, g.total_commits DESC`,
+    vals
+  );
+  
+  return res.json({ data: rows });
+});
+
+// GET /api/students/:id/github/profile
+export const getStudentGithubProfile = asyncWrap(async (req, res) => {
+  const id = parseId(req.params.id);
+  const [rows] = await pool.query<any[]>(
+    'SELECT github_username FROM github_stats WHERE student_id = ?',
+    [id]
+  );
+  
+  if (rows.length === 0 || !rows[0].github_username) {
+    throw new HttpError(404, 'No GitHub account linked');
+  }
+  
+  const data = await getFullGithubProfile(rows[0].github_username);
+  return res.json(data);
+});

@@ -19,6 +19,9 @@ import {
   getStudentAchievements,
   getStudentPlacements,
   getStudentDisciplineRecords,
+  updateGithubUsername,
+  getGithubAnalytics,
+  getStudentGithubProfile,
 } from '../controllers/studentController.js';
 import { importStudents, importPhotosFromDrive, getImportProgress, getImportHistory, deleteImportHistory } from '../controllers/importController.js';
 import { uploadStudentPhoto, deleteStudentPhoto } from '../controllers/photoController.js';
@@ -82,6 +85,7 @@ studentRoutes.post('/import-photos-drive', staff, importPhotosFromDrive);
 studentRoutes.get('/import-history', staff, getImportHistory);
 studentRoutes.delete('/import-history/:id', staff, deleteImportHistory);
 studentRoutes.get('/import-progress/:id', staff, getImportProgress);
+studentRoutes.get('/github/analytics', staff, getGithubAnalytics);
 
 // ΓöÇΓöÇ CRUD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 studentRoutes.get('/',         anyStaff, listStudents);
@@ -93,6 +97,10 @@ studentRoutes.get('/:id/late-records',  requireSelfOrStaff, getStudentLateRecord
 studentRoutes.get('/:id/achievements',  requireSelfOrStaff, getStudentAchievements);
 studentRoutes.get('/:id/placements',    requireSelfOrStaff, getStudentPlacements);
 studentRoutes.get('/:id/discipline-records', requireSelfOrStaff, getStudentDisciplineRecords);
+
+// GitHub Analytics
+studentRoutes.post('/:id/github', requireSelfOrStaff, updateGithubUsername);
+studentRoutes.get('/:id/github/profile', requireSelfOrStaff, getStudentGithubProfile);
 
 // ΓöÇΓöÇ Photo (Cloudinary) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 studentRoutes.post('/:id/photo',   staff, uploadMiddleware, uploadStudentPhoto);
