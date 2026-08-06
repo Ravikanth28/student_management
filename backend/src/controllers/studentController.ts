@@ -155,6 +155,15 @@ export const getStudentPlacements = asyncWrap(async (req, res) => {
   return res.json({ data: placements });
 });
 
+// POST /api/students/:id/reset-device
+export const resetDeviceBinding = asyncWrap(async (req, res) => {
+  const id = parseId(req.params.id);
+  await pool.query('UPDATE students SET device_id = NULL WHERE id = ?', [id]);
+  const { record } = await import('../services/auditService.js');
+  record(req, { action: 'student.reset_device', status: 'success', entity: 'student', entity_id: String(id) });
+  res.json({ success: true, message: 'Device binding reset successfully' });
+});
+
 // GET /api/students/:id/discipline-records
 export const getStudentDisciplineRecords = asyncWrap(async (req, res) => {
   const records = await disciplineRepo.listDisciplineByStudent(parseId(req.params.id));

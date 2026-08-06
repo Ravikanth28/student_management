@@ -18,6 +18,7 @@ export type StudentInput = {
 
 export type StudentRecord = StudentInput & {
   id: number;
+  device_id?: string;
   created_at: string;
   updated_at: string;
 };

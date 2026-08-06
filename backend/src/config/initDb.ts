@@ -15,6 +15,7 @@ export async function ensureSchema(): Promise<void> {
     "ALTER TABLE students ADD COLUMN blood_group VARCHAR(8) NULL AFTER photo_url",
     "ALTER TABLE students ADD COLUMN dob DATE NULL AFTER blood_group",
     "ALTER TABLE students ADD COLUMN year VARCHAR(16) NULL AFTER section",
+    "ALTER TABLE students ADD COLUMN device_id VARCHAR(100) NULL AFTER dob",
   ]) {
     try {
       await pool.query(sql);

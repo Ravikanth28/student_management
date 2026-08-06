@@ -32,6 +32,11 @@ export async function login(req: Request, res: Response) {
         if (dobStr) {
           const expectedPassword = `${dobStr.slice(8, 10)}${dobStr.slice(5, 7)}${dobStr.slice(0, 4)}`; // DDMMYYYY
           if (password === expectedPassword) {
+            const deviceId = parsed.data.deviceId;
+            if (deviceId && !student.device_id) {
+              await pool.query('UPDATE students SET device_id = ? WHERE id = ?', [deviceId, student.id]);
+            }
+
             const token = jwt.sign(
               { sub: `student_${student.id}`, username: student.enrollment_number, name: student.name, role: 'student', student_id: student.id, photo_url: student.photo_url },
               env.JWT_SECRET,

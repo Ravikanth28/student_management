@@ -247,14 +247,14 @@ export const markSelfAttendance = asyncWrap(async (req, res) => {
   const userId = req.user?.sub;
   if (!userId) throw new HttpError(401, 'Unauthorized');
 
-  const { phone_number, enrollment_number, latitude, longitude } = req.body;
-  if (!phone_number || !enrollment_number || latitude == null || longitude == null) {
-    throw new HttpError(400, 'Missing required fields');
+  const { phone_number, enrollment_number, latitude, longitude, deviceId } = req.body;
+  if (!phone_number || !enrollment_number || latitude == null || longitude == null || !deviceId) {
+    throw new HttpError(400, 'Missing required fields or device ID');
   }
 
   // Validate student exists and matches phone/enrollment
   const [students] = await pool.query<RowDataPacket[]>(
-    `SELECT phone, enrollment_number, year, section FROM students WHERE id = ? LIMIT 1`,
+    `SELECT phone, enrollment_number, year, section, device_id FROM students WHERE id = ? LIMIT 1`,
     [studentId]
   );
   if (!students.length) throw new HttpError(404, 'Student not found');
@@ -265,6 +265,9 @@ export const markSelfAttendance = asyncWrap(async (req, res) => {
   }
   if (student.enrollment_number !== enrollment_number) {
     throw new HttpError(400, 'Enrollment number mismatch');
+  }
+  if (student.device_id && student.device_id !== deviceId) {
+    throw new HttpError(403, 'Attendance can only be marked from your registered device.');
   }
 
   // Location validation (SMVEC approx 11.9126650, 79.6350549, 100m radius)

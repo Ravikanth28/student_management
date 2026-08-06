@@ -180,11 +180,13 @@ export function StudentAttendancePage({ onLogout }: Props) {
 
     setSubmitting(true);
     try {
+      const { getDeviceId } = await import('../lib/device');
       await api.post('/attendance/my-attendance/mark', {
         phone_number: phone,
         enrollment_number: scannedEnrollment,
         latitude: scanLocationData.lat,
-        longitude: scanLocationData.lng
+        longitude: scanLocationData.lng,
+        deviceId: getDeviceId()
       });
 
       success('Attendance Marked', 'Your attendance has been marked successfully.');

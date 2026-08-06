@@ -123,6 +123,7 @@ const FIELDS: { key: keyof Student; label: string; icon?: React.ReactNode; span?
   { key: 'personal_email',    label: 'Personal Email',icon: <IconMail /> },
   { key: 'github_username',   label: 'GitHub',        icon: <IconActivity /> },
   { key: 'address',           label: 'Address',       icon: <IconMapPin />, span: true },
+  { key: 'device_id',         label: 'Device ID',     span: true },
 ];
 
 // ─── Photo Panel Component ────────────────────────────────────
@@ -445,6 +446,17 @@ export function StudentDetailPage({ onLogout }: Props) {
                 <button className="btn btn-primary" type="button" id="edit-student-btn" onClick={() => navigate(`/students/${student.id}/edit`)}>
                   <IconEdit /> Edit
                 </button>
+                <button className="btn btn-outline" type="button" onClick={async () => {
+                  if (!confirm('Are you sure you want to reset the device binding for this student?')) return;
+                  try {
+                    await api.post(`/students/${student.id}/reset-device`);
+                    success('Device Reset', 'The student can now register a new device.');
+                  } catch {
+                    toastError('Reset failed', 'Could not reset device binding.');
+                  }
+                }}>
+                  Reset Device
+                </button>
                 <button className="btn btn-danger" type="button" id="delete-student-btn" onClick={() => setShowDelete(true)}>
                   <IconTrash /> Delete
                 </button>
@@ -496,6 +508,7 @@ export function StudentDetailPage({ onLogout }: Props) {
 
               <div className="profile-info-grid">
                 {FIELDS.map(({ key, label, icon, span, isDate, isYear }) => {
+                  if (key === 'device_id' && !staff) return null;
                   const raw = student[key];
                   const value = isDate && raw ? fmtDate(String(raw)) : isYear && raw ? (YEAR_LABELS[String(raw)] ?? String(raw)) : raw;
                   return (

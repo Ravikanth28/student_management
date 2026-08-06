@@ -15,6 +15,7 @@ export type Student = {
   photo_url?: string;
   blood_group?: string;
   dob?: string;
+  device_id?: string;
   github_username?: string;
   created_at: string;
   updated_at: string;

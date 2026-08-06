@@ -23,6 +23,7 @@ function rowToStudent(row: StudentRow): StudentRecord {
     photo_url: row.photo_url ?? undefined,
     blood_group: row.blood_group ?? undefined,
     dob: toDateString(row.dob),
+    device_id: row.device_id ?? undefined,
     created_at: row.created_at,
     updated_at: row.updated_at
   };

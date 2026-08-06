@@ -94,7 +94,12 @@ export function LoginPage() {
 
     setLoading(true);
     try {
-      const response = await api.post<LoginResponse>('/auth/login', { username, password });
+      const { getDeviceId } = await import('../lib/device');
+      const response = await api.post<LoginResponse>('/auth/login', { 
+        username, 
+        password,
+        deviceId: getDeviceId() 
+      });
       login(response.data);
       setAuthToken(response.data.token);
       navigate('/dashboard', { replace: true });
