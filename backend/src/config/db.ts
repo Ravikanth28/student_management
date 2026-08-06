@@ -7,6 +7,8 @@ export const pool = env.TIDB_URL
   ? mysql.createPool({
       uri: env.TIDB_URL,
       connectionLimit: 10,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 10000,
       ssl: env.TIDB_URL.includes('localhost') ? undefined : { rejectUnauthorized: true },
     })
   : mysql.createPool({

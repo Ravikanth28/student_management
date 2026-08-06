@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { GitHubCalendar } from 'react-github-calendar';
 import { Tooltip } from 'react-tooltip';
@@ -434,6 +434,12 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
                         blockSize={14}
                         blockMargin={4}
                         fontSize={14}
+                        renderBlock={(block, activity) => 
+                          React.cloneElement(block as React.ReactElement, {
+                            'data-tooltip-id': 'react-tooltip',
+                            'data-tooltip-content': `${activity.count} contributions on ${activity.date}`
+                          })
+                        }
                       />
                       <Tooltip id="react-tooltip" />
                     </div>
