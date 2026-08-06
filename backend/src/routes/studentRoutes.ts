@@ -22,6 +22,7 @@ import {
   updateGithubUsername,
   getGithubAnalytics,
   getStudentGithubProfile,
+  getStudentGithubCalendar,
 } from '../controllers/studentController.js';
 import { importStudents, importPhotosFromDrive, getImportProgress, getImportHistory, deleteImportHistory } from '../controllers/importController.js';
 import { uploadStudentPhoto, deleteStudentPhoto } from '../controllers/photoController.js';
@@ -101,6 +102,7 @@ studentRoutes.get('/:id/discipline-records', requireSelfOrStaff, getStudentDisci
 // GitHub Analytics
 studentRoutes.post('/:id/github', requireSelfOrStaff, updateGithubUsername);
 studentRoutes.get('/:id/github/profile', requireSelfOrStaff, getStudentGithubProfile);
+studentRoutes.get('/:id/github/calendar', requireSelfOrStaff, getStudentGithubCalendar);
 
 // ΓöÇΓöÇ Photo (Cloudinary) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 studentRoutes.post('/:id/photo',   staff, uploadMiddleware, uploadStudentPhoto);

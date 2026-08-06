@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Plot from 'react-plotly.js';
-import { GitHubCalendar } from 'react-github-calendar';
+import { ActivityCalendar } from 'react-activity-calendar';
 import { Tooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
 import { api } from '../api';
@@ -18,26 +18,31 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
   const [section, setSection] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<GithubStatsRow | null>(null);
   const [liveData, setLiveData] = useState<any>(null);
+  const [calendarData, setCalendarData] = useState<any>(null);
   const [liveLoading, setLiveLoading] = useState(false);
   const [showActiveDates, setShowActiveDates] = useState(false);
+  const [activeDatesFilterMonth, setActiveDatesFilterMonth] = useState('All');
 
   useEffect(() => {
     let active = true;
     if (selectedStudent?.student_id) {
       setLiveLoading(true);
       setShowActiveDates(false);
-      api.get(`/students/${selectedStudent.student_id}/github/profile`)
-        .then(res => {
-          if (active) {
-            setLiveData(res.data);
-            setLiveLoading(false);
-          }
-        })
-        .catch(() => {
-          if (active) setLiveLoading(false);
-        });
+      setCalendarData(null);
+      
+      Promise.all([
+        api.get(`/students/${selectedStudent.student_id}/github/profile`).catch(() => ({ data: null })),
+        api.get(`/students/${selectedStudent.student_id}/github/calendar`).catch(() => ({ data: null }))
+      ]).then(([profileRes, calendarRes]) => {
+        if (active) {
+          setLiveData(profileRes.data);
+          setCalendarData(calendarRes.data?.contributions || []);
+          setLiveLoading(false);
+        }
+      });
     } else {
       setLiveData(null);
+      setCalendarData(null);
     }
     return () => { active = false; };
   }, [selectedStudent]);
@@ -183,13 +188,17 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
           </div>
           <div style={{ flex: 1 }}>
             <label className="form-label">Section</label>
-            <input 
-              type="text" 
+            <select 
               className="form-control" 
-              placeholder="e.g. A" 
               value={section} 
-              onChange={(e) => setSection(e.target.value.toUpperCase())} 
-            />
+              onChange={(e) => setSection(e.target.value)}
+            >
+              <option value="">All Sections</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
           </div>
         </div>
       </div>
@@ -251,8 +260,18 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
             <h2 className="modal-title" style={{ marginBottom: 16 }}>GitHub Details: {selectedStudent.name}</h2>
             
             {liveLoading ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-3)' }}>
-                Loading full GitHub profile...
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ color: 'var(--text-3)' }}>Loading live data...</div>
+              </div>
+            ) : liveData && liveData.profile === null && liveData.repos?.length === 0 ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: '1.5rem' }}>⚠️ GitHub API Rate Limit Exceeded</div>
+                <div style={{ color: 'var(--text-3)' }}>
+                  GitHub only allows 60 anonymous requests per hour. We've hit this limit while testing. 
+                </div>
+                <div style={{ color: 'var(--text-3)' }}>
+                  Please try again in an hour, or configure a Personal Access Token in the backend.
+                </div>
               </div>
             ) : liveData ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -318,14 +337,14 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
                       </div>
                       <div style={{ color: 'var(--text-2)', fontSize: '0.7rem', textTransform: 'uppercase' }}>Commits</div>
                     </div>
-                    <div style={{ background: 'var(--bg-2)', padding: '16px', borderRadius: 8, textAlign: 'center', minWidth: 90 }}>
+                    <div style={{ background: 'var(--surface-2)', padding: '16px', borderRadius: 8, textAlign: 'center', minWidth: 90 }}>
                       <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)' }}>
                         {streak}
                       </div>
                       <div style={{ color: 'var(--text-2)', fontSize: '0.7rem', textTransform: 'uppercase' }}>Day Streak</div>
                     </div>
                     <div 
-                      style={{ background: 'var(--bg-2)', padding: '16px', borderRadius: 8, textAlign: 'center', minWidth: 90, cursor: 'pointer', position: 'relative' }}
+                      style={{ background: 'var(--surface-2)', padding: '16px', borderRadius: 8, textAlign: 'center', minWidth: 90, cursor: 'pointer', position: 'relative' }}
                       onClick={() => setShowActiveDates(!showActiveDates)}
                       title="Click to view active dates"
                     >
@@ -335,24 +354,51 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
                       <div style={{ color: 'var(--text-2)', fontSize: '0.7rem', textTransform: 'uppercase', textDecoration: 'underline dotted' }}>Active (30d)</div>
                       
                       {showActiveDates && (
-                        <div style={{ 
-                          position: 'absolute', top: '100%', right: 0, marginTop: 8, 
-                          background: 'var(--bg-3)', border: '1px solid var(--border)', 
-                          borderRadius: 8, padding: 12, zIndex: 10, width: 160, 
-                          maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                          textAlign: 'left'
-                        }}>
-                          <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>Active Dates</div>
-                          {activeDatesList.length > 0 ? (
-                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.8rem', color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              {activeDatesList.map(d => (
-                                <li key={d}>✅ {d}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>No active days.</div>
-                          )}
-                        </div>
+                        (() => {
+                          const availableMonths = ['All', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                          const filteredActiveDates = activeDatesFilterMonth === 'All' 
+                            ? activeDatesList 
+                            : activeDatesList.filter(d => d.startsWith(activeDatesFilterMonth));
+
+                          return (
+                            <div style={{
+                              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                              background: 'rgba(0,0,0,0.6)', zIndex: 1000,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }} onClick={(e) => { e.stopPropagation(); setShowActiveDates(false); }}>
+                              <div style={{
+                                background: 'var(--surface)', padding: 24, borderRadius: 12,
+                                width: 340, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+                                boxShadow: 'var(--shadow-lg)'
+                              }} onClick={e => e.stopPropagation()}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                  <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text)' }}>Active Dates</h3>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <select 
+                                      value={activeDatesFilterMonth} 
+                                      onChange={e => setActiveDatesFilterMonth(e.target.value)}
+                                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)', padding: '4px 8px', borderRadius: 6, fontSize: '0.85rem', cursor: 'pointer' }}
+                                    >
+                                      {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                    <button onClick={() => setShowActiveDates(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '1.5rem', lineHeight: 1 }}>&times;</button>
+                                  </div>
+                                </div>
+                                <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
+                                  {filteredActiveDates.length > 0 ? (
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' }}>
+                                      {filteredActiveDates.map(d => (
+                                        <li key={d} style={{ background: 'var(--surface-2)', padding: '12px 16px', borderRadius: 8, fontSize: '0.95rem', color: 'var(--text)' }}>✅ {d}</li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>No active days found for {activeDatesFilterMonth}.</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()
                       )}
                     </div>
                   </div>
@@ -365,7 +411,7 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
                     Left: Daily activity over the last 90 days. Right: The time of day (0:00 - 23:00) they are most active.
                   </p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                    <div style={{ background: 'var(--bg-2)', padding: '16px', borderRadius: 8, border: '1px solid var(--border)', height: 320 }}>
+                    <div style={{ background: 'var(--surface-2)', padding: '16px', borderRadius: 8, border: '1px solid var(--border)', height: 320 }}>
                       {dailyTraces.length > 0 ? (
                         <Plot
                           data={dailyTraces as any}
@@ -391,7 +437,7 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
                       )}
                     </div>
                     
-                    <div style={{ background: 'var(--bg-2)', padding: '16px', borderRadius: 8, border: '1px solid var(--border)', height: 320 }}>
+                    <div style={{ background: 'var(--surface-2)', padding: '16px', borderRadius: 8, border: '1px solid var(--border)', height: 320 }}>
                       {hourlyTraces.length > 0 ? (
                         <Plot
                           data={hourlyTraces as any}
@@ -426,21 +472,34 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginBottom: 12 }}>
                     Shows a full 365-day history of their commits and contributions. Each square represents a day.
                   </p>
-                  <div style={{ background: '#fff', padding: '16px', borderRadius: 8, overflowX: 'auto', border: '1px solid var(--border)', color: '#24292e' }}>
+                  <div style={{ background: 'var(--surface-2, #161b22)', padding: '16px', borderRadius: 8, overflowX: 'auto', border: '1px solid var(--border)', color: 'var(--text-1)' }}>
                     <div style={{ width: 'max-content', margin: '0 auto' }}>
-                      <GitHubCalendar 
-                        username={selectedStudent.github_username} 
-                        colorScheme="light"
-                        blockSize={14}
-                        blockMargin={4}
-                        fontSize={14}
-                        renderBlock={(block, activity) => 
-                          React.cloneElement(block as React.ReactElement, {
-                            'data-tooltip-id': 'react-tooltip',
-                            'data-tooltip-content': `${activity.count} contributions on ${activity.date}`
-                          })
-                        }
-                      />
+                      {calendarData === null ? (
+                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-3)' }}>
+                          Loading calendar data...
+                        </div>
+                      ) : calendarData.length === 0 ? (
+                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-3)' }}>
+                          No contribution data found or API is rate-limited.
+                        </div>
+                      ) : (
+                        <ActivityCalendar 
+                          data={calendarData} 
+                          colorScheme="dark"
+                          theme={{
+                            dark: ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353']
+                          }}
+                          blockSize={14}
+                          blockMargin={4}
+                          fontSize={14}
+                          renderBlock={(block: any, activity: any) => 
+                            React.cloneElement(block as React.ReactElement, {
+                              'data-tooltip-id': 'react-tooltip',
+                              'data-tooltip-content': `${activity.count} contributions on ${activity.date}`
+                            })
+                          }
+                        />
+                      )}
                       <Tooltip id="react-tooltip" />
                     </div>
                   </div>

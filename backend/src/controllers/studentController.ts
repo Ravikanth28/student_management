@@ -244,3 +244,24 @@ export const getStudentGithubProfile = asyncWrap(async (req, res) => {
   const data = await getFullGithubProfile(rows[0].github_username);
   return res.json(data);
 });
+
+// GET /api/students/:id/github/calendar
+export const getStudentGithubCalendar = asyncWrap(async (req, res) => {
+  const id = parseId(req.params.id);
+  const [rows] = await pool.query<any[]>(
+    'SELECT github_username FROM github_stats WHERE student_id = ?',
+    [id]
+  );
+  
+  if (rows.length === 0 || !rows[0].github_username) {
+    throw new HttpError(404, 'No GitHub account linked');
+  }
+  
+  const response = await fetch(`https://github-contributions-api.jogruber.de/v4/${rows[0].github_username}`);
+  if (!response.ok) {
+    throw new HttpError(500, 'Failed to fetch GitHub calendar data');
+  }
+  
+  const data = await response.json();
+  return res.json(data);
+});

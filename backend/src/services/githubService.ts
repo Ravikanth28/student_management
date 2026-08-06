@@ -5,7 +5,22 @@ import https from 'https';
 const GITHUB_API_URL = 'https://api.github.com';
 const USER_AGENT = 'StudentManagementSystem/1.0';
 
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+const apiCache = new Map<string, CacheEntry>();
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 async function fetchFromGithub(path: string): Promise<any> {
+  const now = Date.now();
+  const cached = apiCache.get(path);
+  if (cached && (now - cached.timestamp < CACHE_TTL)) {
+    console.log(`[GitHub API] Cache hit for ${path}`);
+    return cached.data;
+  }
+
+  console.log(`[GitHub API] Fetching ${path}...`);
   return new Promise((resolve, reject) => {
     const options = {
       headers: {
@@ -20,7 +35,13 @@ async function fetchFromGithub(path: string): Promise<any> {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(JSON.parse(data));
+          try {
+            const parsed = JSON.parse(data);
+            apiCache.set(path, { data: parsed, timestamp: Date.now() });
+            resolve(parsed);
+          } catch (e) {
+            reject(new Error(`Failed to parse GitHub API response for ${path}`));
+          }
         } else {
           reject(new Error(`GitHub API Error: ${res.statusCode} ${data}`));
         }
