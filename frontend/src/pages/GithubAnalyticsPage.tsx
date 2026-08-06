@@ -22,6 +22,7 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
   const [liveLoading, setLiveLoading] = useState(false);
   const [showActiveDates, setShowActiveDates] = useState(false);
   const [activeDatesFilterMonth, setActiveDatesFilterMonth] = useState('All');
+  const [dynamicSections, setDynamicSections] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -175,6 +176,21 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
     return () => { active = false; };
   }, [year, section]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    let active = true;
+    api.get<{ sections: string[] }>('/students/meta/sections', {
+      params: { year: year || undefined }
+    })
+      .then(res => {
+        if (active) {
+          setDynamicSections(res.data.sections ?? []);
+          if (section && !res.data.sections.includes(section)) setSection('');
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [year]);
+
   return (
     <Shell title="GitHub Analytics" subtitle="Track student GitHub activity" onLogout={onLogout}>
       <div className="card card-padded" style={{ marginBottom: 24 }}>
@@ -194,17 +210,14 @@ export function GithubAnalyticsPage({ onLogout }: Props) {
               onChange={(e) => setSection(e.target.value)}
             >
               <option value="">All Sections</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
+              {dynamicSections.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         </div>
       </div>
 
       <div className="card">
-        <div className="table-responsive">
+        <div className="table-container">
           <table className="table">
             <thead>
               <tr>
