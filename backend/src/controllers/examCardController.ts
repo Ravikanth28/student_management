@@ -446,18 +446,21 @@ export const saveMarks = asyncWrap(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    for (const entry of entries) {
+    const values = entries.map(entry => {
       const split = validMap.get(Number(entry.split_id));
-      if (!split) continue; 
+      if (!split) return null;
       const max = split.marks_each * split.question_count;
       const score = Math.min(Math.max(Number(entry.score) || 0, 0), max);
       const qScores = Array.isArray(entry.question_scores) ? JSON.stringify(entry.question_scores) : null;
+      return [split.id, studentId, score, qScores];
+    }).filter(Boolean);
 
+    if (values.length > 0) {
       await conn.query(
         `INSERT INTO exam_student_marks (split_id, student_id, score, question_scores)
-         VALUES (?, ?, ?, ?)
+         VALUES ?
          ON DUPLICATE KEY UPDATE score = VALUES(score), question_scores = VALUES(question_scores), updated_at = CURRENT_TIMESTAMP`,
-        [split.id, studentId, score, qScores]
+        [values]
       );
     }
     await conn.commit();
