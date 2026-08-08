@@ -2,6 +2,7 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { HttpError } from '../middleware/error.js';
 import * as attendanceRepo from '../repositories/attendanceRepository.js';
 import * as audit from '../services/auditService.js';
+import { getSystemSettings, DEFAULT_SYSTEM_SETTINGS } from '../services/settingsService.js';
 import { notifyAllInBackground } from '../services/notificationService.js';
 import { pool } from '../config/db.js';
 import type { RowDataPacket } from 'mysql2/promise';
@@ -12,7 +13,16 @@ function asyncWrap(fn: (req: Request, res: Response, next: NextFunction) => Prom
 
 /** YYYY-MM-DD in IST. */
 function today(): string {
-  return new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istTime = new Date(now.getTime() + istOffset);
+  return istTime.toISOString().split('T')[0];
+}
+
+function parseTimeStr(t: string): number {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 100 + m;
 }
 
 // GET /api/attendance/roster?year=&section=
@@ -23,10 +33,11 @@ export const getRoster = asyncWrap(async (req, res) => {
   return res.json({ data: await attendanceRepo.getRoster(year, section) });
 });
 
-// POST /api/attendance  { date?, year, section, absentee_ids: number[] }
+// POST /api/attendance  { date?, year, section, session?, absentee_ids: number[] }
 export const saveAttendance = asyncWrap(async (req, res) => {
   const year = String(req.body?.year ?? '').trim();
   const section = String(req.body?.section ?? '').trim();
+  const session = String(req.body?.session ?? 'FN').trim();
   const date = String(req.body?.date ?? '').trim() || today();
   const absenteeIds: number[] = Array.isArray(req.body?.absentee_ids)
     ? req.body.absentee_ids.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n > 0)
@@ -34,7 +45,7 @@ export const saveAttendance = asyncWrap(async (req, res) => {
   if (!year || !section) throw new HttpError(400, 'year and section are required');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, 'date must be YYYY-MM-DD');
 
-  const result = await attendanceRepo.saveDay(date, year, section, absenteeIds, req.user?.username ?? null);
+  const result = await attendanceRepo.saveDay(date, year, section, session, absenteeIds, req.user?.username ?? null);
   if (result.present === 0 && result.absent === 0) {
     throw new HttpError(404, 'No students found for that year and section');
   }
@@ -42,7 +53,7 @@ export const saveAttendance = asyncWrap(async (req, res) => {
   audit.record(req, {
     action: 'attendance.save',
     entity: 'attendance',
-    details: `${date} — Year ${year} Sec ${section}: ${result.present} present, ${result.absent} absent`,
+    details: `${date} (${session}) — Year ${year} Sec ${section}: ${result.present} present, ${result.absent} absent`,
   });
 
   notifyAllInBackground(
@@ -57,14 +68,15 @@ export const saveAttendance = asyncWrap(async (req, res) => {
   return res.status(201).json(result);
 });
 
-// DELETE /api/attendance?date=&year=&section=
+// DELETE /api/attendance?date=&year=&section=&session=
 export const deleteDay = asyncWrap(async (req, res) => {
   const date = String(req.query.date ?? '').trim();
   const year = String(req.query.year ?? '').trim();
   const section = String(req.query.section ?? '').trim();
+  const session = String(req.query.session ?? 'FN').trim();
   if (!date || !year || !section) throw new HttpError(400, 'date, year and section are required');
-  const removed = await attendanceRepo.deleteDay(date, year, section);
-  if (removed === 0) throw new HttpError(404, 'No attendance found for that class and date');
+  const removed = await attendanceRepo.deleteDay(date, year, section, session);
+  if (removed === 0) throw new HttpError(404, 'No attendance found for that class, date, and session');
   audit.record(req, {
     action: 'attendance.delete',
     entity: 'attendance',
@@ -73,10 +85,11 @@ export const deleteDay = asyncWrap(async (req, res) => {
   return res.json({ removed });
 });
 
-// GET /api/attendance/day?date=
+// GET /api/attendance/day?date=&session=
 export const getDay = asyncWrap(async (req, res) => {
   const date = String(req.query.date ?? '').trim() || today();
-  return res.json({ date, data: await attendanceRepo.getDay(date) });
+  const session = String(req.query.session ?? 'FN').trim();
+  return res.json({ date, data: await attendanceRepo.getDay(date, session) });
 });
 
 // GET /api/attendance/student/:id  (one student's attendance history)
@@ -187,14 +200,15 @@ export const getStudentYearRoster = asyncWrap(async (req, res) => {
   }
 
   const [students] = await pool.query<RowDataPacket[]>(
-    `SELECT year FROM students WHERE id = ? LIMIT 1`,
+    `SELECT year, section FROM students WHERE id = ? LIMIT 1`,
     [studentId]
   );
 
   if (!students.length) throw new HttpError(404, 'Student not found');
   const year = students[0].year;
+  const section = students[0].section;
   
-  if (!year) throw new HttpError(400, 'Student year is not set');
+  if (!year || !section) throw new HttpError(400, 'Student year or section is not set');
 
   const currentDate = today();
   // Fetch all students in that year and whether they have attendance for today
@@ -203,9 +217,9 @@ export const getStudentYearRoster = asyncWrap(async (req, res) => {
             IF(a.status = 'present', true, false) as pooled
      FROM students s
      LEFT JOIN attendance a ON s.id = a.student_id AND a.att_date = ?
-     WHERE s.year = ? 
+     WHERE s.year = ? AND s.section = ?
      ORDER BY s.section ASC, s.name ASC`,
-    [currentDate, year]
+    [currentDate, year, section]
   );
 
   res.json({ roster });
@@ -252,6 +266,34 @@ export const markSelfAttendance = asyncWrap(async (req, res) => {
     throw new HttpError(400, 'Missing required fields or device ID');
   }
 
+  // Time validation
+  const systemSettings = await getSystemSettings();
+  const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000); // IST time
+  const hours = now.getUTCHours();
+  const mins = now.getUTCMinutes();
+  const time = hours * 100 + mins;
+
+  const timings = systemSettings.session_timings || DEFAULT_SYSTEM_SETTINGS.session_timings;
+  const fnStart = parseTimeStr(timings.fn.start);
+  const fnEnd = parseTimeStr(timings.fn.end);
+  const fnBreakStart = parseTimeStr(timings.fn_break.start);
+  const fnBreakEnd = parseTimeStr(timings.fn_break.end);
+  const anStart = parseTimeStr(timings.an.start);
+  const anEnd = parseTimeStr(timings.an.end);
+  const anBreakStart = parseTimeStr(timings.an_break.start);
+  const anBreakEnd = parseTimeStr(timings.an_break.end);
+
+  const isAllowed = 
+    systemSettings.attendance_full_time ||
+    (time >= fnStart && time <= fnEnd) ||
+    (time >= fnBreakStart && time <= fnBreakEnd) ||
+    (time >= anStart && time <= anEnd) ||
+    (time >= anBreakStart && time <= anBreakEnd);
+
+  if (!isAllowed) {
+    throw new HttpError(403, 'Attendance polling is currently closed. Please try during allowed time windows.');
+  }
+
   // Validate student exists and matches phone/enrollment
   const [students] = await pool.query<RowDataPacket[]>(
     `SELECT phone, enrollment_number, year, section, device_id FROM students WHERE id = ? LIMIT 1`,
@@ -292,20 +334,28 @@ export const markSelfAttendance = asyncWrap(async (req, res) => {
 
   // Mark attendance
   const currentDate = today();
+  
+  let currentSession = 'FN';
+  if (time >= fnStart && time <= fnEnd) currentSession = 'FN';
+  else if (time >= fnBreakStart && time <= fnBreakEnd) currentSession = 'FN BREAK';
+  else if (time >= anStart && time <= anEnd) currentSession = 'AN';
+  else if (time >= anBreakStart && time <= anBreakEnd) currentSession = 'AN BREAK';
+
   await pool.query(
-    `INSERT INTO attendance (student_id, att_date, status, year, section, marked_by)
-     VALUES (?, ?, 'present', ?, ?, ?)
+    `INSERT INTO attendance (student_id, att_date, session, status, year, section, marked_by)
+     VALUES (?, ?, ?, 'present', ?, ?, ?)
      ON DUPLICATE KEY UPDATE status = 'present'`,
-    [studentId, currentDate, student.year, student.section, userId]
+    [studentId, currentDate, currentSession, student.year, student.section, userId]
   );
 
   res.json({ success: true, message: 'Attendance marked successfully' });
 });
 
-// GET /api/attendance/class-summary?year=&date=
+// GET /api/attendance/class-summary?year=&date=&session=
 export const getAttendanceClassSummary = asyncWrap(async (req, res) => {
   const year = String(req.query.year ?? '').trim();
   const date = String(req.query.date ?? today()).trim();
+  const session = String(req.query.session ?? 'FN').trim();
   
   if (!year) throw new HttpError(400, 'year is required');
 
@@ -315,10 +365,10 @@ export const getAttendanceClassSummary = asyncWrap(async (req, res) => {
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT s.section, a.status, s.id as student_id, s.name, s.register_number
      FROM students s
-     LEFT JOIN attendance a ON s.id = a.student_id AND a.att_date = ?
+     LEFT JOIN attendance a ON s.id = a.student_id AND a.att_date = ? AND a.session = ?
      WHERE s.year = ?
      ORDER BY s.section ASC, s.name ASC`,
-    [date, year]
+    [date, session, year]
   );
 
   const summaryMap = new Map<string, any>();

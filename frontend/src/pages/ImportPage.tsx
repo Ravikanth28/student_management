@@ -132,6 +132,7 @@ export function ImportPage({ onLogout }: Props) {
   const [history, setHistory] = useState<any[]>([]);
   const [detailsModal, setDetailsModal] = useState<{ successes: any[], errors: any[] } | null>(null);
   const [activeModalTab, setActiveModalTab] = useState<'all' | 'success' | 'duplicate' | 'error'>('all');
+  const [importType, setImportType] = useState<'student' | 'staff'>('student');
 
   const fetchHistory = async () => {
     try {
@@ -170,8 +171,8 @@ export function ImportPage({ onLogout }: Props) {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Use relative API path so it works everywhere (localhost, IPs, proxy)
-      const res = await api.post<ImportResult>('/students/import', formData, {
+      const endpoint = importType === 'staff' ? '/staff/import' : '/students/import';
+      const res = await api.post<ImportResult>(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 5 * 60 * 1000,
       });
@@ -288,16 +289,35 @@ export function ImportPage({ onLogout }: Props) {
     >
       {/* Instructions Card */}
       <div className="card card-padded" style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text)', marginBottom: 16 }}>
-          1. Bulk Student Import (CSV/Excel)
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text)', margin: 0 }}>
+            1. Bulk Import (CSV/Excel)
+          </h2>
+          <div style={{ display: 'flex', gap: 4, background: 'var(--bg)', padding: 4, borderRadius: 8 }}>
+            <button
+              className={`btn btn-sm ${importType === 'student' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => { setImportType('student'); setFile(null); setResult(null); }}
+              style={{ border: 'none' }}
+            >
+              Student Import
+            </button>
+            <button
+              className={`btn btn-sm ${importType === 'staff' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => { setImportType('staff'); setFile(null); setResult(null); }}
+              style={{ border: 'none' }}
+            >
+              Staff Import
+            </button>
+          </div>
+        </div>
+
         <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>
-          How to Import
+          How to Import {importType === 'student' ? 'Students' : 'Staff'}
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
           {[
             { step: '1', title: 'Download Template', desc: 'Click "Download Template" above to get the correct CSV format.' },
-            { step: '2', title: 'Fill in Data', desc: 'Add students. For photos, paste the Google Drive share link in the photo_url column.' },
+            { step: '2', title: 'Fill in Data', desc: `Add ${importType === 'student' ? 'students' : 'staff'}. For photos, paste the Google Drive share link in the photo_url column.` },
             { step: '3', title: 'Upload File', desc: 'Upload your filled CSV or Excel file below.' },
             { step: '4', title: 'Auto Photo Upload', desc: 'Photos from Google Drive are downloaded & uploaded to Cloudinary automatically.' },
           ].map(({ step, title, desc }) => (
@@ -315,32 +335,53 @@ export function ImportPage({ onLogout }: Props) {
         </div>
 
         {/* Column guide */}
-        <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-            Required Columns
+        {importType === 'student' ? (
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+              Required Columns
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {['name', 'register_number', 'enrollment_number', 'section', 'department', 'batch', 'phone', 'parent_phone', 'address'].map(col => (
+                <span key={col} className="badge badge-blue" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{col}</span>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '10px 0 8px' }}>
+              Optional Columns
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {['current_year', 'dob', 'blood_group', 'college_email', 'personal_email', 'photo_url'].map(col => (
+                <span key={col} className="badge badge-gray" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{col}</span>
+              ))}
+            </div>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 8 }}>
+              💡 <strong>photo_url</strong> accepts Google Drive share links — photos are automatically downloaded and uploaded to Cloudinary.
+            </p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 6 }}>
+              💡 <strong>dob</strong> accepts <code>YYYY-MM-DD</code> or <code>M/D/YY</code>. <strong>blood_group</strong> like <code>O+</code> or <code>B +ve</code>.
+              To only fill blood group / DOB for students that already exist, upload a sheet with just
+              <code> register_number</code> (or <code>enrollment_number</code>) plus <code>dob</code> / <code>blood_group</code>.
+            </p>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {['name', 'register_number', 'enrollment_number', 'section', 'department', 'batch', 'phone', 'parent_phone', 'address'].map(col => (
-              <span key={col} className="badge badge-blue" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{col}</span>
-            ))}
+        ) : (
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+              Required Columns
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {['name', 'emp_id'].map(col => (
+                <span key={col} className="badge badge-blue" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{col}</span>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '10px 0 8px' }}>
+              Optional Columns
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {['department', 'phone', 'email', 'dob', 'photo_url'].map(col => (
+                <span key={col} className="badge badge-gray" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{col}</span>
+              ))}
+            </div>
           </div>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '10px 0 8px' }}>
-            Optional Columns
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {['current_year', 'dob', 'blood_group', 'college_email', 'personal_email', 'photo_url'].map(col => (
-              <span key={col} className="badge badge-gray" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{col}</span>
-            ))}
-          </div>
-          <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 8 }}>
-            💡 <strong>photo_url</strong> accepts Google Drive share links — photos are automatically downloaded and uploaded to Cloudinary.
-          </p>
-          <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 6 }}>
-            💡 <strong>dob</strong> accepts <code>YYYY-MM-DD</code> or <code>M/D/YY</code>. <strong>blood_group</strong> like <code>O+</code> or <code>B +ve</code>.
-            To only fill blood group / DOB for students that already exist, upload a sheet with just
-            <code> register_number</code> (or <code>enrollment_number</code>) plus <code>dob</code> / <code>blood_group</code>.
-          </p>
-        </div>
+        )}
       </div>
 
       {/* Upload Zone */}
@@ -425,7 +466,7 @@ export function ImportPage({ onLogout }: Props) {
           }}>
             <Spinner />
             <div>
-              <strong>Importing students…</strong>
+              <strong>Importing {importType === 'student' ? 'students' : 'staff'}…</strong>
               <div style={{ fontSize: '0.75rem', marginTop: 2, opacity: 0.8 }}>
                 Downloading photos from Google Drive and uploading to Cloudinary. This may take a few minutes for large files.
               </div>

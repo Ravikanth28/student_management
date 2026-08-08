@@ -82,3 +82,56 @@ export async function setAllPeriodSchedules(input: {
 
   return { default: mergedDefault, year1: mergedYear1 };
 }
+
+// ─── System Settings ────────────────────────────────────────────────────────
+
+export type SessionTiming = { start: string; end: string };
+
+export type SystemSettings = {
+  attendance_full_time: boolean;
+  session_timings: {
+    fn: SessionTiming;
+    fn_break: SessionTiming;
+    an: SessionTiming;
+    an_break: SessionTiming;
+  };
+};
+
+export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+  attendance_full_time: false,
+  session_timings: {
+    fn: { start: '08:00', end: '09:15' },
+    fn_break: { start: '10:40', end: '11:00' },
+    an: { start: '12:35', end: '13:20' },
+    an_break: { start: '14:55', end: '15:15' },
+  }
+};
+
+const KEY_SYSTEM = 'system_settings';
+
+export async function getSystemSettings(): Promise<SystemSettings> {
+  try {
+    const raw = await repo.getSetting(KEY_SYSTEM);
+    if (!raw) return { ...DEFAULT_SYSTEM_SETTINGS };
+    const saved = JSON.parse(raw) as Partial<SystemSettings>;
+    
+    // Ensure nested objects exist to avoid undefined errors if old DB state
+    const merged = { ...DEFAULT_SYSTEM_SETTINGS, ...saved };
+    merged.session_timings = { ...DEFAULT_SYSTEM_SETTINGS.session_timings, ...saved.session_timings };
+    
+    return merged;
+  } catch (err) {
+    logger.error('[settings] getSystemSettings failed, using defaults:', err);
+    return { ...DEFAULT_SYSTEM_SETTINGS };
+  }
+}
+
+export async function setSystemSettings(input: Partial<SystemSettings>): Promise<SystemSettings> {
+  const current = await getSystemSettings();
+  const merged = { ...current, ...input };
+  if (input.session_timings) {
+    merged.session_timings = { ...current.session_timings, ...input.session_timings };
+  }
+  await repo.setSetting(KEY_SYSTEM, JSON.stringify(merged));
+  return merged;
+}

@@ -1,71 +1,94 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-/* ─── Design Tokens (Formal Official Premium Theme) ─────────── */
+/* ─── Design Tokens (Premium Mild Orange Theme) ─────────── */
 :root {
   --navy:        #18181b;
   --navy-dark:   #09090b;
   --navy-light:  #27272a;
-  --blue:        #059669;
-  --blue-hover:  #047857;
-  --blue-light:  #ecfdf5;
-  --red:         #dc2626;
+  
+  /* Primary Theme (Light Blue & White) */
+  --blue:        #0ea5e9; /* Sky blue */
+  --blue-hover:  #0284c7;
+  --blue-light:  #e0f2fe;
+  
+  --red:         #ef4444;
   --red-light:   #fef2f2;
-  --green:       #15803d;
-  --green-light: #f0fdf4;
-  --amber:       #d97706;
+  --green:       #10b981;
+  --green-light: #ecfdf5;
+  --amber:       #f59e0b;
   --amber-light: #fffbeb;
 
-  --bg:           #f8fafc;
-  --surface:      #ffffff;
+  --bg:           #f8f9fa; /* Clean light gray */
+  --surface:      #ffffff; /* Pure white */
   --surface-2:    #f1f5f9;
   --border:       #e2e8f0;
-  --border-focus: #059669;
-  --text:         #0f172a;
+  --border-focus: #0ea5e9;
+  --text:         #0f172a; /* Dark charcoal */
   --text-2:       #475569;
-  --text-3:       #64748b;
+  --text-3:       #94a3b8;
+
+  --sidebar-bg: #ffffff;
+  --sidebar-border: var(--border);
+  --sidebar-text: var(--text);
+  --sidebar-text-muted: var(--text-2);
+  --sidebar-text-faded: var(--text-3);
+  --sidebar-hover-bg: var(--surface-2);
+  --sidebar-hover-text: var(--text);
+  --sidebar-icon: var(--surface-2);
+  --sidebar-icon-border: var(--border);
 
   --radius-sm:  8px;
   --radius:     12px;
   --radius-lg:  16px;
-  --radius-xl:  20px;
+  --radius-xl:  24px;
 
-  --shadow-xs:  0 1px 2px rgba(15,23,42,0.04);
-  --shadow-sm:  0 2px 8px rgba(15,23,42,0.06);
-  --shadow:     0 4px 16px rgba(15,23,42,0.08);
-  --shadow-lg:  0 8px 32px rgba(15,23,42,0.12);
+  --shadow-xs:  0 1px 2px rgba(15,23,42,0.03);
+  --shadow-sm:  0 4px 12px rgba(15,23,42,0.05);
+  --shadow:     0 10px 30px rgba(15,23,42,0.07);
+  --shadow-lg:  0 20px 40px rgba(249,115,22,0.12); /* Subtle orange glow on large shadows */
 
-  --sidebar-w:  260px;
-  --header-h:   64px;
+  --sidebar-w:  270px;
+  --header-h:   72px;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* ─── Dark theme (Soft Light Black & Charcoal Grey) ─────────── */
+/* ─── Dark theme (Elegant Charcoal & Orange) ─────────── */
 [data-theme="dark"] {
-  --bg:           #141417;
-  --surface:      #1f1f23;
-  --surface-2:    #2a2a30;
-  --border:       #383840;
-  --border-focus: #10b981;
+  --bg:           #0f1115;
+  --surface:      rgba(24, 25, 30, 0.85); /* Slight glassmorphism */
+  --surface-2:    #1e2025;
+  --border:       #2e3036;
+  --border-focus: #0ea5e9;
   --text:         #ffffff;
-  --text-2:       #e4e4e7;
-  --text-3:       #a1a1aa;
+  --text-2:       #94a3b8;
+  --text-3:       #64748b;
 
-  --blue-light:  rgba(16, 185, 129, 0.18);
-  --green-light: rgba(21, 128, 61, 0.22);
-  --amber-light: rgba(217, 119, 6, 0.22);
-  --red-light:   rgba(220, 38, 38, 0.20);
+  --blue-light:  rgba(14, 165, 233, 0.15);
+  --green-light: rgba(16, 185, 129, 0.15);
+  --amber-light: rgba(245, 158, 11, 0.15);
+  --red-light:   rgba(239, 68, 68, 0.15);
 
   --shadow-xs:  0 1px 2px rgba(0,0,0,0.35);
-  --shadow-sm:  0 2px 8px rgba(0,0,0,0.35);
-  --shadow:     0 4px 16px rgba(0,0,0,0.45);
-  --shadow-lg:  0 8px 32px rgba(0,0,0,0.55);
+  --shadow-sm:  0 4px 12px rgba(0,0,0,0.40);
+  --shadow:     0 10px 30px rgba(0,0,0,0.50);
+  --shadow-lg:  0 20px 40px rgba(14,165,233,0.15); /* Light Blue glow */
+
+  --sidebar-bg: var(--navy);
+  --sidebar-border: rgba(255,255,255,0.08);
+  --sidebar-text: #ffffff;
+  --sidebar-text-muted: rgba(255,255,255,0.65);
+  --sidebar-text-faded: rgba(255,255,255,0.4);
+  --sidebar-hover-bg: rgba(255,255,255,0.08);
+  --sidebar-hover-text: #ffffff;
+  --sidebar-icon: rgba(255,255,255,0.12);
+  --sidebar-icon-border: rgba(255,255,255,0.18);
 
   color-scheme: dark;
 }
 
 /* Badge text stays legible on translucent dark backgrounds */
-[data-theme="dark"] .badge-blue   { color: #6ee7b7; }
+[data-theme="dark"] .badge-blue   { color: #fdba74; }
 [data-theme="dark"] .badge-navy   { color: #f4f4f5; background: #383840; }
 [data-theme="dark"] .badge-green  { color: #86efac; }
 [data-theme="dark"] .badge-amber  { color: #fcd34d; }
@@ -216,14 +239,15 @@ svg { display: block; flex-shrink: 0; }
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--navy);
+  background: var(--sidebar-bg);
   overflow: hidden;
   z-index: 50;
+  border-right: 1px solid var(--sidebar-border);
 }
 
 .sidebar-header {
   padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid var(--sidebar-border);
 }
 
 .sidebar-brand {
@@ -235,19 +259,19 @@ svg { display: block; flex-shrink: 0; }
 .brand-icon {
   width: 44px;
   height: 44px;
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.18);
+  background: var(--sidebar-icon);
+  border: 1px solid var(--sidebar-icon-border);
   border-radius: var(--radius);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 
-.brand-icon svg { color: #fff; }
+.brand-icon svg { color: var(--blue); }
 
 .brand-text strong {
   display: block;
-  color: #fff;
+  color: var(--sidebar-text);
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.2;
@@ -255,7 +279,7 @@ svg { display: block; flex-shrink: 0; }
 
 .brand-text span {
   font-size: 0.72rem;
-  color: rgba(255,255,255,0.5);
+  color: var(--sidebar-text-faded);
   font-weight: 400;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -271,22 +295,22 @@ svg { display: block; flex-shrink: 0; }
   min-height: 0;
   /* Thin, theme-matched scrollbar instead of the chunky default */
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: var(--sidebar-text-faded) transparent;
 }
 .sidebar-nav::-webkit-scrollbar { width: 6px; }
 .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--sidebar-border);
   border-radius: 3px;
 }
-.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: var(--sidebar-text-muted); }
 
 .sidebar-section-label {
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.3);
+  color: var(--sidebar-text-faded);
   padding: 4px 8px 6px;
 }
 
@@ -296,7 +320,7 @@ svg { display: block; flex-shrink: 0; }
   gap: 10px;
   padding: 9px 12px;
   border-radius: var(--radius-sm);
-  color: rgba(255,255,255,0.65);
+  color: var(--sidebar-text-muted);
   font-size: 0.88rem;
   font-weight: 500;
   transition: background 0.15s, color 0.15s;
@@ -307,22 +331,22 @@ svg { display: block; flex-shrink: 0; }
 .nav-link svg { opacity: 0.75; transition: opacity 0.15s; }
 
 .nav-link:hover {
-  background: rgba(255,255,255,0.08);
-  color: #fff;
+  background: var(--sidebar-hover-bg);
+  color: var(--sidebar-hover-text);
 }
 .nav-link:hover svg { opacity: 1; }
 
 .nav-link.active {
   background: var(--blue);
   color: #fff;
-  border-color: rgba(255,255,255,0.15);
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+  border-color: var(--blue);
+  box-shadow: 0 2px 8px rgba(249,115,22, 0.25);
 }
 .nav-link.active svg { opacity: 1; }
 
 .sidebar-footer {
   padding: 12px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid var(--sidebar-border);
 }
 
 .logout-btn {
@@ -332,30 +356,30 @@ svg { display: block; flex-shrink: 0; }
   width: 100%;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--sidebar-border);
   background: transparent;
-  color: rgba(255,255,255,0.65);
+  color: var(--sidebar-text-muted);
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.logout-btn:hover { background: rgba(220,38,38,0.2); color: #fca5a5; border-color: rgba(220,38,38,0.3); }
+.logout-btn:hover { background: rgba(239,68,68,0.1); color: var(--red); border-color: rgba(239,68,68,0.2); }
 
 .theme-icon-btn {
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--sidebar-border);
   background: transparent;
-  color: rgba(255,255,255,0.8);
+  color: var(--sidebar-text-muted);
   cursor: pointer;
   display: grid;
   place-items: center;
   flex-shrink: 0;
   transition: background 0.15s, color 0.15s;
 }
-.theme-icon-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.theme-icon-btn:hover { background: var(--sidebar-hover-bg); color: var(--sidebar-hover-text); }
 
 /* ─── Top Bar (mobile) ──────────────────────────────────────── */
 .top-bar {

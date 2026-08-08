@@ -21,6 +21,9 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { cloudinary, cloudinaryEnabled } from '../config/cloudinary.js';
 import * as repository from '../repositories/studentRepository.js';
+import * as staffRepo from '../repositories/staffRepository.js';
+import * as userRepo from '../repositories/userRepository.js';
+import bcrypt from 'bcrypt';
 import { logger } from '../config/logger.js';
 import { normalizeBloodGroup, parseDob, normalizeYear } from '../lib/studentFields.js';
 
@@ -69,6 +72,9 @@ const ALIASES: Record<string, string> = {
   // year (current study year — kept distinct from "year" which maps to batch)
   'current year': 'year', 'current_year': 'year', 'study year': 'year', 'year of study': 'year',
   'studying year': 'year', 'present year': 'year', 'class year': 'year', 'std year': 'year',
+  
+  // Staff specific aliases
+  'emp_id': 'emp_id', 'employee id': 'emp_id', 'staff id': 'emp_id', 'employee code': 'emp_id',
 };
 
 function normalizeHeader(raw: string): string {
@@ -193,7 +199,7 @@ async function processPhoto(rawUrl: string, regNumber: string): Promise<string |
 
 // ─── Exported types ───────────────────────────────────────────
 export interface BulkImportResult {
-  mode:     'full_import' | 'photo_update' | 'details_update';
+  mode:     'full_import' | 'photo_update' | 'details_update' | 'staff_import';
   imported: number;
   updated:  number;
   skipped:  number;
@@ -412,6 +418,85 @@ async function processPhotoUpdate(rows: Record<string, string>[]): Promise<BulkI
     // Update student record
     await repository.updateStudent(existing.id, { photo_url: cloudUrl });
     result.updated++;
+  }
+
+  return result;
+}
+
+// ─── Staff Import ──────────────────────────────────────────────
+export async function processStaffBulkImport(
+  fileBuffer: Buffer,
+  _mimeType: string
+): Promise<BulkImportResult> {
+  let rows: Record<string, string>[];
+
+  try {
+    const workbook = XLSX.read(fileBuffer, { type: 'buffer', cellDates: false, cellText: true });
+    if (!workbook.SheetNames.length) throw new Error('No sheets found');
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    rows = parseSheet(sheet);
+  } catch (e) {
+    logger.error('[Import] parse error:', e);
+    throw new Error('Could not read the file. Make sure it is a valid .xlsx, .xls, or .csv file and is not password-protected.');
+  }
+
+  if (rows.length === 0) {
+    throw new Error('The file has no data rows. Make sure the first row contains column headers.');
+  }
+
+  const result: BulkImportResult = { mode: 'staff_import', imported: 0, updated: 0, skipped: 0, errors: [] };
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 2;
+    const empId = row.emp_id?.trim() ?? '';
+
+    if (!row.name || !empId) {
+      result.errors.push({ row: rowNum, register_number: empId, reason: 'Missing name or emp_id' });
+      result.skipped++;
+      continue;
+    }
+
+    try {
+      const existing = await staffRepo.getStaffByEmpId(empId);
+      if (existing) {
+        result.errors.push({ row: rowNum, register_number: empId, reason: `Staff with emp_id "${empId}" already exists` });
+        result.skipped++;
+        continue;
+      }
+
+      const photoUrl = await processPhoto(row.photo_url ?? '', empId);
+
+      const dobStr = parseDob(row.dob);
+      const defaultPassword = dobStr ? `${dobStr.slice(8, 10)}${dobStr.slice(5, 7)}${dobStr.slice(0, 4)}` : 'password123';
+      const hash = await bcrypt.hash(defaultPassword, 12);
+      
+      let userId: number | null = null;
+      try {
+        userId = await userRepo.createUser(empId, row.name.trim(), hash, 'admin', 'system');
+      } catch (e: any) {
+        if (e.code === 'ER_DUP_ENTRY') {
+          const u = await userRepo.findByUsername(empId);
+          if (u) userId = u.id;
+        }
+      }
+
+      await staffRepo.createStaff({
+        emp_id: empId,
+        name: row.name.trim(),
+        department: row.department || null,
+        phone: row.phone || null,
+        email: row.email || null,
+        dob: dobStr || null,
+        photo_url: photoUrl || null,
+        user_id: userId,
+      });
+
+      result.imported++;
+    } catch (err: unknown) {
+      result.errors.push({ row: rowNum, register_number: empId, reason: `DB error: ${(err as Error).message}` });
+      result.skipped++;
+    }
   }
 
   return result;

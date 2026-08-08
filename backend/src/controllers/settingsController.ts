@@ -22,3 +22,20 @@ export const updatePeriodSchedule = asyncWrap(async (req, res) => {
     return res.status(400).json({ message: (err as Error).message });
   }
 });
+
+// GET /api/settings/system
+export const getSystemSettings = asyncWrap(async (_req, res) => {
+  const sys = await settings.getSystemSettings();
+  res.json({ systemSettings: sys });
+});
+
+// PUT /api/settings/system (superadmin)
+export const updateSystemSettings = asyncWrap(async (req, res) => {
+  try {
+    const sys = await settings.setSystemSettings(req.body ?? {});
+    audit.record(req, { action: 'settings.system', entity: 'settings', details: JSON.stringify(sys) });
+    res.json({ systemSettings: sys });
+  } catch (err) {
+    return res.status(400).json({ message: (err as Error).message });
+  }
+});

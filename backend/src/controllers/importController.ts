@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import { processBulkImport } from '../services/bulkImportService.js';
+import { processBulkImport, processStaffBulkImport } from '../services/bulkImportService.js';
 import { logger } from '../config/logger.js';
 import * as audit from '../services/auditService.js';
 
@@ -35,6 +35,37 @@ export const importStudents = asyncWrap(async (req, res) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Import failed due to an unexpected error.';
     logger.error('[Import] Error:', err);
+    return res.status(400).json({ message });
+  }
+});
+
+export const importStaff = asyncWrap(async (req, res) => {
+  const file = req.file;
+
+  if (!file) {
+    return res.status(400).json({
+      message: 'No file uploaded. Send a CSV or Excel file with field name "file".',
+    });
+  }
+
+  const isValidExt = /\.(csv|xlsx|xls)$/i.test(file.originalname);
+  if (!isValidExt) {
+    return res.status(400).json({
+      message: `Unsupported file: "${file.originalname}". Only .csv, .xlsx and .xls are accepted.`,
+    });
+  }
+
+  try {
+    const result = await processStaffBulkImport(file.buffer, file.mimetype);
+    audit.record(req, {
+      action: 'import.staff',
+      entity: 'staff',
+      details: `${file.originalname} — mode=${result.mode}, imported=${result.imported}, updated=${result.updated}, skipped=${result.skipped}`,
+    });
+    return res.status(200).json(result);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Import failed due to an unexpected error.';
+    logger.error('[Import Staff] Error:', err);
     return res.status(400).json({ message });
   }
 });

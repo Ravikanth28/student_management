@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { api, setAuthToken } from '../api';
 import { useAuth } from '../state/auth';
 import { useToast } from '../components/Toast';
@@ -112,6 +112,9 @@ export function LoginPage() {
 
   return (
     <div className="auth-wrapper">
+      <Link to="/" style={{ position: 'absolute', top: 24, left: 24, color: 'var(--text-2)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, zIndex: 10 }}>
+        &larr; Back to Home
+      </Link>
       <div className="auth-container">
         {/* Left Branding Panel */}
         <aside className="auth-panel-left" aria-hidden="true">

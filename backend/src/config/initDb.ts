@@ -27,6 +27,23 @@ export async function ensureSchema(): Promise<void> {
   }
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS staff (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      emp_id VARCHAR(50) NOT NULL UNIQUE,
+      name VARCHAR(100) NOT NULL,
+      department VARCHAR(100),
+      phone VARCHAR(20),
+      email VARCHAR(100),
+      dob DATE,
+      photo_url VARCHAR(500),
+      user_id BIGINT UNSIGNED,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS photo_import_history (
       id VARCHAR(50) NOT NULL,
       folder_url VARCHAR(500) NULL,
@@ -173,12 +190,71 @@ export async function ensureSchema(): Promise<void> {
     if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
   }
 
+  // Feedback from students to superadmin
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feedbacks (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      student_id BIGINT NULL,
+      staff_id INT NULL,
+      content TEXT NOT NULL,
+      staff_reply TEXT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_feedback_student (student_id),
+      KEY idx_feedback_staff (staff_id),
+      FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL,
+      FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
+    )
+  `);
+
+  try {
+    await pool.query('ALTER TABLE feedbacks ADD COLUMN staff_reply TEXT NULL AFTER content');
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ER_DUP_FIELDNAME') throw err;
+  }
+
+  // Feedback Messages for conversational threads
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feedback_messages (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      feedback_id BIGINT UNSIGNED NOT NULL,
+      sender_type VARCHAR(20) NOT NULL,
+      sender_id BIGINT UNSIGNED NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_fm_feedback (feedback_id),
+      FOREIGN KEY (feedback_id) REFERENCES feedbacks(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Migrate existing feedbacks into messages safely
+  await pool.query(`
+    INSERT INTO feedback_messages (feedback_id, sender_type, sender_id, message, created_at)
+    SELECT f.id, 'student', f.student_id, f.content, f.created_at
+    FROM feedbacks f
+    WHERE NOT EXISTS (
+      SELECT 1 FROM feedback_messages fm WHERE fm.feedback_id = f.id AND fm.sender_type = 'student'
+    )
+  `);
+  
+  await pool.query(`
+    INSERT INTO feedback_messages (feedback_id, sender_type, sender_id, message, created_at)
+    SELECT f.id, 'staff', f.staff_id, f.staff_reply, f.created_at
+    FROM feedbacks f
+    WHERE f.staff_reply IS NOT NULL AND f.staff_reply != '' AND NOT EXISTS (
+      SELECT 1 FROM feedback_messages fm WHERE fm.feedback_id = f.id AND fm.sender_type = 'staff'
+    )
+  `);
+
   // Daily attendance — one row per student per day (present/absent).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS attendance (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
       student_id BIGINT UNSIGNED NOT NULL,
       att_date DATE NOT NULL,
+      session VARCHAR(20) NOT NULL DEFAULT 'FN',
       status VARCHAR(10) NOT NULL DEFAULT 'present',
       year VARCHAR(16) NULL,
       section VARCHAR(40) NULL,
@@ -186,11 +262,23 @@ export async function ensureSchema(): Promise<void> {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
-      UNIQUE KEY uq_att_student_day (student_id, att_date),
+      UNIQUE KEY uq_att_student_day_session (student_id, att_date, session),
       KEY idx_att_date (att_date),
       KEY idx_att_student (student_id)
     )
   `);
+
+  // Add session column when upgrading an existing table, and update constraints
+  try {
+    await pool.query('ALTER TABLE attendance ADD COLUMN session VARCHAR(20) NOT NULL DEFAULT "FN" AFTER att_date');
+    await pool.query('ALTER TABLE attendance DROP INDEX uq_att_student_day');
+    await pool.query('ALTER TABLE attendance ADD UNIQUE KEY uq_att_student_day_session (student_id, att_date, session)');
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code !== 'ER_DUP_FIELDNAME' && code !== 'ER_CANT_DROP_FIELD_OR_KEY') {
+      // Ignore if column already exists or index doesn't exist
+    }
+  }
 
   // Promotion (year-rollover) history — enables a precise one-click undo.
   await pool.query(`
@@ -296,18 +384,7 @@ export async function ensureSchema(): Promise<void> {
     )
   `);
 
-  // Feedback from students to superadmin
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS feedback (
-      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-      student_id BIGINT UNSIGNED NOT NULL,
-      content TEXT NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (id),
-      KEY idx_feedback_student (student_id),
-      KEY idx_feedback_created_at (created_at)
-    )
-  `);
+
 
   // ── Semester Exam Card System ─────────────────────────────────
   // exam_cards: top-level card assigned to a year
@@ -434,5 +511,18 @@ export async function seedSuperadmin(): Promise<void> {
       [u.username, u.name, u.hash, u.role]
     );
   }
-  logger.info('Seeded/verified default role accounts (superadmin, admin, cr, viewer, user).');
+  
+  // Seed dummy staff for admin
+  const [adminRows] = await pool.query<any[]>('SELECT id FROM users WHERE username = ?', ['admin']);
+  if (adminRows.length > 0) {
+    const adminId = adminRows[0].id;
+    await pool.query(
+      `INSERT INTO staff (emp_id, name, department, phone, email, dob, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE name = VALUES(name), department = VALUES(department)`,
+      ['EMP001', 'System Admin', 'Computer Science', '9876543210', 'admin@example.com', '1985-06-15', adminId]
+    );
+  }
+
+  logger.info('Seeded/verified default role accounts (superadmin, admin, cr, viewer, user) and dummy staff.');
 }

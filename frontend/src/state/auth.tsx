@@ -10,6 +10,7 @@ type AuthContextValue = {
   photoUrl: string | null;
   role: Role | null;
   studentId: number | null;
+  staffProfile: any | null;
   login: (payload: LoginResponse) => void;
   logout: () => void;
   isAuthenticated: boolean;
@@ -20,8 +21,8 @@ const STORAGE_KEY = 'student-portal-auth';
 
 /** Decode the (untrusted) JWT payload just to read name/username/role for the UI.
  *  The server still verifies the token on every request. */
-function decodeToken(token: string | null): { username: string | null; name: string | null; role: Role | null; studentId: number | null; photoUrl: string | null } {
-  if (!token) return { username: null, name: null, role: null, studentId: null, photoUrl: null };
+function decodeToken(token: string | null): { username: string | null; name: string | null; role: Role | null; studentId: number | null; photoUrl: string | null; staffProfile: any | null } {
+  if (!token) return { username: null, name: null, role: null, studentId: null, photoUrl: null, staffProfile: null };
   try {
     const payload = JSON.parse(atob(token.split('.')[1] ?? ''));
     return { 
@@ -29,10 +30,11 @@ function decodeToken(token: string | null): { username: string | null; name: str
       name: payload.name ?? null, 
       role: (payload.role as Role) ?? null,
       studentId: payload.student_id ? Number(payload.student_id) : null,
-      photoUrl: payload.photo_url ?? null
+      photoUrl: payload.photo_url ?? null,
+      staffProfile: payload.staff_profile ?? null,
     };
   } catch {
-    return { username: null, name: null, role: null, studentId: null, photoUrl: null };
+    return { username: null, name: null, role: null, studentId: null, photoUrl: null, staffProfile: null };
   }
 }
 
@@ -45,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   const value = useMemo<AuthContextValue>(() => {
-    const { username, name, role, studentId, photoUrl } = decodeToken(token);
+    const { username, name, role, studentId, photoUrl, staffProfile } = decodeToken(token);
     return {
       token,
       username,
@@ -54,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       photoUrl,
       role,
       studentId,
+      staffProfile,
       login: (payload) => setToken(payload.token),
       logout: () => setToken(null),
       isAuthenticated: Boolean(token),

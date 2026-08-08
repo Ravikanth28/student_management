@@ -242,6 +242,32 @@ CREATE TABLE IF NOT EXISTS late_records (
   KEY idx_late_date (late_date)
 );
 
+CREATE TABLE IF NOT EXISTS push_messages (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  title VARCHAR(255) NOT NULL,
+  body TEXT NOT NULL,
+  target_roles JSON NULL,
+  target_departments JSON NULL,
+  target_batches JSON NULL,
+  sent_by VARCHAR(120) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS feedbacks (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  student_id BIGINT UNSIGNED NULL,
+  staff_id INT NULL,
+  content TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_feedback_student (student_id),
+  KEY idx_feedback_staff (staff_id),
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL,
+  FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS discipline_records (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   student_id BIGINT UNSIGNED NOT NULL,
@@ -360,15 +386,24 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uq_users_username (username)
 );
 
-CREATE TABLE IF NOT EXISTS feedback (
+CREATE TABLE IF NOT EXISTS staff (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  student_id BIGINT UNSIGNED NOT NULL,
-  content TEXT NOT NULL,
+  emp_id VARCHAR(40) NOT NULL,
+  name VARCHAR(120) NOT NULL,
+  department VARCHAR(120) NULL,
+  phone VARCHAR(15) NULL,
+  email VARCHAR(120) NULL,
+  dob DATE NULL,
+  photo_url VARCHAR(255) NULL,
+  user_id BIGINT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_feedback_student (student_id),
-  KEY idx_feedback_created_at (created_at)
+  UNIQUE KEY uq_staff_emp_id (emp_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+
 
 CREATE TABLE IF NOT EXISTS github_stats (
   student_id BIGINT NOT NULL,

@@ -25,7 +25,7 @@ export function ActivityTabs() {
         </NavLink>
       )}
       
-      {(role === 'superadmin' || role === 'student') && (
+      {(role === 'superadmin' || role === 'student' || role === 'admin') && (
         <NavLink to="/activity/feedback" style={({ isActive }) => getStyle(isActive, '/activity/feedback')}>
           Feedback
         </NavLink>

@@ -28,6 +28,7 @@ export async function saveDay(
   date: string,
   year: string,
   section: string,
+  session: string,
   absenteeIds: number[],
   markedBy: string | null,
 ): Promise<{ present: number; absent: number }> {
@@ -36,11 +37,11 @@ export async function saveDay(
 
   const absentSet = new Set(absenteeIds.map(Number));
   const values = roster.map((s) => [
-    s.id, date, absentSet.has(s.id) ? 'absent' : 'present', year, section, markedBy,
+    s.id, date, session, absentSet.has(s.id) ? 'absent' : 'present', year, section, markedBy,
   ]);
 
   await pool.query<ResultSetHeader>(
-    `INSERT INTO attendance (student_id, att_date, status, year, section, marked_by)
+    `INSERT INTO attendance (student_id, att_date, session, status, year, section, marked_by)
      VALUES ?
      ON DUPLICATE KEY UPDATE status = VALUES(status), year = VALUES(year), section = VALUES(section), marked_by = VALUES(marked_by)`,
     [values],
@@ -51,10 +52,10 @@ export async function saveDay(
 }
 
 /** Delete a class's attendance for one day. Returns rows removed. */
-export async function deleteDay(date: string, year: string, section: string): Promise<number> {
+export async function deleteDay(date: string, year: string, section: string, session: string): Promise<number> {
   const [res] = await pool.query<ResultSetHeader>(
-    'DELETE FROM attendance WHERE att_date = ? AND year = ? AND section = ?',
-    [date, year, section],
+    'DELETE FROM attendance WHERE att_date = ? AND year = ? AND section = ? AND session = ?',
+    [date, year, section, session],
   );
   return res.affectedRows;
 }
@@ -69,16 +70,16 @@ export interface DaySection {
 }
 
 /** All attendance for a date, grouped by year → section, with the absentee list. */
-export async function getDay(date: string): Promise<DaySection[]> {
+export async function getDay(date: string, session: string): Promise<DaySection[]> {
   const [rows] = await pool.query<Array<{
     year: string | null; section: string | null; status: string;
     student_id: number; name: string; register_number: string;
   } & RowDataPacket>>(
     `SELECT a.year, a.section, a.status, a.student_id, s.name, s.register_number
        FROM attendance a JOIN students s ON s.id = a.student_id
-      WHERE a.att_date = ?
+      WHERE a.att_date = ? AND a.session = ?
       ORDER BY a.year ASC, a.section ASC, s.name ASC`,
-    [date],
+    [date, session],
   );
 
   const map = new Map<string, DaySection>();

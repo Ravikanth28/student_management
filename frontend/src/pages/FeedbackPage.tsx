@@ -1,210 +1,605 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useAuth } from '../state/auth';
+import { useToast } from '../components/Toast';
 import { Shell } from '../components/Shell';
 import { ActivityTabs } from '../components/ActivityTabs';
-import { useToast } from '../components/Toast';
-import { useAuth } from '../state/auth';
-import { isSuperadmin } from '../lib/roles';
 import { proxiedImage } from '../lib/img';
-import { YEAR_LABELS, type Feedback } from '../types';
-function FeedbackModal({ f, onClose }: { f: Feedback, onClose: () => void }) {
-  const fmtDate = (d: string) => {
-    const dt = new Date(d);
-    return Number.isNaN(dt.getTime()) ? d : dt.toLocaleString('en-IN', {
-      day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit'
-    });
-  };
 
-  return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ width: '100%', maxWidth: 600, background: 'var(--surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', position: 'relative', maxHeight: 'calc(100dvh - 60px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-        <button 
-          onClick={onClose}
-          style={{ position: 'absolute', top: 20, right: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '50%', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 6, zIndex: 10, boxShadow: 'var(--shadow-xs)' }}
-          aria-label="Close modal"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
+interface Feedback {
+  id: number;
+  content: string;
+  student_name?: string;
+  student_department?: string;
+  student_batch?: string;
+  student_enrollment_number?: string;
+  student_photo?: string;
+  created_at: string;
+  staff_reply?: string | null;
+  status?: string;
+  staff_name?: string;
+  staff_department?: string;
+  staff_photo?: string;
+}
 
-        <div style={{ background: 'var(--surface-2)', padding: '32px 32px 24px', borderBottom: '1px solid var(--border)' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text)', marginTop: 0, marginBottom: 24 }}>
-            Student Feedback
-          </h3>
+interface FeedbackMessage {
+  id: number;
+  sender_type: string;
+  sender_id: number | null;
+  message: string;
+  created_at: string;
+}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            {f.photo_url && proxiedImage(f.photo_url) ? (
-              <img src={proxiedImage(f.photo_url)!} alt={f.student_name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--surface)', boxShadow: 'var(--shadow-sm)' }} />
-            ) : (
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, var(--blue), var(--blue-hover))', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '1.5rem', border: '3px solid var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-                {f.student_name?.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '1.15rem', color: 'var(--text)' }}>{f.student_name}</div>
-              <div style={{ color: 'var(--text-2)', fontSize: '0.9rem', fontWeight: 500, marginTop: 2 }}>{f.register_number}</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginTop: 4 }}>
-                {f.department} · {f.year ? `${YEAR_LABELS[f.year] ?? f.year} ` : ''}{f.section} section
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ padding: '32px', background: 'var(--surface)', overflowY: 'auto' }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            Submitted on {fmtDate(f.created_at)}
-          </div>
-          
-          <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text)', lineHeight: 1.7, fontSize: '1.05rem', background: 'var(--bg)', padding: '24px', borderRadius: 'var(--radius)', borderLeft: '4px solid var(--blue)' }}>
-            {f.content}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+interface StaffOption {
+  id: number;
+  name: string;
+  department: string | null;
+  emp_id: string;
 }
 
 export function FeedbackPage({ onLogout }: { onLogout: () => void }) {
   const { role } = useAuth();
-  const { success, error: toastError } = useToast();
-  const superadmin = isSuperadmin(role);
+  
+  if (role === 'student') return <StudentFeedbackView onLogout={onLogout} />;
+  if (role === 'superadmin') return <SuperadminFeedbackView onLogout={onLogout} />;
+  return <TeacherFeedbackView onLogout={onLogout} />;
+}
 
-  // Student state
+// ─── Student View ──────────────────────────────────────────────────
+function StudentFeedbackView({ onLogout }: { onLogout: () => void }) {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // Superadmin state
-  const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
-  const [loading, setLoading] = useState(superadmin);
-  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    if (superadmin) {
-      api.get<{ data: Feedback[] }>('/feedback')
-        .then((res) => { if (active) setFeedbackList(res.data.data); })
-        .catch(() => { if (active) toastError('Error', 'Could not load feedback.'); })
-        .finally(() => { if (active) setLoading(false); });
-    }
-    return () => { active = false; };
-  }, [superadmin, toastError]);
+  const { success, error: toastError } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
-
     setSubmitting(true);
     try {
       await api.post('/feedback', { content });
-      success('Feedback Sent', 'Thank you for your feedback!');
+      success('Submitted', 'Your feedback has been sent securely.');
       setContent('');
     } catch {
-      toastError('Submission failed', 'Could not send feedback at this time.');
+      toastError('Error', 'Failed to submit feedback.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const fmtDate = (d: string) => {
-    const dt = new Date(d);
-    return Number.isNaN(dt.getTime()) ? d : dt.toLocaleString('en-IN', {
-      day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit'
-    });
+  return (
+    <Shell title="Activity" subtitle="We value your thoughts and suggestions" onLogout={onLogout}>
+      <ActivityTabs />
+      <div style={{ width: '100%', marginTop: '32px' }}>
+        <div style={{ maxWidth: '500px' }}>
+          <div className="card card-padded" style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)' }}>
+            <h2 style={{ fontSize: '1.15rem', marginBottom: 8, fontWeight: 600 }}>Submit Feedback</h2>
+            <p style={{ color: 'var(--text-2)', marginBottom: 24, fontSize: '0.9rem', lineHeight: 1.5 }}>
+              Share your suggestions, report issues, or tell us what we can improve. Your feedback is sent securely to the administration.
+            </p>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group" style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 500, marginBottom: 8, display: 'block' }}>Your Feedback</label>
+                <textarea
+                  className="form-control"
+                  rows={7}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Type your feedback here..."
+                  required
+                  style={{ resize: 'vertical', background: 'var(--surface)' }}
+                />
+              </div>
+              <button className="btn btn-primary" type="submit" style={{ width: '100%', padding: '12px' }} disabled={submitting || !content.trim()}>
+                {submitting ? 'Submitting...' : 'Send Feedback'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+// ─── Superadmin View ────────────────────────────────────────────────
+function SuperadminFeedbackView({ onLogout }: { onLogout: () => void }) {
+  const [activeTab, setActiveTab] = useState<'student' | 'staff'>('student');
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [repliedFeedbacks, setRepliedFeedbacks] = useState<Feedback[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [staffList, setStaffList] = useState<StaffOption[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const { success, error: toastError } = useToast();
+
+  const loadFeedbacks = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get<Feedback[]>('/feedback/pending');
+      setFeedbacks(data);
+    } catch {
+      toastError('Error', 'Failed to load feedback.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRepliedFeedbacks = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get<Feedback[]>('/feedback/replied');
+      setRepliedFeedbacks(data);
+    } catch {
+      toastError('Error', 'Failed to load staff feedback.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStaff = async () => {
+    try {
+      const { data } = await api.get<StaffOption[]>('/feedback/staff-list');
+      setStaffList(data);
+    } catch {
+      toastError('Error', 'Failed to load staff list.');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'student') {
+      loadFeedbacks();
+      loadStaff();
+    } else {
+      loadRepliedFeedbacks();
+    }
+  }, [activeTab]);
+
+  const [viewModal, setViewModal] = useState<Feedback | null>(null);
+  const [messages, setMessages] = useState<FeedbackMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [rowSelections, setRowSelections] = useState<Record<number, string>>({});
+  const [replyText, setReplyText] = useState('');
+
+  const handleView = async (f: Feedback) => {
+    setViewModal(f);
+    setLoadingMessages(true);
+    setMessages([]);
+    try {
+      const { data } = await api.get<FeedbackMessage[]>(`/feedback/${f.id}/messages`);
+      setMessages(data);
+    } catch {
+      toastError('Error', 'Failed to load messages.');
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!viewModal || !replyText.trim()) return;
+    try {
+      await api.post(`/feedback/${viewModal.id}/messages`, { message: replyText });
+      success('Sent', 'Message sent successfully.');
+      setReplyText('');
+      handleView(viewModal);
+    } catch {
+      toastError('Error', 'Failed to send message.');
+    }
+  };
+
+  const handleRowSelection = (feedbackId: number, staffId: string) => {
+    setRowSelections(prev => ({ ...prev, [feedbackId]: staffId }));
+  };
+
+  const handleForwardInline = async (f: Feedback) => {
+    const staffId = rowSelections[f.id];
+    if (!staffId) {
+      toastError('Error', 'Please select a teacher to forward to.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post(`/feedback/${f.id}/forward`, { staff_id: parseInt(staffId, 10) });
+      success('Forwarded', 'Feedback assigned to teacher successfully.');
+      loadFeedbacks();
+    } catch {
+      toastError('Error', 'Failed to forward feedback.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDiscard = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this feedback?')) return;
+    try {
+      await api.delete(`/feedback/${id}`);
+      success('Deleted', 'Feedback deleted.');
+      if (activeTab === 'student') loadFeedbacks();
+      else loadRepliedFeedbacks();
+    } catch {
+      toastError('Error', 'Failed to delete feedback.');
+    }
   };
 
   return (
-    <Shell
-      title="Activity"
-      tabs={<ActivityTabs />}
-      subtitle={superadmin ? "Review student feedback" : "We value your thoughts and suggestions"}
-      onLogout={onLogout}
-    >
-      {superadmin ? (
-        // Superadmin View
-        <div className="card card-padded">
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 16 }}>Student Feedback</h3>
-          {loading ? (
-            <p style={{ color: 'var(--text-3)' }}>Loading...</p>
-          ) : feedbackList.length === 0 ? (
-            <p style={{ color: 'var(--text-3)' }}>No feedback submitted yet.</p>
+    <Shell title="Activity" subtitle="Review and manage feedback" onLogout={onLogout}>
+      <ActivityTabs />
+      <div style={{ margin: '20px auto 0' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', padding: '4px', background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)', width: 'fit-content' }}>
+          <button 
+            className={`btn ${activeTab === 'student' ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ borderRadius: 'var(--radius-md)', padding: '6px 16px', fontSize: '0.85rem' }}
+            onClick={() => setActiveTab('student')}
+          >
+            Student Feedback
+          </button>
+          <button 
+            className={`btn ${activeTab === 'staff' ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ borderRadius: 'var(--radius-md)', padding: '6px 16px', fontSize: '0.85rem' }}
+            onClick={() => setActiveTab('staff')}
+          >
+            Staff Feedback
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Loading...</div>
+        ) : activeTab === 'student' ? (
+          feedbacks.length === 0 ? (
+            <div className="card card-padded" style={{ textAlign: 'center', color: 'var(--text-3)' }}>
+              No pending feedback.
+            </div>
           ) : (
-            <div className="table-container" style={{ marginTop: 16 }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Year</th>
-                    <th>Sec</th>
-                    <th>Enrollment</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {feedbackList.map(f => (
-                    <tr key={f.id}>
-                      <td style={{ fontWeight: 600 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          {f.photo_url && proxiedImage(f.photo_url) ? (
-                            <img src={proxiedImage(f.photo_url)!} alt={f.student_name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-                          ) : (
-                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #4f7cc7, #2a4f7c)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '0.8rem' }}>
-                              {f.student_name?.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <div>{f.student_name}</div>
-                            {f.department && <div className="td-muted" style={{ fontSize: '0.8rem', fontWeight: 400 }}>{f.department}</div>}
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>{f.year ? `${YEAR_LABELS[f.year] ?? f.year}` : '—'}</td>
-                      <td>{f.section || '—'}</td>
-                      <td className="td-muted">{f.register_number}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button className="btn btn-outline btn-sm" onClick={() => setSelectedFeedback(f)}>
-                          View
+            <div className="table-responsive">
+            <table className="table table-hover">
+              <thead>
+                <tr>
+                  <th>Student Name</th>
+                  <th>Enrollment Number</th>
+                  <th style={{ textAlign: 'center' }}>Feedback</th>
+                  <th>Forward</th>
+                  <th style={{ textAlign: 'center' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {feedbacks.map((f) => (
+                  <tr key={f.id}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{f.student_name || 'Unknown'}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>
+                        {f.student_department && `${f.student_department} · Batch ${f.student_batch}`}
+                        {!f.student_department && new Date(f.created_at).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td>{f.student_enrollment_number || '-'}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button className="btn btn-outline" style={{ padding: '4px 12px', fontSize: '0.85rem' }} onClick={() => handleView(f)}>
+                        View
+                      </button>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <select 
+                          className="input" 
+                          style={{ minWidth: 150, padding: '4px 8px', height: 32 }}
+                          value={rowSelections[f.id] || ''} 
+                          onChange={(e) => handleRowSelection(f.id, e.target.value)}
+                        >
+                          <option value="">Select teacher...</option>
+                          {staffList.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.department || 'Staff'})</option>
+                          ))}
+                        </select>
+                        <button 
+                          className="btn btn-primary" 
+                          style={{ padding: '4px 12px', fontSize: '0.85rem', height: 32 }} 
+                          onClick={() => handleForwardInline(f)}
+                          disabled={submitting || !rowSelections[f.id]}
+                        >
+                          Forward
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button className="btn btn-danger" style={{ padding: '4px 12px', fontSize: '0.85rem', height: 32 }} onClick={() => handleDiscard(f.id)}>
+                        Discard
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          )
+        ) : (
+          repliedFeedbacks.length === 0 ? (
+            <div className="card card-padded" style={{ textAlign: 'center', color: 'var(--text-3)' }}>
+              No staff feedback found.
             </div>
-          )}
-          {selectedFeedback && (
-            <FeedbackModal f={selectedFeedback} onClose={() => setSelectedFeedback(null)} />
-          )}
-        </div>
-      ) : role === 'student' ? (
-        // Student View
-        <div className="card card-padded" style={{ maxWidth: 600 }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 8 }}>Submit Feedback</h3>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-3)', marginBottom: 20 }}>
-            Share your suggestions, report issues, or tell us what we can improve. Your feedback is sent securely to the administration.
-          </p>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="form-group">
-              <label>Your Feedback</label>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
+              {repliedFeedbacks.map(f => (
+                <div key={f.id} className="card card-padded">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <img 
+                        src={f.staff_photo ? (proxiedImage(f.staff_photo) ?? undefined) : `https://ui-avatars.com/api/?name=${encodeURIComponent(f.staff_name || 'S')}&background=random`} 
+                        alt="Staff" 
+                        style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} 
+                        onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(f.staff_name || 'S')}&background=random`; }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{f.staff_name || 'Staff Member'}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>
+                          {f.staff_department || 'Department'} · Replied on {new Date(f.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-outline" style={{ padding: '4px 12px', fontSize: '0.8rem', height: 28 }} onClick={() => handleView(f)}>
+                        View Conversation
+                      </button>
+                      <button className="btn btn-danger" style={{ padding: '4px 12px', fontSize: '0.8rem', height: 28 }} onClick={() => handleDiscard(f.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ padding: '16px', background: 'var(--surface-2)', borderRadius: 8, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>
+                    {f.staff_reply}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
+
+      {viewModal && (
+        <div className="modal-overlay" onClick={() => setViewModal(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 500, background: 'var(--surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', padding: '24px', position: 'relative', maxHeight: 'calc(100dvh - 60px)', display: 'flex', flexDirection: 'column' }}>
+            <h2 style={{ marginBottom: 20, fontSize: '1.25rem' }}>Feedback Conversation</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1, overflowY: 'auto', paddingRight: 8 }}>
+              {loadingMessages ? (
+                <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-3)' }}>Loading messages...</div>
+              ) : messages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-3)' }}>No messages found.</div>
+              ) : (
+                messages.map((m) => (
+                  <div key={m.id} style={{ alignSelf: m.sender_type === 'superadmin' ? 'flex-end' : (m.sender_type === 'staff' ? 'center' : 'flex-start'), maxWidth: '85%' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginBottom: 4, [m.sender_type === 'superadmin' ? 'marginRight' : 'marginLeft']: 4, textAlign: m.sender_type === 'superadmin' ? 'right' : (m.sender_type === 'staff' ? 'center' : 'left') }}>
+                      {m.sender_type === 'superadmin' ? 'You (Admin)' : (m.sender_type === 'staff' ? (viewModal.staff_name || 'Staff') : (viewModal.student_name || 'Student'))} • {new Date(m.created_at).toLocaleString()}
+                    </div>
+                    <div style={{ padding: '12px 16px', background: m.sender_type === 'superadmin' ? 'var(--primary)' : (m.sender_type === 'staff' ? 'var(--surface-3)' : 'var(--surface-2)'), color: m.sender_type === 'superadmin' ? 'white' : 'var(--text)', borderRadius: m.sender_type === 'superadmin' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                      {m.message}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, color: 'var(--text-2)' }}>Write a Reply:</div>
               <textarea 
-                className="form-control" 
-                rows={6} 
-                placeholder="Type your feedback here..." 
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                required
-                disabled={submitting}
-                style={{ resize: 'vertical' }}
+                className="input" 
+                rows={3} 
+                placeholder="Type your reply here..." 
+                value={replyText} 
+                onChange={(e) => setReplyText(e.target.value)}
+                style={{ resize: 'none', borderRadius: 12 }}
               />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                <button className="btn btn-outline" onClick={() => setViewModal(null)}>Close</button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSendReply}
+                  disabled={!replyText.trim() || loadingMessages}
+                >
+                  Send Reply
+                </button>
+              </div>
             </div>
-            <button type="submit" className="btn btn-primary" disabled={submitting || !content.trim()}>
-              {submitting ? 'Sending...' : 'Send Feedback'}
-            </button>
-          </form>
+          </div>
         </div>
-      ) : (
-        // Other roles (admin, user) - Should not happen if paths are restricted
-        <div className="card card-padded">
-          <p style={{ color: 'var(--text-3)' }}>You do not have permission to view this page.</p>
+      )}
+    </Shell>
+  );
+}
+
+// ─── Teacher View ──────────────────────────────────────────────────
+function TeacherFeedbackView({ onLogout }: { onLogout: () => void }) {
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [viewModal, setViewModal] = useState<Feedback | null>(null);
+  const [messages, setMessages] = useState<FeedbackMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const { success, error: toastError } = useToast();
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get<Feedback[]>('/feedback/my');
+      setFeedbacks(data);
+    } catch {
+      toastError('Error', 'Failed to load feedback.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} feedback(s)?`)) return;
+    try {
+      await Promise.all(selectedIds.map(id => api.delete(`/feedback/${id}`)));
+      success('Deleted', 'Selected feedback deleted successfully.');
+      setSelectedIds([]);
+      load();
+    } catch {
+      toastError('Error', 'Failed to delete some feedback.');
+    }
+  };
+
+  const toggleSelection = (id: number) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleView = async (f: Feedback) => {
+    setViewModal(f);
+    setLoadingMessages(true);
+    setMessages([]);
+    try {
+      const { data } = await api.get<FeedbackMessage[]>(`/feedback/${f.id}/messages`);
+      setMessages(data);
+    } catch {
+      toastError('Error', 'Failed to load messages.');
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!viewModal || !replyText.trim()) return;
+    try {
+      await api.post(`/feedback/${viewModal.id}/messages`, { message: replyText });
+      success('Sent', 'Message sent successfully.');
+      setReplyText('');
+      handleView(viewModal);
+      load();
+    } catch {
+      toastError('Error', 'Failed to send message.');
+    }
+  };
+
+  return (
+    <Shell title="Activity" subtitle="Review and reply to feedback" onLogout={onLogout}>
+      <ActivityTabs />
+      <div style={{ width: '100%', margin: '20px auto 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <button 
+            className="btn btn-danger" 
+            onClick={handleBulkDelete}
+            disabled={selectedIds.length === 0}
+          >
+            Delete Selected {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+          </button>
+        </div>
+        
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Loading...</div>
+        ) : feedbacks.length === 0 ? (
+          <div className="card card-padded" style={{ textAlign: 'center', color: 'var(--text-3)' }}>
+            No feedback found.
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover">
+              <thead>
+                <tr>
+                  <th style={{ width: 40, textAlign: 'center' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.length === feedbacks.length && feedbacks.length > 0}
+                      onChange={(e) => setSelectedIds(e.target.checked ? feedbacks.map(f => f.id) : [])}
+                      style={{ cursor: 'pointer', accentColor: 'var(--primary)' }}
+                    />
+                  </th>
+                  <th style={{ width: 150 }}>Date & Time</th>
+                  <th>Feedback Snippet</th>
+                  <th style={{ width: 100, textAlign: 'center' }}>Status</th>
+                  <th style={{ width: 100, textAlign: 'center' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {feedbacks.map((f) => (
+                  <tr key={f.id} onClick={() => handleView(f)} style={{ cursor: 'pointer' }}>
+                    <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(f.id)}
+                        onChange={() => toggleSelection(f.id)}
+                        style={{ cursor: 'pointer', accentColor: 'var(--primary)' }}
+                      />
+                    </td>
+                    <td style={{ fontSize: '0.85rem', color: 'var(--text-2)' }}>
+                      {new Date(f.created_at).toLocaleString()}
+                    </td>
+                    <td style={{ maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {f.content}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {f.staff_reply ? (
+                        <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'rgba(var(--primary-rgb), 0.1)', color: 'var(--primary)', borderRadius: 12, fontWeight: 600 }}>Replied</span>
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'var(--surface-3)', color: 'var(--text-2)', borderRadius: 12 }}>Pending</span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        className="btn btn-outline" 
+                        style={{ padding: '4px 12px', fontSize: '0.8rem', height: 28 }}
+                        onClick={() => handleView(f)}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {viewModal && (
+        <div className="modal-overlay" onClick={() => setViewModal(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 500, background: 'var(--surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', padding: '24px', position: 'relative', maxHeight: 'calc(100dvh - 60px)', display: 'flex', flexDirection: 'column' }}>
+            <h2 style={{ marginBottom: 20, fontSize: '1.25rem' }}>Feedback Conversation</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1, overflowY: 'auto', paddingRight: 8 }}>
+              {loadingMessages ? (
+                <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-3)' }}>Loading messages...</div>
+              ) : messages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-3)' }}>No messages found.</div>
+              ) : (
+                messages.map((m) => (
+                  <div key={m.id} style={{ alignSelf: m.sender_type === 'staff' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginBottom: 4, [m.sender_type === 'staff' ? 'marginRight' : 'marginLeft']: 4, textAlign: m.sender_type === 'staff' ? 'right' : 'left' }}>
+                      {m.sender_type === 'staff' ? 'You' : (m.sender_type === 'student' ? 'Student' : 'Admin')} • {new Date(m.created_at).toLocaleString()}
+                    </div>
+                    <div style={{ padding: '12px 16px', background: m.sender_type === 'staff' ? 'var(--primary)' : 'var(--surface-2)', color: m.sender_type === 'staff' ? 'white' : 'var(--text)', borderRadius: m.sender_type === 'staff' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                      {m.message}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, color: 'var(--text-2)' }}>Write a Reply:</div>
+              <textarea 
+                className="input" 
+                rows={3} 
+                placeholder="Type your reply here..." 
+                value={replyText} 
+                onChange={(e) => setReplyText(e.target.value)}
+                style={{ resize: 'none', borderRadius: 12 }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                <button className="btn btn-outline" onClick={() => setViewModal(null)}>Close</button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSendReply}
+                  disabled={!replyText.trim() || loadingMessages}
+                >
+                  Send Reply
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </Shell>

@@ -110,6 +110,155 @@ const PERIOD_FIELDS: { key: string; label: string; hint: string }[] = [
 
 const PERIOD_FIELDS_YEAR1 = PERIOD_FIELDS.filter((f) => f.key !== 'evening_break');
 
+type SessionTiming = { start: string; end: string };
+type SystemSettings = {
+  attendance_full_time: boolean;
+  session_timings: {
+    fn: SessionTiming;
+    fn_break: SessionTiming;
+    an: SessionTiming;
+    an_break: SessionTiming;
+  };
+};
+
+function AttendanceControlCard() {
+  const { success, error: toastError } = useToast();
+  const [fullTime, setFullTime] = useState(false);
+  const [sessionTimings, setSessionTimings] = useState<SystemSettings['session_timings']>({
+    fn: { start: '08:00', end: '09:15' },
+    fn_break: { start: '10:40', end: '11:00' },
+    an: { start: '12:35', end: '13:20' },
+    an_break: { start: '14:55', end: '15:15' },
+  });
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get<{ systemSettings: SystemSettings }>('/settings/system')
+      .then((r) => {
+        setFullTime(r.data.systemSettings.attendance_full_time);
+        if (r.data.systemSettings.session_timings) {
+          setSessionTimings(r.data.systemSettings.session_timings);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const saveFullTime = async (val: boolean) => {
+    setFullTime(val);
+    setSaving(true);
+    try {
+      await api.put('/settings/system', { attendance_full_time: val });
+      success('Settings updated', val ? 'Attendance is now open full-time.' : 'Attendance restricted to strict timings.');
+    } catch (err) {
+      toastError('Could not save', 'Failed to update setting.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveTimings = async () => {
+    setSaving(true);
+    try {
+      await api.put('/settings/system', { session_timings: sessionTimings });
+      success('Timings updated', 'Attendance session times saved.');
+    } catch (err) {
+      toastError('Could not save', 'Failed to update timings.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateTiming = (session: keyof SystemSettings['session_timings'], field: 'start'|'end', val: string) => {
+    setSessionTimings(prev => ({
+      ...prev,
+      [session]: { ...prev[session], [field]: val }
+    }));
+  };
+
+  const sessions: { key: keyof SystemSettings['session_timings']; label: string }[] = [
+    { key: 'fn', label: 'FN (Morning)' },
+    { key: 'fn_break', label: 'FN Break' },
+    { key: 'an', label: 'AN (Afternoon)' },
+    { key: 'an_break', label: 'AN Break' }
+  ];
+
+  return (
+    <div className="card card-padded" style={{ marginBottom: 24 }}>
+      <h3 style={cardTitle}>Attendance Control</h3>
+      <p style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginTop: -8, marginBottom: 20 }}>
+        Override the strict class timings and allow students to mark attendance at any time.
+      </p>
+      
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: 20 }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>Full-Time Attendance Override</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>Students can check in regardless of the schedule.</div>
+        </div>
+        <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24 }}>
+          <input type="checkbox" style={{ opacity: 0, width: 0, height: 0 }} disabled={!loaded || saving} checked={fullTime} onChange={(e) => saveFullTime(e.target.checked)} />
+          <span style={{
+            position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: fullTime ? 'var(--blue)' : 'var(--border)',
+            transition: '.3s', borderRadius: 24, opacity: (!loaded || saving) ? 0.5 : 1
+          }}>
+            <span style={{
+              position: 'absolute', content: '""', height: 18, width: 18, left: 3, bottom: 3,
+              backgroundColor: 'white', transition: '.3s', borderRadius: '50%',
+              transform: fullTime ? 'translateX(20px)' : 'translateX(0)'
+            }} />
+          </span>
+        </label>
+      </div>
+
+      <div style={{ padding: '16px', borderRadius: 'var(--radius-lg)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text)' }}>Session Timings</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>Configure the 'From' and 'To' times for each attendance session.</div>
+          </div>
+          <button className="btn btn-primary" onClick={saveTimings} disabled={!loaded || saving}>
+            Save Timings
+          </button>
+        </div>
+
+        <div style={gridStyle}>
+          {sessions.map((s) => (
+            <div key={s.key} style={{ background: 'var(--bg)', padding: 12, borderRadius: 'var(--radius)' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>{s.label}</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-2)', marginBottom: 2 }}>From</div>
+                  <input
+                    type="time"
+                    className="form-control"
+                    style={{ padding: '6px 8px', fontSize: '0.8rem' }}
+                    value={sessionTimings[s.key].start}
+                    disabled={!loaded}
+                    onChange={(e) => updateTiming(s.key, 'start', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-2)', marginBottom: 2 }}>To</div>
+                  <input
+                    type="time"
+                    className="form-control"
+                    style={{ padding: '6px 8px', fontSize: '0.8rem' }}
+                    value={sessionTimings[s.key].end}
+                    disabled={!loaded}
+                    onChange={(e) => updateTiming(s.key, 'end', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ClassTimingsCard() {
   const { success, error: toastError } = useToast();
   const [defaultSched, setDefaultSched] = useState<Record<string, string>>({});
@@ -430,6 +579,9 @@ export function SettingsPage({ onLogout }: Props) {
               <Field label="Batches" value={status?.stats.totalBatches ?? 0} />
             </div>
           </div>
+
+          {/* ─── Attendance control ─── */}
+          <AttendanceControlCard />
 
           {/* ΓöÇΓöÇ Class timings (editable) ΓöÇΓöÇ */}
           <ClassTimingsCard />

@@ -5,6 +5,7 @@ import { env } from '../config/env.js';
 import { loginSchema } from '../validators/authValidator.js';
 import * as audit from '../services/auditService.js';
 import * as userRepo from '../repositories/userRepository.js';
+import * as staffRepo from '../repositories/staffRepository.js';
 
 export async function login(req: Request, res: Response) {
   const parsed = loginSchema.safeParse(req.body);
@@ -51,21 +52,51 @@ export async function login(req: Request, res: Response) {
         }
       }
     }
+    const [staffRows] = await pool.query<any[]>('SELECT * FROM staff WHERE emp_id = ? LIMIT 1', [username]);
+    if (staffRows.length > 0) {
+      const staff = staffRows[0];
+      if (staff.dob) {
+        const { toDateString } = await import('../lib/studentFields.js');
+        const dobStr = toDateString(staff.dob);
+        if (dobStr) {
+          const expectedPassword = `${dobStr.slice(8, 10)}${dobStr.slice(5, 7)}${dobStr.slice(0, 4)}`; // DDMMYYYY
+          if (password === expectedPassword) {
+            const token = jwt.sign(
+              { sub: staff.emp_id, username: staff.emp_id, name: staff.name, role: 'admin', staff_profile: staff },
+              env.JWT_SECRET,
+              { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions
+            );
+            audit.record(req, { action: 'auth.login', status: 'success', actor: staff.emp_id });
+            return res.json({
+              token,
+              user: { username: staff.emp_id, name: staff.name, role: 'admin', staff_profile: staff },
+            });
+          }
+        }
+      }
+    }
 
     audit.record(req, { action: 'auth.login', status: 'failure', actor: username, details: 'Invalid credentials' });
     return res.status(401).json({ message: 'Invalid credentials' });
   }
 
+  let staffProfile = null;
+  if (user.role === 'admin' || user.role === 'superadmin') {
+    staffProfile = await staffRepo.getStaffByUserId(user.id);
+  }
+
   const token = jwt.sign(
-    { sub: username, username, name: user.name ?? username, role: user.role },
+    { sub: username, username, name: user.name ?? username, role: user.role, staff_profile: staffProfile },
     env.JWT_SECRET,
     { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions
   );
+
+
 
   audit.record(req, { action: 'auth.login', status: 'success', actor: username });
 
   return res.json({
     token,
-    user: { username, name: user.name ?? username, role: user.role },
+    user: { username, name: user.name ?? username, role: user.role, staff_profile: staffProfile },
   });
 }

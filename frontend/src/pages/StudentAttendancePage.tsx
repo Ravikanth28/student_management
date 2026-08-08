@@ -31,6 +31,66 @@ export function StudentAttendancePage({ onLogout }: Props) {
   const [filterYear, setFilterYear] = useState('');
   const [filterSection, setFilterSection] = useState('');
   const [showWizard, setShowWizard] = useState(false);
+type SessionTiming = { start: string; end: string };
+
+function parseTime(t: string): number {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 100 + m;
+}
+
+  const [fullTimeOverride, setFullTimeOverride] = useState(false);
+  const [sessionTimings, setSessionTimings] = useState<{
+    fn: SessionTiming; fn_break: SessionTiming; an: SessionTiming; an_break: SessionTiming;
+  } | null>(null);
+
+  const getAttendanceStatus = (isFullTime = false, timings: typeof sessionTimings) => {
+    if (isFullTime) return { status: 'open', message: 'Attendance Open (Full-Time Override)', color: '#10b981' };
+
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const istTime = new Date(utcTime + istOffset);
+    
+    const hours = istTime.getHours();
+    const mins = istTime.getMinutes();
+    const time = hours * 100 + mins;
+
+    if (timings) {
+      if (time >= parseTime(timings.fn.start) && time <= parseTime(timings.fn.end)) return { status: 'open', message: 'Morning Attendance Open', color: '#10b981' };
+      if (time >= parseTime(timings.fn_break.start) && time <= parseTime(timings.fn_break.end)) return { status: 'open', message: 'Morning Break Attendance Open', color: '#10b981' };
+      if (time >= parseTime(timings.an.start) && time <= parseTime(timings.an.end)) return { status: 'open', message: 'Afternoon Attendance Open', color: '#10b981' };
+      if (time >= parseTime(timings.an_break.start) && time <= parseTime(timings.an_break.end)) return { status: 'open', message: 'Evening Break Attendance Open', color: '#10b981' };
+    } else {
+      // Fallback
+      if (time >= 800 && time <= 915) return { status: 'open', message: 'Morning Attendance Open', color: '#10b981' };
+      if (time >= 1040 && time <= 1100) return { status: 'open', message: 'Morning Break Attendance Open', color: '#10b981' };
+      if (time >= 1235 && time <= 1320) return { status: 'open', message: 'Afternoon Attendance Open', color: '#10b981' };
+      if (time >= 1455 && time <= 1515) return { status: 'open', message: 'Evening Break Attendance Open', color: '#10b981' };
+    }
+    
+    return { status: 'closed', message: 'Attendance Closed', color: '#ef4444' };
+  };
+
+  const [attStatus, setAttStatus] = useState(() => getAttendanceStatus(false, null));
+
+  useEffect(() => {
+    const timer = setInterval(() => setAttStatus(getAttendanceStatus(fullTimeOverride, sessionTimings)), 10000);
+    return () => clearInterval(timer);
+  }, [fullTimeOverride, sessionTimings]);
+
+  useEffect(() => {
+    // Fetch the system setting to see if full-time is enabled and get timings
+    api.get<{ systemSettings: any }>('/settings/system')
+      .then(res => {
+        const isFullTime = res.data.systemSettings.attendance_full_time;
+        const timings = res.data.systemSettings.session_timings;
+        setFullTimeOverride(isFullTime);
+        if (timings) setSessionTimings(timings);
+        setAttStatus(getAttendanceStatus(isFullTime, timings || null));
+      })
+      .catch(() => {});
+  }, []);
 
   // Wizard state
   const [step, setStep] = useState(1);
@@ -289,27 +349,48 @@ export function StudentAttendancePage({ onLogout }: Props) {
             />
             <select
               className="form-control"
-              value={filterYear}
-              onChange={e => { setFilterYear(e.target.value); setFilterSection(''); }}
-              style={{ flex: '1 1 100px', minWidth: 90 }}
+              value={filterYear || (uniqueYears.length > 0 ? uniqueYears[0] : '')}
+              disabled
+              style={{ flex: '1 1 100px', minWidth: 90, appearance: 'none', cursor: 'default', opacity: 1, color: 'var(--text-1)' }}
             >
-              <option value="">All Years</option>
-              {uniqueYears.map(y => <option key={y} value={y}>Year {y}</option>)}
+              {uniqueYears.length === 0 && <option value="">Loading...</option>}
+              {uniqueYears.map(y => <option key={y} value={y as string}>{
+                y === '1' ? 'I Year' : 
+                y === '2' ? 'II Year' : 
+                y === '3' ? 'III Year' : 
+                y === '4' ? 'IV Year' : `${y} Year`
+              }</option>)}
             </select>
             <select
               className="form-control"
-              value={filterSection}
-              onChange={e => setFilterSection(e.target.value)}
-              style={{ flex: '1 1 110px', minWidth: 100 }}
+              value={filterSection || (uniqueSections.length > 0 ? uniqueSections[0] : '')}
+              disabled
+              style={{ flex: '1 1 110px', minWidth: 100, appearance: 'none', cursor: 'default', opacity: 1, color: 'var(--text-1)' }}
             >
-              <option value="">All Sections</option>
-              {uniqueSections.map(s => <option key={s} value={s}>Section {s}</option>)}
+              {uniqueSections.length === 0 && <option value="">Loading...</option>}
+              {uniqueSections.map(s => <option key={s} value={s as string}>Section {s}</option>)}
             </select>
-            <button className="btn btn-primary" onClick={() => setShowWizard(true)} style={{ flex: '1 1 auto', whiteSpace: 'nowrap' }}>
-              Summary / Mark Attendance
+            <button 
+              className="btn" 
+              onClick={() => setShowWizard(true)} 
+              disabled={attStatus.status === 'closed'}
+              style={{ 
+                flex: '1 1 auto', 
+                whiteSpace: 'nowrap', 
+                opacity: 1, 
+                cursor: attStatus.status === 'closed' ? 'not-allowed' : 'pointer',
+                background: attStatus.status === 'closed' ? '#ef4444' : attStatus.color,
+                color: attStatus.status === 'late' ? '#000000' : '#ffffff',
+                border: 'none',
+                fontWeight: 700
+              }}
+            >
+              {attStatus.status === 'closed' ? 'Attendance Closed' : 'Summary / Mark Attendance'}
             </button>
           </div>
         </div>
+
+
 
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Loading roster...</div>
@@ -376,6 +457,16 @@ export function StudentAttendancePage({ onLogout }: Props) {
               {(() => {
                 const me = roster.find(s => s.enrollment_number === username);
                 if (!me) return null;
+                
+                let sessionLabel = 'CLOSED';
+                if (attStatus.status !== 'closed') {
+                  const msg = attStatus.message;
+                  if (msg.includes('Morning Attendance')) sessionLabel = 'FN';
+                  else if (msg.includes('Morning Break')) sessionLabel = 'FN BREAK';
+                  else if (msg.includes('Afternoon')) sessionLabel = 'AN';
+                  else if (msg.includes('Evening Break')) sessionLabel = 'AN BREAK';
+                }
+
                 return (
                   <div style={{ padding: '16px 24px', background: '#27272a', borderBottom: '1px solid #3f3f46' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -394,6 +485,10 @@ export function StudentAttendancePage({ onLogout }: Props) {
                       <div>
                         <div style={{ fontSize: '0.72rem', color: '#71717a', textTransform: 'uppercase', marginBottom: 2 }}>Section</div>
                         <div style={{ fontSize: '0.9rem', color: '#f4f4f5', fontWeight: 500 }}>{me.section}</div>
+                      </div>
+                      <div style={{ gridColumn: '1 / -1', borderTop: '1px dashed #3f3f46', paddingTop: 10, marginTop: 2 }}>
+                        <div style={{ fontSize: '0.72rem', color: '#71717a', textTransform: 'uppercase', marginBottom: 2 }}>Current Session</div>
+                        <div style={{ fontSize: '0.9rem', color: attStatus.status === 'closed' ? '#ef4444' : '#10b981', fontWeight: 600 }}>{sessionLabel}</div>
                       </div>
                     </div>
                   </div>

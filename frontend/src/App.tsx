@@ -8,6 +8,9 @@ import { ThemeProvider } from './state/theme';
 import { canAccess } from './lib/roles';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { StaffPage } from './pages/StaffPage';
+import { StaffProfilePage } from './pages/StaffProfilePage';
+import { StaffDetailPage } from './pages/StaffDetailPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { BloodGroupsPage } from './pages/BloodGroupsPage';
 import { StudentDetailPage } from './pages/StudentDetailPage';
@@ -29,6 +32,7 @@ import { ExamCardsPage } from './pages/ExamCardsPage';
 import { ExamReportPage } from './pages/ExamReportPage';
 import { StudentMarksPage } from './pages/StudentMarksPage';
 import { GithubAnalyticsPage } from './pages/GithubAnalyticsPage';
+import { LandingPage } from './pages/LandingPage';
 
 // Lazy-loaded: the scanner pulls in the heavy ZXing library, so only load it
 // when the scanner route is actually opened.
@@ -67,9 +71,13 @@ function AppRoutes() {
     <>
       <NotificationsManager />
       <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to={defaultHome} replace /> : <LoginPage />} />
 
       <Route path="/dashboard" element={<Protected roleKey="/dashboard"><DashboardPage onLogout={logout} /></Protected>} />
+      <Route path="/staff" element={<Protected roleKey="/staff"><StaffPage onLogout={logout} /></Protected>} />
+      <Route path="/staff/:id" element={<Protected roleKey="/staff/:id"><StaffDetailPage onLogout={logout} /></Protected>} />
+      <Route path="/staff-profile" element={<Protected roleKey="/staff-profile"><StaffProfilePage onLogout={logout} /></Protected>} />
       <Route path="/students" element={<Protected roleKey="/students"><StudentsPage onLogout={logout} /></Protected>} />
       <Route path="/blood-groups" element={<Protected roleKey="/blood-groups"><BloodGroupsPage onLogout={logout} /></Protected>} />
       <Route path="/students/new" element={<Protected roleKey="/students/new"><StudentCreatePage onLogout={logout} /></Protected>} />
@@ -105,7 +113,7 @@ function AppRoutes() {
       <Route path="/my-exam-marks" element={<Protected roleKey="/my-exam-marks"><StudentMarksPage onLogout={logout} /></Protected>} />
       <Route path="/github-analytics" element={<Protected roleKey="/github-analytics"><GithubAnalyticsPage onLogout={logout} /></Protected>} />
 
-      <Route path="*" element={<Navigate to={isAuthenticated ? defaultHome : '/login'} replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );

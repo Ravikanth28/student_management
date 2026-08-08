@@ -241,6 +241,8 @@ function IconBookOpen() {
 // ─── Nav Items ───────────────────────────────────────────────
 const NAV_ITEMS: Array<{ to: string; label: string; Icon: () => JSX.Element; roles: Role[] }> = [
   { to: '/dashboard',     label: 'Dashboard',        Icon: IconGrid,          roles: ['superadmin', 'admin', 'user', 'student'] },
+  { to: '/staff-profile', label: 'My Profile',       Icon: IconUsers,         roles: ['superadmin', 'admin'] },
+  { to: '/staff',         label: 'Staff Records',    Icon: IconUsers,         roles: ['superadmin'] },
   { to: '/students',      label: 'Student Records',  Icon: IconUsers,         roles: ['superadmin', 'admin', 'user'] },
   { to: '/blood-groups',  label: 'Blood Groups',     Icon: IconDroplet,       roles: ['superadmin', 'admin', 'user'] },
   { to: '/my-attendance', label: 'My Attendance',    Icon: IconClipboard,     roles: ['student'] },
@@ -276,8 +278,12 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
     if (i.to === '/dashboard' && role === 'student' && studentId) {
       return { ...i, to: `/students/${studentId}`, label: 'My Profile' };
     }
+    // Only show "My Profile" if the user actually has a staff profile.
+    if (i.to === '/staff-profile' && !useAuth().staffProfile) {
+      return null;
+    }
     return i;
-  });
+  }).filter(Boolean) as typeof NAV_ITEMS;
 
   return (
     <>
@@ -311,7 +317,7 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
 
       <div className="sidebar-footer">
         {displayName && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', marginBottom: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', marginBottom: 10, background: 'var(--sidebar-hover-bg)', border: '1px solid var(--sidebar-border)', borderRadius: 12 }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #4f7cc7, #2a4f7c)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '1rem', textTransform: 'uppercase', flexShrink: 0, overflow: 'hidden' }}>
               {photoUrl ? (
                 <img src={photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -320,7 +326,7 @@ function SidebarContent({ onLogout, onClose }: { onLogout: () => void; onClose?:
               )}
             </div>
             <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
-              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>{displayName}</div>
+              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--sidebar-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1 }}>{displayName}</div>
               {role && (
                 <span style={rolePill(role)}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: ROLE_COLORS[role].dot }} />

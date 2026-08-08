@@ -160,15 +160,30 @@ export function AttendancePage({ onLogout }: Props) {
   const [exportMonth, setExportMonth] = useState(() => todayIST().slice(0, 7));
   const [exportStudentName, setExportStudentName] = useState('');
 
+  const [csSession, setCsSession] = useState('FN');
+
   useEffect(() => {
     if (tab === 'class-summary' && csYear) {
       setCsLoading(true);
-      api.get<{ data: any[] }>('/attendance/class-summary', { params: { year: csYear, date: csDate } })
+      api.get<{ data: any[] }>('/attendance/class-summary', { params: { year: csYear, date: csDate, session: csSession } })
         .then((r) => setClassSummary(r.data.data))
         .catch(() => setClassSummary([]))
         .finally(() => setCsLoading(false));
     }
-  }, [tab, csYear, csDate]);
+  }, [tab, csYear, csDate, csSession]);
+
+  useEffect(() => {
+    if (csModalOpen && csModalClass) {
+      const cls = classSummary.find((c) => c.class === csModalClass);
+      if (cls) {
+        setCsModalAbsentees(cls.absentees);
+        setCsModalPresent(cls.present_students || []);
+      } else {
+        setCsModalAbsentees([]);
+        setCsModalPresent([]);
+      }
+    }
+  }, [classSummary, csModalOpen, csModalClass]);
 
   const handleExport = async () => {
     if (!exportMonth) {
@@ -493,6 +508,19 @@ export function AttendancePage({ onLogout }: Props) {
                   <div style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', textAlign: 'center', whiteSpace: 'nowrap' }}>
                     <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-3)', marginBottom: 4 }}>Date</div>
                     <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-1)' }}>{csDate.split('-').reverse().join('-')}</div>
+                  </div>
+                  <div style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-3)', marginBottom: 4 }}>Session</div>
+                    <select 
+                      value={csSession}
+                      onChange={e => setCsSession(e.target.value)}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text-1)', fontSize: '1rem', fontWeight: 800, textAlign: 'center', width: '100%', outline: 'none', cursor: 'pointer', appearance: 'none', padding: 0 }}
+                    >
+                      <option value="FN">FN</option>
+                      <option value="FN BREAK">FN BREAK</option>
+                      <option value="AN">AN</option>
+                      <option value="AN BREAK">AN BREAK</option>
+                    </select>
                   </div>
                   <div style={{ flex: 1, padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', textAlign: 'center' }}>
                     <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-3)', marginBottom: 4 }}>Section</div>

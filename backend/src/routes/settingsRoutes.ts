@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { getPeriodSchedule, updatePeriodSchedule } from '../controllers/settingsController.js';
+import { getPeriodSchedule, updatePeriodSchedule, getSystemSettings, updateSystemSettings } from '../controllers/settingsController.js';
 
 export const settingsRoutes = Router();
 settingsRoutes.use(requireAuth);
@@ -9,3 +9,7 @@ settingsRoutes.use(requireAuth);
 settingsRoutes.get('/period-schedule', getPeriodSchedule);
 // Only a superadmin can change them.
 settingsRoutes.put('/period-schedule', requireRole('superadmin'), updatePeriodSchedule);
+
+// System settings (e.g. attendance full-time toggle)
+settingsRoutes.get('/system', getSystemSettings);
+settingsRoutes.put('/system', requireRole('superadmin'), updateSystemSettings);
