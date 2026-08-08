@@ -103,7 +103,7 @@ export const forwardFeedback = asyncWrap(async (req, res) => {
   audit.record(req, {
     action: 'feedback.forward',
     entity: 'feedback',
-    entity_id: id,
+    entity_id: id as string,
     details: `Forwarded to staff ${staff_id}`
   });
 
@@ -129,7 +129,7 @@ export const deleteFeedback = asyncWrap(async (req, res) => {
   audit.record(req, {
     action: 'feedback.delete',
     entity: 'feedback',
-    entity_id: id,
+    entity_id: id as string,
   });
 
   return res.status(204).send();
@@ -219,7 +219,7 @@ export const postFeedbackMessage = asyncWrap(async (req, res) => {
     await pool.query('UPDATE feedbacks SET status = ?, staff_reply = ? WHERE id = ?', ['replied', message, id]);
   } else if (user?.role === 'superadmin') {
      senderType = 'superadmin';
-     senderId = user.id;
+     senderId = user.sub;
   } else {
     throw new HttpError(403, 'Unauthorized');
   }
@@ -232,7 +232,7 @@ export const postFeedbackMessage = asyncWrap(async (req, res) => {
   audit.record(req, {
     action: 'feedback.message',
     entity: 'feedback',
-    entity_id: id,
+    entity_id: id as string,
     details: `Sender: ${senderType}`
   });
 
